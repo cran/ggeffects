@@ -98,16 +98,22 @@
 #' @importFrom tibble has_name
 #' @importFrom ggplot2 ggplot aes_string geom_smooth facet_wrap labs guides geom_point geom_ribbon geom_errorbar scale_x_continuous position_dodge theme_minimal position_jitter scale_color_manual scale_fill_manual geom_line geom_jitter scale_y_continuous element_text theme element_line element_rect
 #' @importFrom stats binomial poisson gaussian Gamma inverse.gaussian quasi quasibinomial quasipoisson
-#' @importFrom sjmisc empty_cols
+#' @importFrom sjmisc empty_cols to_value
 #' @importFrom scales percent
+#' @importFrom dplyr n_distinct
 #' @export
 plot.ggeffects <- function(x, ci = TRUE, facets, rawdata = FALSE, colors = "Set1", alpha = .15, dodge = .1, ...) {
   # do we have groups and facets?
   has_groups <- tibble::has_name(x, "group") && length(unique(x$group)) > 1
   has_facets <- tibble::has_name(x, "facet") && length(unique(x$facet)) > 1
 
-  # do we have full data, or expanded grid?
+  # do we have full data (average effects), or expanded grid?
   has_full_data <- attr(x, "full.data", exact = TRUE) == "1"
+
+  # for ggalleffects, we don't have this attribute
+  if (sjmisc::is_empty(has_full_data)) has_full_data <- FALSE
+
+  # no CI for full data, because these are not computed
   if (has_full_data) ci <- FALSE
 
   # set default, if argument not specified
@@ -127,7 +133,9 @@ plot.ggeffects <- function(x, ci = TRUE, facets, rawdata = FALSE, colors = "Set1
 
 
   # set CI to false if we don't have SE and CI, or if we have full data
-  if ("conf.low" %in% names(sjmisc::empty_cols(x)) || has_full_data) ci <- FALSE
+  if ("conf.low" %in% names(sjmisc::empty_cols(x)) ||
+      has_full_data || !tibble::has_name(x, "conf.low"))
+    ci <- FALSE
 
 
   # base plot, set mappings
@@ -149,11 +157,18 @@ plot.ggeffects <- function(x, ci = TRUE, facets, rawdata = FALSE, colors = "Set1
   # and no smoothing across all x-values
   if (has_full_data) {
     # we need a smoother on our predictions, but loess for 1 degree
-    p <- p + ggplot2::geom_smooth(
-      method = "loess",
-      method.args = list(family = "symmetric", degree = 1),
-      se = FALSE
-    )
+    p <- p +
+      ggplot2::geom_smooth(
+        method = "loess",
+        method.args = list(family = "symmetric", degree = 1),
+        se = FALSE
+      ) +
+      # if we have full data, also plot data points
+      ggplot2::geom_point(
+        position = ggplot2::position_jitter(width = .1, height = .1),
+        alpha = alpha
+      )
+
   } else if (x_is_factor) {
     # for x as factor
     p <- p + ggplot2::geom_point(position = ggplot2::position_dodge(width = dodge))
@@ -162,10 +177,6 @@ plot.ggeffects <- function(x, ci = TRUE, facets, rawdata = FALSE, colors = "Set1
     p <- p + ggplot2::geom_line()
   }
 
-
-  # if we have full data, also plot data points
-  if (has_full_data)
-    p <- p + ggplot2::geom_point(position = ggplot2::position_jitter(width = .1, height = .1), alpha = alpha)
 
   # CI?
   if (ci) {
@@ -196,11 +207,11 @@ plot.ggeffects <- function(x, ci = TRUE, facets, rawdata = FALSE, colors = "Set1
   # facets?
   if (facets_grp) {
     # facet groups
-    p <- p + ggplot2::facet_wrap(~group)
+    p <- p + ggplot2::facet_wrap(~group, scales = "free_x")
     # remove legends
     p <- p + ggplot2::guides(colour = "none", linetype = "none")
   } else if (facets) {
-    p <- p + ggplot2::facet_wrap(~facet)
+    p <- p + ggplot2::facet_wrap(~facet, scales = "free_x")
   }
 
 
@@ -210,13 +221,38 @@ plot.ggeffects <- function(x, ci = TRUE, facets, rawdata = FALSE, colors = "Set1
     rawdat <- attr(x, "rawdata", exact = TRUE)
 
     if (!is.null(rawdat)) {
-      p <- p + ggplot2::geom_jitter(
-        data = rawdat,
-        mapping = ggplot2::aes_string(x = "x", y = "response"),
-        alpha = alpha,
-        show.legend = FALSE,
-        inherit.aes = FALSE
-      )
+      # make sure response is numeric
+      rawdat$response <- sjmisc::to_value(rawdat$response)
+
+      # check if we have a group-variable with at least two groups
+      if (tibble::has_name(rawdat, "group"))
+        grps <- dplyr::n_distinct(rawdat$group, na.rm = TRUE) > 1
+
+      # if we have groups, add colour aes, to map raw data to
+      # grouping variable
+      if (grps)
+        mp <- ggplot2::aes_string(x = "x", y = "response", colour = "group")
+      else
+        mp <- ggplot2::aes_string(x = "x", y = "response")
+
+      # for binary response, no jittering
+      if (attr(x, "logistic", exact = TRUE) == "1") {
+        p <- p + ggplot2::geom_point(
+          data = rawdat,
+          mapping = mp,
+          alpha = alpha,
+          show.legend = FALSE,
+          inherit.aes = FALSE
+        )
+      } else {
+        p <- p + ggplot2::geom_jitter(
+          data = rawdat,
+          mapping = mp,
+          alpha = alpha,
+          show.legend = FALSE,
+          inherit.aes = FALSE
+        )
+      }
     } else {
       message("Raw data not available.")
     }
@@ -265,3 +301,31 @@ plot.ggeffects <- function(x, ci = TRUE, facets, rawdata = FALSE, colors = "Set1
     )
 }
 
+
+#' @importFrom purrr map_df
+#' @export
+plot.ggalleffects <- function(x, ci = TRUE, rawdata = FALSE, colors = "Set1", alpha = .15, dodge = .1, ...) {
+
+  # merge all effect-data frames into one
+  dat <- get_complete_df(x)
+
+  rawdat <- suppressWarnings(
+    purrr::map_df(x, function(d) {
+      tmp <- attr(d, "rawdata")
+      tmp$group <- d$group[1]
+      tmp
+    })
+  )
+
+  # copy raw data
+  attr(dat, "rawdata") <- rawdat
+
+  # set various attributes
+  attr(dat, "x.is.factor") <- attr(x[[1]], "x.is.factor", exact = T)
+  attr(dat, "family") <- attr(x[[1]], "family", exact = T)
+  attr(dat, "link") <- attr(x[[1]], "link", exact = T)
+  attr(dat, "logistic") <- attr(x[[1]], "logistic", exact = T)
+  attr(dat, "fitfun") <- attr(x[[1]], "fitfun", exact = T)
+
+  plot.ggeffects(x = dat, ci = ci, facets = TRUE, rawdata = rawdata, colors = colors, alpha = alpha, dodge = dodge, ...)
+}

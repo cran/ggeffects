@@ -84,7 +84,6 @@ utils::globalVariables(c("observed", "predicted"))
 #'         \describe{
 #'           \item{\code{x}}{the values of the first term in \code{terms}, used as x-position in plots.}
 #'           \item{\code{predicted}}{the predicted values, used as y-position in plots.}
-#'           \item{\code{std.error}}{the standard error for the predicted values.}
 #'           \item{\code{conf.low}}{the lower bound of the confidence interval for the predicted values.}
 #'           \item{\code{conf.high}}{the upper bound of the confidence interval for the predicted values.}
 #'           \item{\code{observed}}{if \code{full.data = TRUE}, this columns contains the observed values (the response vector).}
@@ -191,7 +190,6 @@ utils::globalVariables(c("observed", "predicted"))
 #'
 #' @importFrom stats predict predict.glm na.omit model.frame
 #' @importFrom dplyr "%>%" select mutate case_when arrange_ n_distinct
-#' @importFrom merTools predictInterval
 #' @importFrom sjmisc to_value to_factor to_label get_labels get_label set_labels is_num_fac remove_empty_cols
 #' @importFrom tibble has_name as_tibble
 #' @importFrom purrr map
@@ -218,13 +216,13 @@ ggpredict_helper <- function(model, terms, ci.lvl, type, full.data, typical, ...
   terms <- check_vars(terms)
 
   # check model family, do we have count model?
-  faminfo <- get_glm_family(model, fun)
+  faminfo <- get_glm_family(model)
 
   # create logical for family
   binom_fam <- faminfo$is_bin
   poisson_fam <- faminfo$is_pois
 
-  # get predicted values for response
+  # get model frame
   fitfram <- get_model_frame(model, fe.only = FALSE)
 
 
@@ -263,7 +261,7 @@ ggpredict_helper <- function(model, terms, ci.lvl, type, full.data, typical, ...
   # the predictions and the originial response vector (needed for scatter plot)
   mydf <-
     dplyr::select(fitfram, match(
-      c(terms, "predicted", "std.error", "conf.low", "conf.high"),
+      c(terms, "predicted", "conf.low", "conf.high"),
       colnames(fitfram)
     ))
 
@@ -288,11 +286,11 @@ ggpredict_helper <- function(model, terms, ci.lvl, type, full.data, typical, ...
     if (length(terms) == 2) {
       colnames(mydf)[1:2] <- c("x", "group")
       # reorder columns
-      mydf <- mydf[, c(1, 3:8, 2)]
+      mydf <- mydf[, c(1, 3:7, 2)]
     } else {
       colnames(mydf)[1:3] <- c("x", "group", "facet")
       # reorder columns
-      mydf <- mydf[, c(1, 4:9, 2:3)]
+      mydf <- mydf[, c(1, 4:8, 2:3)]
     }
 
     # if we have no full data, grouping variable may not be labelled

@@ -21,7 +21,6 @@ utils::globalVariables("x")
 #'         \describe{
 #'           \item{\code{x}}{the values of the model predictor to which the effect pertains, used as x-position in plots.}
 #'           \item{\code{predicted}}{the predicted values, used as y-position in plots.}
-#'           \item{\code{std.error}}{the standard error for the predicted values.}
 #'           \item{\code{conf.low}}{the lower bound of the confidence interval for the predicted values.}
 #'           \item{\code{conf.high}}{the upper bound of the confidence interval for the predicted values.}
 #'         }
@@ -67,7 +66,7 @@ ggalleffects_helper <- function(model, terms, ci.lvl, ...) {
   fitfram <- get_model_frame(model)
 
   # get model family
-  faminfo <- get_glm_family(model, fun)
+  faminfo <- get_glm_family(model)
 
   # create logical for family
   poisson_fam <- faminfo$is_pois
@@ -156,7 +155,7 @@ ggalleffects_helper <- function(model, terms, ci.lvl, ...) {
   # create levels for all terms of interest
   for (t in all.terms) {
     # get unique values
-    dummy <- list(x = sort(unique(stats::na.omit(fitfram[, t]))))
+    dummy <- list(x = sort(unique(stats::na.omit(fitfram[[t]]))))
     # name list, needed for effect-function
     names(dummy) <- t
     # create list for "xlevels" argument of allEffects fucntion
@@ -194,7 +193,6 @@ ggalleffects_helper <- function(model, terms, ci.lvl, ...) {
           data.frame(
             x = eff[[i]]$x[[t]],
             y = eff[[i]]$transformation$inverse(eta = eff[[i]]$fit),
-            se = eff[[i]]$transformation$inverse(eta = eff[[i]]$se),
             lower = eff[[i]]$transformation$inverse(eta = eff[[i]]$lower),
             upper = eff[[i]]$transformation$inverse(eta = eff[[i]]$upper),
             grp = t
@@ -204,7 +202,6 @@ ggalleffects_helper <- function(model, terms, ci.lvl, ...) {
           data.frame(
             x = eff[[i]]$x[[t]],
             y = eff[[i]]$fit,
-            se = eff[[i]]$se,
             lower = eff[[i]]$lower,
             upper = eff[[i]]$upper,
             grp = t
@@ -267,12 +264,12 @@ ggalleffects_helper <- function(model, terms, ci.lvl, ...) {
           legend.labels = NULL,
           x.axis.labels = tmp_lab,
           faminfo = faminfo,
-          x.is.factor = ifelse(is.factor(fitfram[[t]]), "1", "0"),
+          x.is.factor = ifelse(is.factor(mydf$x) | x_is_factor, "1", "0"),
           full.data = "0"
         )
 
       # set consistent column names
-      colnames(mydf) <- c("x", "predicted", "std.error", "conf.low", "conf.high", "group")
+      colnames(mydf) <- c("x", "predicted", "conf.low", "conf.high", "group")
 
       mydat[[length(mydat) + 1]] <- mydf
     } else {
@@ -282,7 +279,7 @@ ggalleffects_helper <- function(model, terms, ci.lvl, ...) {
 
   # check if we have only moderation and no single higher order terms
   if (sjmisc::is_empty(mydat)) {
-    warning("Model has no higher order terms (except for possible interaction terms). There are no effects that can be plotted. Consider using `sjp.int` if model has interaction terms.", call. = F)
+    warning("Model has no higher order terms (except for possible interaction terms). There are no effects that can be plotted. Consider using `gginteraction()` if model has interaction terms.", call. = F)
     return(NULL)
   }
 
@@ -294,5 +291,7 @@ ggalleffects_helper <- function(model, terms, ci.lvl, ...) {
   # name elements
   names(mydat) <- valid.names
 
+  # class attribute, for plot method
+  class(mydat) <- c("ggalleffects", class(mydat))
   mydat
 }

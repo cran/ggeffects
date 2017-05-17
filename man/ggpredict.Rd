@@ -66,7 +66,6 @@ A tibble (with \code{ggeffects} class attribute) with consistent data columns:
         \describe{
           \item{\code{x}}{the values of the first term in \code{terms}, used as x-position in plots.}
           \item{\code{predicted}}{the predicted values, used as y-position in plots.}
-          \item{\code{std.error}}{the standard error for the predicted values.}
           \item{\code{conf.low}}{the lower bound of the confidence interval for the predicted values.}
           \item{\code{conf.high}}{the upper bound of the confidence interval for the predicted values.}
           \item{\code{observed}}{if \code{full.data = TRUE}, this columns contains the observed values (the response vector).}

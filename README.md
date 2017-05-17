@@ -1,4 +1,4 @@
-# ggeffects - Create Tidy Data Frames of Marginal Effects for 'ggplot' from Model Outputs
+# ggeffects - Create Tidy Data Frames of Marginal Effects for 'ggplot' from Model Outputs <img src="man/figures/logo.png" align="right" />
 
 This package computes marginal effects at the mean or average marginal effects from statistical models and returns the result as tidy data frames. These data frames are ready to use with the _ggplot2_-package. Marginal effects can be calculated for many different models. Currently supported model-objects are: `lm`, `glm`, `lme`, `lmer`, `glmer`, `glmer.nb`, `nlmer`, `glmTMB`, `gam`, `vgam`, `gamm`, `gamm4`, `gls`, `gee`, `plm`, `lrm`, `svyglm` and `svyglm.nb`. Other models not listed here are passed to a generic predict-function and might work as well, or maybe with `ggeffect()`, which effectively does the same as `ggpredict()`.
 
@@ -16,18 +16,18 @@ fit <- lm(barthtot ~ c12hour + neg_c_7 + c161sex + c172code, data = efc)
 
 ggpredict(fit, terms = "c12hour")
 #> # A tibble: 62 × 6
-#>        x predicted std.error conf.low conf.high  group
-#>    <dbl>     <dbl>     <dbl>    <dbl>     <dbl> <fctr>
-#> 1      4  74.43040 1.0712776 72.33073  76.53006      1
-#> 2      5  74.17710 1.0606221 72.09831  76.25588      1
-#> 3      6  73.92379 1.0501453 71.86555  75.98204      1
-#> 4      7  73.67049 1.0398528 71.63242  75.70857      1
-#> 5      8  73.41719 1.0297500 71.39892  75.43546      1
-#> 6      9  73.16389 1.0198425 71.16504  75.16275      1
-#> 7     10  72.91059 1.0101362 70.93076  74.89042      1
-#> 8     11  72.65729 1.0006369 70.69608  74.61850      1
-#> 9     12  72.40399 0.9913504 70.46098  74.34700      1
-#> 10    14  71.89738 0.9734405 69.98948  73.80529      1
+#>        x predicted conf.low conf.high  group
+#>    <dbl>     <dbl>    <dbl>     <dbl> <fctr>
+#> 1      4  74.43040 72.33073  76.53006      1
+#> 2      5  74.17710 72.09831  76.25588      1
+#> 3      6  73.92379 71.86555  75.98204      1
+#> 4      7  73.67049 71.63242  75.70857      1
+#> 5      8  73.41719 71.39892  75.43546      1
+#> 6      9  73.16389 71.16504  75.16275      1
+#> 7     10  72.91059 70.93076  74.89042      1
+#> 8     11  72.65729 70.69608  74.61850      1
+#> 9     12  72.40399 70.46098  74.34700      1
+#> 10    14  71.89738 69.98948  73.80529      1
 #> # ... with 52 more rows
 ```
 
@@ -55,18 +55,18 @@ With three variables, predictions can be grouped and faceted.
 ```
 ggpredict(fit, terms = c("c12hour", "c172code", "c161sex"))
 #> # A tibble: 372 × 7
-#>        x predicted std.error conf.low conf.high                           group      facet
-#>    <dbl>     <dbl>     <dbl>    <dbl>     <dbl>                          <fctr>     <fctr>
-#> 1      4  74.70073  1.183905 72.38031  77.02114 intermediate level of education [2] Female
-#> 2      4  73.98237  1.798636 70.45711  77.50763          low level of education [2] Female
-#> 3      4  75.41908  1.786572 71.91747  78.92070         high level of education [2] Female
-#> 4      4  73.65930  1.821989 70.08827  77.23033 intermediate level of education   [1] Male
-#> 5      4  72.94094  2.324301 68.38540  77.49649          low level of education   [1] Male
-#> 6      4  74.37766  2.204672 70.05658  78.69874         high level of education   [1] Male
-#> 7      5  74.44742  1.173991 72.14644  76.74841 intermediate level of education [2] Female
-#> 8      5  73.72907  1.790753 70.21926  77.23888          low level of education [2] Female
-#> 9      5  75.16578  1.781399 71.67430  78.65726         high level of education [2] Female
-#> 10     5  73.40600  1.816488 69.84575  76.96625 intermediate level of education   [1] Male
+#>        x predicted  conf.low conf.high                           group      facet
+#>    <dbl>     <dbl>     <dbl>     <dbl>                          <fctr>     <fctr>
+#> 1      4  74.70073  72.38031  77.02114 intermediate level of education [2] Female
+#> 2      4  73.98237  70.45711  77.50763          low level of education [2] Female
+#> 3      4  75.41908  71.91747  78.92070         high level of education [2] Female
+#> 4      4  73.65930  70.08827  77.23033 intermediate level of education   [1] Male
+#> 5      4  72.94094  68.38540  77.49649          low level of education   [1] Male
+#> 6      4  74.37766  70.05658  78.69874         high level of education   [1] Male
+#> 7      5  74.44742  72.14644  76.74841 intermediate level of education [2] Female
+#> 8      5  73.72907  70.21926  77.23888          low level of education [2] Female
+#> 9      5  75.16578  71.67430  78.65726         high level of education [2] Female
+#> 10     5  73.40600  69.84575  76.96625 intermediate level of education   [1] Male
 #> # ... with 362 more rows
 
 mydf <- ggpredict(fit, terms = c("c12hour", "c172code", "c161sex"))
@@ -95,7 +95,6 @@ When the model object _does not_ support one of `predict()`, `model.frame()` or 
 * if the model does _not_ have a `model.frame()`-function with standard arguments or return values, a workaround has to be added to `get_model_frame()` in the file *utils_model_frame.R*.
 * if the model does _not_ have a `predict()`-function, a workaround has to be added to `get_predictions_<class>()` in the file *predictions.R*.
 
-
 ## Installation
 
 ### Latest development build
@@ -107,9 +106,21 @@ library(devtools)
 devtools::install_github("strengejacke/ggeffects")
 ```
 
-Please note that the latest development snapshot most likely depends on the latest builds of the [sjmisc-package](https://github.com/strengejacke/sjmisc) and [sjstats-package](https://github.com/strengejacke/sjstats), so you probably want to install these as well:
+
+### Officiale, stable release
+
+[![CRAN_Status_Badge](http://www.r-pkg.org/badges/version/ggeffects)](https://cran.r-project.org/package=ggeffects)
+&#160;&#160;
+[![downloads](http://cranlogs.r-pkg.org/badges/ggeffects)](http://cranlogs.r-pkg.org/)
+&#160;&#160;
+[![total](http://cranlogs.r-pkg.org/badges/grand-total/ggeffects)](http://cranlogs.r-pkg.org/)
+
+To install the latest stable release from CRAN, type following command into the R console:
 
 ```r
-devtools::install_github("strengejacke/sjmisc")
-devtools::install_github("strengejacke/sjstats")
+install.packages("ggeffects")
 ```
+
+## Citation
+
+In case you want / have to cite my package, please use `citation('ggeffects')` for citation information. 

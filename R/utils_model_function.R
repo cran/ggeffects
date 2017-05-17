@@ -9,6 +9,7 @@ get_model_function <- function(model) {
     inherits(model, "negbin") ~ "glm",
     inherits(model, "gam") ~ "glm",
     inherits(model, "vgam") ~ "glm",
+    inherits(model, "vglm") ~ "glm",
     inherits(model, "glm") ~ "glm",
     inherits(model, "gls") ~ "lm",
     inherits(model, "gee") ~ "lm",
@@ -40,6 +41,7 @@ get_predict_function <- function(model) {
     inherits(model, "plm") ~ "plm",
     inherits(model, "negbin") ~ "glm.nb",
     inherits(model, "vgam") ~ "vgam",
+    inherits(model, "vglm") ~ "vglm",
     inherits(model, "glm") ~ "glm",
     inherits(model, "lm") ~ "lm",
     TRUE ~ "generic"

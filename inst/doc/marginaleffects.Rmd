@@ -43,7 +43,6 @@ library(ggplot2)
 theme_set(theme_bw())
 
 mydf <- ggpredict(fit, terms = "c12hour")
-
 ggplot(mydf, aes(x, predicted)) + geom_line()
 ```
 
@@ -59,7 +58,6 @@ Creating a ggplot is pretty straightforward: the colour-aesthetics is mapped wit
 
 ```{r}
 mydf <- ggpredict(fit, terms = c("c12hour", "c172code"))
-
 ggplot(mydf, aes(x, predicted, colour = group)) + geom_line()
 ```
 
@@ -75,11 +73,10 @@ ggplot(mydf, aes(x, predicted, colour = group)) +
 
 # Average marginal effects
 
-`ggaverage()` compute average marginal effects. While `ggpredict()` creates a data-grid (using `expand.grid()`) for all possible combinations of values (even if some combinations are not presend in the data), `ggaverage()` computes predicted values based on the given data. This means that _different_ predicted values for the outcome may occure at the _same_ value or level for the term in question. The predicted values are then averaged for each value of the term in question and the linear trend is smoothed accross the averaged predicted values. This means that the line representing the marginal effects may cross or diverge, and are not necessarily in paralell to each other.
+`ggaverage()` compute average marginal effects. While `ggpredict()` creates a data-grid (using `expand.grid()`) for all possible combinations of values (even if some combinations are not present in the data), `ggaverage()` computes predicted values based on the given data. This means that _different_ predicted values for the outcome may occure at the _same_ value or level for the term in question. The predicted values are then averaged for each value of the term in question and the linear trend is smoothed accross the averaged predicted values. This means that the line representing the marginal effects may cross or diverge, and are not necessarily in paralell to each other.
 
 ```{r}
 mydf <- ggaverage(fit, terms = c("c12hour", "c172code"))
-
 ggplot(mydf, aes(x, predicted, colour = group)) + geom_line()
 ```
 
@@ -109,7 +106,6 @@ fit <- lm(neg_c_7 ~ c12hour + barthtot * c161sex, data = efc)
 
 # select only levels 30, 50 and 70 from continuous variable Barthel-Index
 mydf <- ggpredict(fit, terms = c("barthtot [30,50,70]", "c161sex"))
-
 ggplot(mydf, aes(x, predicted, colour = group)) + geom_line()
 ```
 
@@ -158,7 +154,7 @@ ggplot(mydf, aes(x, predicted, colour = group)) +
 
 # plot()-method
 
-If you don't want to write your own ggplot-code, **ggeffects** has a `plot()`-method with some convenient defaults, which allows quickly creating ggplot-objects. `plot()` has only a few arguments to keep this function small and simple. For instance, `ci` allows you to show or hide confidence bands (or error bars, for discrete variables), `facets` allows you to create facets even for just one grouping variable, or `colors` allows you to quickly choose from some color-palettes, including black & white colored plots.
+If you don't want to write your own ggplot-code, **ggeffects** has a `plot()`-method with some convenient defaults, which allows quickly creating ggplot-objects. `plot()` has only a few arguments to keep this function small and simple. For instance, `ci` allows you to show or hide confidence bands (or error bars, for discrete variables), `facets` allows you to create facets even for just one grouping variable, or `colors` allows you to quickly choose from some color-palettes, including black & white colored plots. Use `rawdata` to add the raw data points to the plot.
 
 ```{r}
 data(efc)
@@ -168,14 +164,14 @@ fit <- lm(barthtot ~ c12hour + neg_c_7 + c161sex + c172code, data = efc)
 # facet by group
 dat <- ggpredict(fit, terms = c("c12hour", "c172code"))
 plot(dat, facet = TRUE)
-
 # don't use facets, b/w figure, w/o confidence bands
 plot(dat, colors = "bw", ci = FALSE)
-
+# plot raw data
+dat <- ggpredict(fit, terms = c("c12hour", "c172code"))
+plot(dat, rawdata = TRUE)
 # for three variables, automatic facetting
 dat <- ggpredict(fit, terms = c("c12hour", "c172code", "c161sex"))
 plot(dat)
-
 # categorical variables have errorbars
 dat <- ggpredict(fit, terms = c("c172code", "c161sex"))
 plot(dat)

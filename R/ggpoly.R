@@ -15,7 +15,6 @@
 #'         \describe{
 #'           \item{\code{x}}{the values of the first term in \code{terms}, used as x-position in plots.}
 #'           \item{\code{predicted}}{the predicted values, used as y-position in plots.}
-#'           \item{\code{std.error}}{the standard error for the predicted values.}
 #'           \item{\code{conf.low}}{the lower bound of the confidence interval for the predicted values.}
 #'           \item{\code{conf.high}}{the upper bound of the confidence interval for the predicted values.}
 #'           \item{\code{group}}{the grouping level from the second term in \code{terms}, used as grouping-aesthetics in plots.}
@@ -59,7 +58,7 @@ ggpoly_helper <- function(model, poly.term, ci.lvl, ...) {
   fun <- get_model_function(model)
 
   # check model family, do we have count model?
-  faminfo <- get_glm_family(model, fun)
+  faminfo <- get_glm_family(model)
 
   # get model data column names
   cn <- colnames(mf)
@@ -122,7 +121,6 @@ ggpoly_helper <- function(model, poly.term, ci.lvl, ...) {
     data.frame(
       x = eff$x[[poly.term]],
       predicted = eff$transformation$inverse(eta = eff$fit),
-      std.error = eff$se,
       conf.low = eff$transformation$inverse(eta = eff$lower),
       conf.high = eff$transformation$inverse(eta = eff$upper),
       group = as.factor(1)

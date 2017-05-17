@@ -30,7 +30,6 @@ utils::globalVariables("x")
 #'         \describe{
 #'           \item{\code{x}}{the values of the model predictor to which the effect pertains, used as x-position in plots.}
 #'           \item{\code{predicted}}{the predicted values, used as y-position in plots.}
-#'           \item{\code{std.error}}{the standard error for the predicted values.}
 #'           \item{\code{conf.low}}{the lower bound of the confidence interval for the predicted values.}
 #'           \item{\code{conf.high}}{the upper bound of the confidence interval for the predicted values.}
 #'           \item{\code{group}}{the name of \code{x}, used as grouping-aesthetics in plots.}
@@ -93,7 +92,7 @@ gginteraction_helper <- function(model, mdrt.values, swap.pred, ci.lvl, ...) {
   fitfram <- get_model_frame(model)
 
   # get model family
-  faminfo <- get_glm_family(model, fun)
+  faminfo <- get_glm_family(model)
 
   # create logical for family
   poisson_fam <- faminfo$is_pois
@@ -239,9 +238,9 @@ gginteraction_helper <- function(model, mdrt.values, swap.pred, ci.lvl, ...) {
 
   # change column names
   if (swap.pred) {
-    colnames(intdf) <- c("x", "group", "predicted", "std.error", "conf.low", "conf.high")
+    colnames(intdf) <- c("x", "group", "predicted", "conf.low", "conf.high")
   } else {
-    colnames(intdf) <- c("group", "x", "predicted", "std.error", "conf.low", "conf.high")
+    colnames(intdf) <- c("group", "x", "predicted", "conf.low", "conf.high")
   }
 
 
@@ -267,7 +266,7 @@ gginteraction_helper <- function(model, mdrt.values, swap.pred, ci.lvl, ...) {
 
   # sort columns
   intdf <-
-    intdf[, match(c("x", "predicted", "std.error", "conf.low", "conf.high", "group"),
+    intdf[, match(c("x", "predicted", "conf.low", "conf.high", "group"),
                   colnames(intdf))]
 
   # set attributes with necessary information

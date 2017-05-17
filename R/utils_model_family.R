@@ -1,16 +1,24 @@
 #' @importFrom sjmisc str_contains
 #' @importFrom stats family
-get_glm_family <- function(fit, fun) {
+get_glm_family <- function(fit) {
+  # get model class
+  mc <- get_predict_function(fit)
+
   # do we have glm? if so, get link family. make exceptions
   # for specific models that don't have family function
-  if (any(fun %in% c("lme", "plm", "gls"))) {
+  if (any(mc %in% c("lme", "plm", "gls"))) {
     fitfam <- "gaussian"
     logit_link <- FALSE
     link.fun <- "identity"
+  } else if (any(mc %in% c("vgam", "vglm"))) {
+    faminfo <- fit@family
+    fitfam <- faminfo@vfamily
+    logit_link <- sjmisc::str_contains(faminfo@blurb, "logit")
+    link.fun <- faminfo@blurb[3]
   } else {
     # "lrm"-object from pkg "rms" have no family method
     # so we construct a logistic-regression-family-object
-    if (fun == "lrm")
+    if (mc == "lrm")
       faminfo <- stats::binomial(link = "logit")
     else
       # get family info
@@ -22,7 +30,7 @@ get_glm_family <- function(fit, fun) {
   }
 
   # create logical for family
-  binom_fam <- fitfam %in% c("binomial", "quasibinomial")
+  binom_fam <- fitfam %in% c("binomial", "quasibinomial", "binomialff")
   poisson_fam <- fitfam %in% c("poisson", "quasipoisson")
   neg_bin_fam <- sjmisc::str_contains(fitfam, "negative binomial", ignore.case = T)
 

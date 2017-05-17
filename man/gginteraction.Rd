@@ -37,7 +37,6 @@ A tibble (with \code{ggeffects} class attribute) with consistent data columns:
         \describe{
           \item{\code{x}}{the values of the model predictor to which the effect pertains, used as x-position in plots.}
           \item{\code{predicted}}{the predicted values, used as y-position in plots.}
-          \item{\code{std.error}}{the standard error for the predicted values.}
           \item{\code{conf.low}}{the lower bound of the confidence interval for the predicted values.}
           \item{\code{conf.high}}{the upper bound of the confidence interval for the predicted values.}
           \item{\code{group}}{the name of \code{x}, used as grouping-aesthetics in plots.}

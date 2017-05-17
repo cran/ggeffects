@@ -2,7 +2,7 @@
 #' @importFrom sjstats pred_vars
 #' @importFrom sjmisc to_value to_factor
 #' @importFrom stats terms
-#' @importFrom purrr map
+#' @importFrom purrr map map_lgl
 get_expanded_data <- function(model, mf, terms, typ.fun) {
   # use tibble, no drop = FALSE
   mf <- tibble::as_tibble(mf)
@@ -24,6 +24,14 @@ get_expanded_data <- function(model, mf, terms, typ.fun) {
 
   # get count of terms, and number of columns
   term.cnt <- length(alle)
+
+
+  # remove NA from values, so we don't have expanded data grid
+  # with missing values. this causes an error with predict()
+  if (any(purrr::map_lgl(first, ~ anyNA(.x)))) {
+    first <- map(first, ~ as.vector(na.omit(.x)))
+  }
+
 
   # names of predictor variables may vary, e.g. if log(x)
   # or poly(x) etc. is used. so check if we have correct

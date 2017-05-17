@@ -30,7 +30,9 @@ for \code{get_complete_df()}, must be a list of \code{ggeffects}-objects.}
 }
 \value{
 The titles or labels as character string, or \code{NULL}, if variables
-        had no labels.
+        had no labels; \code{get_complete_df()} returns the input list \code{x}
+        as single data frame, where the grouping variable indicates the
+        marginal effects for each term.
 }
 \description{
 Get variable and value labels from \code{ggeffects}-objects. Functions

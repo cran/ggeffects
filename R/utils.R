@@ -69,6 +69,9 @@ check_vars <- function(terms) {
 #' @importFrom sjstats resp_val
 #' @importFrom sjmisc to_value
 get_raw_data <- function(model, mf, terms) {
+  # remove missings from model frame
+  mf <- na.omit(mf)
+
   # get response and x-value
   response <- sjstats::resp_val(model)
   x <- sjmisc::to_value(mf[[terms[1]]])

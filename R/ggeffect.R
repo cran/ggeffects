@@ -17,7 +17,6 @@ utils::globalVariables(c("x", "y", "se", "lower", "upper", "group", "facet"))
 #'         \describe{
 #'           \item{\code{x}}{the values of the model predictor to which the effect pertains, used as x-position in plots.}
 #'           \item{\code{predicted}}{the predicted values, used as y-position in plots.}
-#'           \item{\code{std.error}}{the standard error for the predicted values.}
 #'           \item{\code{conf.low}}{the lower bound of the confidence interval for the predicted values.}
 #'           \item{\code{conf.high}}{the upper bound of the confidence interval for the predicted values.}
 #'           \item{\code{group}}{the grouping level from the second term in \code{terms}, used as grouping-aesthetics in plots.}
@@ -64,7 +63,7 @@ ggeffect_helper <- function(model, terms, ci.lvl, ...) {
   fitfram <- get_model_frame(model)
 
   # get model family
-  faminfo <- get_glm_family(model, fun)
+  faminfo <- get_glm_family(model)
 
   # create logical for family
   poisson_fam <- faminfo$is_pois
@@ -116,7 +115,6 @@ ggeffect_helper <- function(model, terms, ci.lvl, ...) {
     data.frame(
       x = eff$x[[terms[1]]],
       y = eff$fit,
-      se = eff$se,
       lower = eff$lower,
       upper = eff$upper
     )
@@ -125,7 +123,6 @@ ggeffect_helper <- function(model, terms, ci.lvl, ...) {
     tmp <- dplyr::mutate(
       tmp,
       y = eff$transformation$inverse(eta = y),
-      se = eff$transformation$inverse(eta = se),
       lower = eff$transformation$inverse(eta = lower),
       upper = eff$transformation$inverse(eta = upper)
     )
@@ -133,7 +130,7 @@ ggeffect_helper <- function(model, terms, ci.lvl, ...) {
 
 
   # define column names
-  cnames <- c("x", "predicted", "std.error", "conf.low", "conf.high", "group")
+  cnames <- c("x", "predicted", "conf.low", "conf.high", "group")
 
   # init legend labels
   legend.labels <- NULL
