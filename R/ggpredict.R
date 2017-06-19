@@ -190,7 +190,7 @@ utils::globalVariables(c("observed", "predicted"))
 #'
 #' @importFrom stats predict predict.glm na.omit model.frame
 #' @importFrom dplyr "%>%" select mutate case_when arrange_ n_distinct
-#' @importFrom sjmisc to_value to_factor to_label get_labels get_label set_labels is_num_fac remove_empty_cols
+#' @importFrom sjmisc to_value to_factor to_label is_num_fac remove_empty_cols
 #' @importFrom tibble has_name as_tibble
 #' @importFrom purrr map
 #' @export
@@ -301,7 +301,7 @@ ggpredict_helper <- function(model, terms, ci.lvl, type, full.data, typical, ...
     mydf <- groupvar_to_label(mydf)
 
     # check if we have legend labels
-    legend.labels <- sjmisc::get_labels(mydf$group)
+    legend.labels <- sjlabelled::get_labels(mydf$group)
   }
 
   # if we had numeric variable w/o labels, these still might be numeric
@@ -317,7 +317,10 @@ ggpredict_helper <- function(model, terms, ci.lvl, type, full.data, typical, ...
   mydf$x <- sjmisc::to_value(mydf$x)
 
   # to tibble
-  mydf <- sjmisc::remove_empty_cols(dplyr::arrange_(tibble::as_tibble(mydf), "x"))
+  mydf <- mydf %>%
+    tibble::as_tibble() %>%
+    dplyr::arrange_("x", "group") %>%
+    sjmisc::remove_empty_cols()
 
   # add raw data as well
   attr(mydf, "rawdata") <- get_raw_data(model, ori.mf, terms)

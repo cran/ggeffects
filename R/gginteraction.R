@@ -71,7 +71,7 @@ utils::globalVariables("x")
 #' dat <- gginteraction(fit, mdrt.values = "meansd", swap.pred = TRUE)
 #' ggplot(dat, aes(x, predicted, colour = group)) + geom_line()
 #'
-#' @importFrom sjmisc is_empty trim get_label get_labels is_num_fac to_value
+#' @importFrom sjmisc is_empty trim is_num_fac to_value
 #' @importFrom stats formula na.omit model.frame quantile terms sd
 #' @importFrom sjstats resp_var
 #' @importFrom dplyr case_when
@@ -262,7 +262,7 @@ gginteraction_helper <- function(model, mdrt.values, swap.pred, ci.lvl, ...) {
   intdf <- groupvar_to_label(intdf)
 
   # check if we have legend labels
-  legend.labels <- sjmisc::get_labels(intdf$group, attr.only = FALSE, drop.unused = TRUE)
+  legend.labels <- sjlabelled::get_labels(intdf$group, attr.only = FALSE, drop.unused = TRUE)
 
   # sort columns
   intdf <-

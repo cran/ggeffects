@@ -2,8 +2,9 @@
 # variables come from labelled data
 #' @importFrom dplyr n_distinct
 #' @importFrom sjmisc recode_to
+#' @importFrom sjlabelled set_labels
 add_groupvar_labels <- function(mydf, ori.mf, terms) {
-  grp.lbl <- sjmisc::get_labels(
+  grp.lbl <- sjlabelled::get_labels(
     ori.mf[[terms[2]]],
     include.non.labelled = TRUE,
     include.values = "n",
@@ -26,11 +27,11 @@ add_groupvar_labels <- function(mydf, ori.mf, terms) {
     values <- as.numeric(as.vector(unique(stats::na.omit(mydf$group))))
     if (min(values) < 1) values <- sjmisc::recode_to(values, lowest = 1)
     grp.lbl <- grp.lbl[values]
-    mydf$group <- sjmisc::set_labels(mydf$group, labels = grp.lbl)
+    mydf$group <- sjlabelled::set_labels(mydf$group, labels = grp.lbl)
   }
 
   if (tibble::has_name(mydf, "facet")) {
-    facet.lbl <- sjmisc::get_labels(
+    facet.lbl <- sjlabelled::get_labels(
       ori.mf[[terms[3]]],
       include.non.labelled = TRUE,
       include.values = "n",
@@ -53,7 +54,7 @@ add_groupvar_labels <- function(mydf, ori.mf, terms) {
       values <- as.numeric(as.vector(unique(stats::na.omit(mydf$facet))))
       if (min(values) < 1) values <- sjmisc::recode_to(values, lowest = 1)
       facet.lbl <- facet.lbl[values]
-      mydf$facet <- sjmisc::set_labels(mydf$facet, labels = facet.lbl)
+      mydf$facet <- sjlabelled::set_labels(mydf$facet, labels = facet.lbl)
     }
   }
 
@@ -119,7 +120,7 @@ get_all_labels <- function(fitfram, terms, fun, binom_fam, poisson_fam, no.trans
     # set y-axis-title
     t.title <-
       paste(sprintf("Predicted %s for", ysc),
-            sjmisc::get_label(fitfram[[1]], def.value = resp.col))
+            sjlabelled::get_label(fitfram[[1]], def.value = resp.col))
 
   } else {
     t.title <- "Predicted values"
@@ -127,15 +128,15 @@ get_all_labels <- function(fitfram, terms, fun, binom_fam, poisson_fam, no.trans
 
 
   # axis titles
-  x.title <- sjmisc::get_label(fitfram[[terms[1]]], def.value = terms[1])
-  y.title <- sjmisc::get_label(fitfram[[1]], def.value = resp.col)
+  x.title <- sjlabelled::get_label(fitfram[[terms[1]]], def.value = terms[1])
+  y.title <- sjlabelled::get_label(fitfram[[1]], def.value = resp.col)
 
   # legend title
-  l.title <- sjmisc::get_label(fitfram[[terms[2]]], def.value = terms[2])
+  l.title <- sjlabelled::get_label(fitfram[[terms[2]]], def.value = terms[2])
 
   # check if we have a categorical variable with value
   # labels at the x-axis.
-  axis.labels <- sjmisc::get_labels(
+  axis.labels <- sjlabelled::get_labels(
     fitfram[[terms[1]]],
     include.non.labelled = TRUE,
     drop.unused = TRUE

@@ -40,7 +40,7 @@ utils::globalVariables(c("x", "y", "se", "lower", "upper", "group", "facet"))
 #' @importFrom sjstats pred_vars resp_var
 #' @importFrom dplyr if_else case_when bind_rows filter mutate
 #' @importFrom tibble as_tibble
-#' @importFrom sjmisc is_empty get_label str_contains to_label
+#' @importFrom sjmisc is_empty str_contains to_label
 #' @importFrom stats na.omit
 #' @importFrom effects Effect
 #' @export
@@ -177,7 +177,7 @@ ggeffect_helper <- function(model, terms, ci.lvl, ...) {
     tmp <- groupvar_to_label(tmp)
 
     # check if we have legend labels
-    legend.labels <- sjmisc::get_labels(tmp$group, attr.only = FALSE, drop.unused = TRUE)
+    legend.labels <- sjlabelled::get_labels(tmp$group, attr.only = FALSE, drop.unused = TRUE)
   }
 
 

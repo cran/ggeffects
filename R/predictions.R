@@ -13,9 +13,6 @@ select_prediction_method <- function(fun, model, expanded_frame, ci.lvl, type, b
   } else if (fun == "lrm") {
     # lrm-objects -----
     fitfram <- get_predictions_lrm(model, expanded_frame, ci.lvl, linv, ...)
-  } else if (fun %in% c("glm", "glm.nb")) {
-    # glm-objects -----
-    fitfram <- get_predictions_glm(model, expanded_frame, ci.lvl, linv, ...)
   } else if (fun == "glmmTMB") {
     # glmTMB-objects -----
     fitfram <- get_predictions_glmmTMB(model, expanded_frame, ci.lvl, linv, ...)
@@ -28,15 +25,18 @@ select_prediction_method <- function(fun, model, expanded_frame, ci.lvl, type, b
   } else if (fun == "vgam") {
     # gam-objects -----
     fitfram <- get_predictions_vgam(model, expanded_frame, ci.lvl, linv, ...)
-  } else if (fun == "lm") {
-    # lm-objects -----
-    fitfram <- get_predictions_lm(model, expanded_frame, ci.lvl, linv, ...)
   } else if (fun %in% c("lme", "gls", "plm")) {
     # lme-objects -----
     fitfram <- get_predictions_lme(model, expanded_frame, ci.lvl, linv, ...)
   } else if (fun == "gee") {
     # gee-objects -----
     fitfram <- get_predictions_gee(model, expanded_frame, linv, ...)
+  } else if (fun %in% c("glm", "glm.nb")) {
+    # glm-objects -----
+    fitfram <- get_predictions_glm(model, expanded_frame, ci.lvl, linv, ...)
+  } else if (fun == "lm") {
+    # lm-objects -----
+    fitfram <- get_predictions_lm(model, expanded_frame, ci.lvl, linv, ...)
   } else {
     # general-objects -----
     fitfram <- get_predictions_generic(model, expanded_frame, linv, ...)
@@ -46,7 +46,7 @@ select_prediction_method <- function(fun, model, expanded_frame, ci.lvl, type, b
 }
 
 
-# predictions for survey objects
+# predictions for survey objects ----
 
 get_predictions_svyglm <- function(model, fitfram, ci.lvl, linv, ...) {
   # does user want standard errors?
@@ -67,6 +67,7 @@ get_predictions_svyglm <- function(model, fitfram, ci.lvl, linv, ...) {
     # get variance matrix for standard errors. "survey" stores the information
     # somewhat different from classical predict function
     vv <- attr(prdat, "var")
+
     # compute standard errors
     if (is.matrix(vv))
       prdat <- as.data.frame(cbind(prdat, sqrt(diag(vv))))
@@ -95,7 +96,7 @@ get_predictions_svyglm <- function(model, fitfram, ci.lvl, linv, ...) {
 }
 
 
-# predictions for glm
+# predictions for glm ----
 
 get_predictions_glm <- function(model, fitfram, ci.lvl, linv, ...) {
   # does user want standard errors?
@@ -116,7 +117,7 @@ get_predictions_glm <- function(model, fitfram, ci.lvl, linv, ...) {
 }
 
 
-# predictions for lrm
+# predictions for lrm ----
 
 #' @importFrom stats plogis
 get_predictions_lrm <- function(model, fitfram, ci.lvl, linv, ...) {
@@ -150,7 +151,7 @@ get_predictions_lrm <- function(model, fitfram, ci.lvl, linv, ...) {
 }
 
 
-# predictions for svyglm.nb
+# predictions for svyglm.nb ----
 
 get_predictions_svyglmnb <- function(model, fitfram, ci.lvl, linv, ...) {
   # does user want standard errors?
@@ -171,7 +172,7 @@ get_predictions_svyglmnb <- function(model, fitfram, ci.lvl, linv, ...) {
 }
 
 
-# predictions for glmmTMB
+# predictions for glmmTMB ----
 
 get_predictions_glmmTMB <- function(model, fitfram, ci.lvl, linv, ...) {
   # does user want standard errors?
@@ -212,7 +213,7 @@ get_predictions_glmmTMB <- function(model, fitfram, ci.lvl, linv, ...) {
 }
 
 
-# predictions for merMod
+# predictions for merMod ----
 
 #' @importFrom stats model.matrix terms
 #' @importFrom Matrix tcrossprod
@@ -277,7 +278,7 @@ get_predictions_merMod <- function(model, fitfram, ci.lvl, linv, type, ...) {
 }
 
 
-# predictions for gam
+# predictions for gam ----
 
 #' @importFrom prediction prediction
 get_predictions_gam <- function(model, fitfram, ci.lvl, ...) {
@@ -291,7 +292,7 @@ get_predictions_gam <- function(model, fitfram, ci.lvl, ...) {
 }
 
 
-# predictions for vgam
+# predictions for vgam ----
 
 #' @importFrom prediction prediction
 get_predictions_vgam <- function(model, fitfram, ci.lvl, linv, ...) {
@@ -308,7 +309,7 @@ get_predictions_vgam <- function(model, fitfram, ci.lvl, linv, ...) {
 }
 
 
-# predictions for lm
+# predictions for lm ----
 
 get_predictions_lm <- function(model, fitfram, ci.lvl, linv, ...) {
   # does user want standard errors?
@@ -345,7 +346,7 @@ get_predictions_lm <- function(model, fitfram, ci.lvl, linv, ...) {
 }
 
 
-# predictions for lme
+# predictions for lme ----
 
 #' @importFrom stats model.matrix formula vcov
 #' @importFrom sjstats resp_var pred_vars
@@ -402,7 +403,7 @@ get_predictions_lme <- function(model, fitfram, ci.lvl, linv, ...) {
 }
 
 
-# predictions for gee
+# predictions for gee ----
 
 get_predictions_gee <- function(model, fitfram, linv, ...) {
   prdat <- prdat <-
@@ -422,7 +423,7 @@ get_predictions_gee <- function(model, fitfram, linv, ...) {
 }
 
 
-# predictions for generic models
+# predictions for generic models ----
 
 #' @importFrom prediction prediction
 #' @importFrom tibble as_tibble

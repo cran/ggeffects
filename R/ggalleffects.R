@@ -46,7 +46,8 @@ utils::globalVariables("x")
 #' @importFrom sjstats pred_vars resp_var
 #' @importFrom dplyr if_else case_when bind_rows filter
 #' @importFrom tibble as_tibble
-#' @importFrom sjmisc is_empty get_label str_contains to_label
+#' @importFrom sjmisc is_empty str_contains to_label
+#' @importFrom sjlabelled get_label get_labels
 #' @importFrom stats na.omit
 #' @importFrom effects allEffects
 #' @export
@@ -120,10 +121,10 @@ ggalleffects_helper <- function(model, terms, ci.lvl, ...) {
     # set y-axis-title
     y.title <-
       paste(sprintf("Predicted %s for", ysc),
-            sjmisc::get_label(resp, def.value = resp.col))
+            sjlabelled::get_label(resp, def.value = resp.col))
 
   } else {
-    y.title <- sjmisc::get_label(resp, def.value = resp.col)
+    y.title <- sjlabelled::get_label(resp, def.value = resp.col)
   }
 
 
@@ -210,7 +211,7 @@ ggalleffects_helper <- function(model, terms, ci.lvl, ...) {
 
       # get possible labels
       if (t %in% colnames(fitfram))
-        tmp_lab <- sjmisc::get_labels(fitfram[[t]])
+        tmp_lab <- sjlabelled::get_labels(fitfram[[t]])
       else
         tmp_lab <- NULL
 
@@ -258,7 +259,7 @@ ggalleffects_helper <- function(model, terms, ci.lvl, ...) {
           data = mydf,
           model = model,
           t.title = "Marginal effects of model predictors",
-          x.title = sjmisc::get_label(fitfram[[t]], def.value = t),
+          x.title = sjlabelled::get_label(fitfram[[t]], def.value = t),
           y.title = y.title,
           l.title = NULL,
           legend.labels = NULL,

@@ -65,10 +65,10 @@ ggpoly_helper <- function(model, poly.term, ci.lvl, ...) {
   xl <- NULL
 
   # get variable label for response
-  y.title <- sjmisc::get_label(mf[[1]], def.value = cn[1])
+  y.title <- sjlabelled::get_label(mf[[1]], def.value = cn[1])
 
   # get variable label for response
-  x.title <- sjmisc::get_label(mf[[poly.term]], def.value = poly.term)
+  x.title <- sjlabelled::get_label(mf[[poly.term]], def.value = poly.term)
 
   # argument check: poly.term required and
   # polynomial must be found in model
