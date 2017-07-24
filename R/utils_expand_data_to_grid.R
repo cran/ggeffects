@@ -1,9 +1,12 @@
 #' @importFrom tibble as_tibble
-#' @importFrom sjstats pred_vars
+#' @importFrom sjstats pred_vars typical_value
 #' @importFrom sjmisc to_value to_factor
 #' @importFrom stats terms
-#' @importFrom purrr map map_lgl
+#' @importFrom purrr map map_lgl map_df
 get_expanded_data <- function(model, mf, terms, typ.fun) {
+  # special handling for coxph
+  if (inherits(model, "coxph")) mf <- dplyr::select(mf, -1)
+
   # use tibble, no drop = FALSE
   mf <- tibble::as_tibble(mf)
 
@@ -55,7 +58,7 @@ get_expanded_data <- function(model, mf, terms, typ.fun) {
   # add all to list. For those predictors that have to be held constant,
   # use "typical" values - mean/median for numeric values, reference
   # level for factors and most common element for character vectors
-  first <- c(first, lapply(mf[, alle], function(x) typical_value(x, typ.fun)))
+  first <- c(first, lapply(mf[, alle], function(x) sjstats::typical_value(x, typ.fun)))
 
   # create data frame with all unqiue combinations
   dat <- tibble::as_tibble(expand.grid(first))
@@ -110,38 +113,18 @@ get_sliced_data <- function(fitfram, terms) {
 
 
 get_cleaned_varnames <- function(x) {
+  # for gam-smoothers/loess, remove s()- and lo()-function in column name
+  # for survival, remove strata()
+  pattern <- c("log", "s", "lo", "bs", "poly", "strata")
+
   # do we have a "log()" pattern here? if yes, get capture region
   # which matches the "cleaned" variable name
-  for (i in 1:length(x)) {
-    pos <- regexpr(pattern = "log(.*)", text = x[i], perl = TRUE)
-    start <- attr(pos, "capture.start", exact = TRUE)
-    len <- attr(pos, "capture.length", exact = TRUE)
-
-    # return substring or original variable
-    if (start != -1 && len != -1)
-      x[i] <- substr(x[i], start = start + 1, stop = start + len - 2)
-    else
-      x[i]
-  }
-
-  x
+  purrr::map_chr(1:length(x), function(i) {
+    for (j in 1:length(pattern)) {
+      p <- paste0("^", pattern[j], "\\(([^,)]*).*")
+      x[i] <- unique(sub(p, "\\1", x[i]))
+    }
+    x[i]
+  })
 }
 
-
-typical_value <- function(x, fun = c("mean", "median")) {
-  fun <- match.arg(fun)
-
-  if (fun == "median")
-    myfun <- get("median", asNamespace("stats"))
-  else
-    myfun <- get("mean", asNamespace("base"))
-
-  if (is.numeric(x))
-    do.call(myfun, args = list(x = x, na.rm = TRUE))
-  else if (is.factor(x))
-    levels(x)[1]
-  else {
-    counts <- table(x)
-    names(counts)[max(counts) == counts]
-  }
-}

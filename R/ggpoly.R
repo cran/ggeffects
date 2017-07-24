@@ -20,6 +20,11 @@
 #'           \item{\code{group}}{the grouping level from the second term in \code{terms}, used as grouping-aesthetics in plots.}
 #'         }
 #'
+#' @note \code{ggpoly()} is just an alternative call to \code{ggpredict()} for
+#'       polynomial model terms. It may work for certain models that are not
+#'       yet supported by \code{ggpredict()}. Otherwise, there should be no
+#'       difference in the results from \code{ggpoly()} and \code{ggpredict()}.
+#'
 #' @examples
 #' data(efc)
 #' fit <- lm(
@@ -53,9 +58,6 @@ ggpoly <- function(model, poly.term, ci.lvl = .95, ...) {
 ggpoly_helper <- function(model, poly.term, ci.lvl, ...) {
   # get model frame
   mf <- get_model_frame(model)
-
-  # get link-function
-  fun <- get_model_function(model)
 
   # check model family, do we have count model?
   faminfo <- get_glm_family(model)

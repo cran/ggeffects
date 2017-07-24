@@ -20,7 +20,7 @@ add_groupvar_labels <- function(mydf, ori.mf, terms) {
     mydf$group <- droplevels(mydf$group)
 
   # check if vector has any labels
-  if (!is.null(grp.lbl)) {
+  if (!is.null(grp.lbl) && !is.null(names(grp.lbl))) {
     # get unique levels, and match levels with group labels
     # might be necessary, if user only wants to calculate effects
     # for specific factor levels - unused labels must be removed then
@@ -47,7 +47,7 @@ add_groupvar_labels <- function(mydf, ori.mf, terms) {
       mydf$facet <- droplevels(mydf$facet)
 
     # check if vector has any labels
-    if (!is.null(facet.lbl)) {
+    if (!is.null(facet.lbl) && !is.null(names(facet.lbl))) {
       # get unique levels, and match levels with group labels
       # might be necessary, if user only wants to calculate effects
       # for specific factor levels - unused labels must be removed then
@@ -97,34 +97,12 @@ get_all_labels <- function(fitfram, terms, fun, binom_fam, poisson_fam, no.trans
   # check for family, and set appropriate scale-title
   # if we have transformation through effects-package,
   # check if data is on original or transformed scale
-  if (fun == "glm") {
-    if (binom_fam)
-      ysc <-
-        dplyr::if_else(
-          isTRUE(no.transform),
-          true = "log-odds",
-          false = "probabilities",
-          missing = "values"
-        )
-    else if (poisson_fam)
-      ysc <-
-        dplyr::if_else(
-          isTRUE(no.transform),
-          true = "log-mean",
-          false = "incidents",
-          missing = "values"
-        )
-    else
-      ysc <- "values"
+  ysc <- get_title_labels(fun, binom_fam, poisson_fam, no.transform)
 
-    # set y-axis-title
-    t.title <-
-      paste(sprintf("Predicted %s for", ysc),
-            sjlabelled::get_label(fitfram[[1]], def.value = resp.col))
-
-  } else {
-    t.title <- "Predicted values"
-  }
+  # set plot-title
+  t.title <-
+    paste(sprintf("Predicted %s for", ysc),
+          sjlabelled::get_label(fitfram[[1]], def.value = resp.col))
 
 
   # axis titles
@@ -149,4 +127,34 @@ get_all_labels <- function(fitfram, terms, fun, binom_fam, poisson_fam, no.trans
     l.title = l.title,
     axis.labels = axis.labels
   )
+}
+
+
+get_title_labels <- function(fun, binom_fam, poisson_fam, no.transform) {
+  ysc <- "values"
+
+  if (fun == "glm") {
+    if (binom_fam)
+      ysc <-
+        dplyr::if_else(
+          isTRUE(no.transform),
+          true = "log-odds",
+          false = "probabilities",
+          missing = "values"
+        )
+    else if (poisson_fam)
+      ysc <-
+        dplyr::if_else(
+          isTRUE(no.transform),
+          true = "log-mean",
+          false = "incidents",
+          missing = "values"
+        )
+  } else if (fun == "betareg") {
+    ysc <- "proportion"
+  } else if (fun == "coxph") {
+    ysc <- "risk scores"
+  }
+
+  ysc
 }

@@ -32,6 +32,9 @@
 #' @param dodge Value for offsetting or shifting error bars, to avoid overlapping.
 #'          Only applies, if a factor is plotted at the x-axis; in such cases,
 #'          the confidence bands are replaced by error bars.
+#' @param use.theme Logical, if \code{TRUE}, a slightly tweaked version of ggplot's
+#'          minimal-theme is applied to the plot. If \code{FALSE}, no theme-modifications
+#'          are applied.
 #' @param ... Currently not used.
 #'
 #' @return A ggplot2-object.
@@ -61,7 +64,10 @@
 #'          that match the predicted values of the average marginal effects
 #'          (maybe, at this point, it is helpful to inspect the code to better
 #'          understand what is happening...).
-#'
+#'          \cr \cr
+#'          For proportional odds logistic regression (see \code{\link[MASS]{polr}}),
+#'          plots are automatically facetted by \code{response.level}, which indicates
+#'          the grouping of predictions based on the level of the model's response.
 #'
 #' @examples
 #' library(sjmisc)
@@ -102,10 +108,17 @@
 #' @importFrom scales percent
 #' @importFrom dplyr n_distinct
 #' @export
-plot.ggeffects <- function(x, ci = TRUE, facets, rawdata = FALSE, colors = "Set1", alpha = .15, dodge = .1, ...) {
+plot.ggeffects <- function(x, ci = TRUE, facets, rawdata = FALSE, colors = "Set1", alpha = .15, dodge = .1, use.theme = TRUE, ...) {
   # do we have groups and facets?
   has_groups <- tibble::has_name(x, "group") && length(unique(x$group)) > 1
   has_facets <- tibble::has_name(x, "facet") && length(unique(x$facet)) > 1
+
+  # special solution for polr
+  facet_polr <- FALSE
+  if (tibble::has_name(x, "response.level") && length(unique(x$response.level)) > 1) {
+    has_facets <- TRUE
+    facet_polr <- TRUE
+  }
 
   # do we have full data (average effects), or expanded grid?
   has_full_data <- attr(x, "full.data", exact = TRUE) == "1"
@@ -210,6 +223,8 @@ plot.ggeffects <- function(x, ci = TRUE, facets, rawdata = FALSE, colors = "Set1
     p <- p + ggplot2::facet_wrap(~group, scales = "free_x")
     # remove legends
     p <- p + ggplot2::guides(colour = "none", linetype = "none")
+  } else if (facet_polr) {
+    p <- p + ggplot2::facet_wrap(~response.level, scales = "free_x")
   } else if (facets) {
     p <- p + ggplot2::facet_wrap(~facet, scales = "free_x")
   }
@@ -288,17 +303,21 @@ plot.ggeffects <- function(x, ci = TRUE, facets, rawdata = FALSE, colors = "Set1
 
 
   # tweak theme
-  p + ggplot2::theme_minimal() +
-    ggplot2::theme(
-      axis.line.x      = ggplot2::element_line(colour = "grey80"),
-      axis.line.y      = ggplot2::element_line(colour = "grey80"),
-      axis.text        = ggplot2::element_text(colour = "grey50"),
-      axis.title       = ggplot2::element_text(colour = "grey30"),
-      strip.background = ggplot2::element_rect(colour = "grey70", fill = "grey90"),
-      strip.text       = ggplot2::element_text(colour = "grey30"),
-      legend.title     = ggplot2::element_text(colour = "grey30"),
-      legend.text      = ggplot2::element_text(colour = "grey30")
-    )
+  if (use.theme) {
+    p <- p + ggplot2::theme_minimal() +
+      ggplot2::theme(
+        axis.line.x      = ggplot2::element_line(colour = "grey80"),
+        axis.line.y      = ggplot2::element_line(colour = "grey80"),
+        axis.text        = ggplot2::element_text(colour = "grey50"),
+        axis.title       = ggplot2::element_text(colour = "grey30"),
+        strip.background = ggplot2::element_rect(colour = "grey70", fill = "grey90"),
+        strip.text       = ggplot2::element_text(colour = "grey30"),
+        legend.title     = ggplot2::element_text(colour = "grey30"),
+        legend.text      = ggplot2::element_text(colour = "grey30")
+      )
+  }
+
+  p
 }
 
 

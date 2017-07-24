@@ -32,10 +32,10 @@ utils::globalVariables(c("observed", "predicted"))
 #' @param ci.lvl Numeric, the level of the confidence intervals. For \code{ggpredict()},
 #'          use \code{ci.lvl = NA}, if confidence intervals should not be calculated
 #'          (for instance, due to computation time).
-#' @param type Character, only applies for mixed effects models. Indicates whether
-#'          predicted values should be conditioned on random effects
-#'          (\code{type = "re"}) or fixed effects only (\code{type = "fe"}, the
-#'          default).
+#' @param type Character, only applies for mixed effects models. Indicates
+#'          whether predicted values should be conditioned on random effects
+#'          (\code{type = "re"}) or fixed effects only (\code{type = "fe"},
+#'          the default).
 #' @param full.data Logical, if \code{TRUE}, the returned data frame contains
 #'          predictions for all observations. This data frame also has columns
 #'          for residuals and observed values, and can also be used to plot a
@@ -46,13 +46,15 @@ utils::globalVariables(c("observed", "predicted"))
 #'          Usually, this argument is only used internally by \code{ggaverage()}.
 #' @param typical Character vector, naming the function to be applied to the
 #'           covariates over which the effect is "averaged". The default is "mean".
+#'           See \code{\link[sjstats]{typical_value}} for options.
 #' @param ... Further arguments passed down to \code{predict()}.
 #'
-#' @details Currently supported model-objects are: \code{lm, glm, lme, lmer, glmer,
-#'          glmer.nb, nlmer, glmTMB, gam, vgam, gamm, gamm4, gls, gee, plm, lrm,
-#'          svyglm, svyglm.nb}. Other models not listed here are passed to a generic
-#'          predict-function and might work as well, or maybe with \code{ggeffect()},
-#'          which effectively does the same as \code{ggpredict()}.
+#' @details Currently supported model-objects are: \code{lm, glm, glm.nb, lme, lmer,
+#'          glmer, glmer.nb, nlmer, glmmTMB, gam, vgam, gamm, gamm4, betareg, gls,
+#'          gee, plm, lrm, polr, hurdle, zeroinfl, svyglm, svyglm.nb, truncreg, coxph}.
+#'          Other models not listed here are passed to a generic predict-function
+#'          and might work as well, or maybe with \code{ggeffect()}, which
+#'          effectively does the same as \code{ggpredict()}.
 #'          \cr \cr
 #'          If \code{full.data = FALSE}, \code{expand.grid()} is called
 #'          on all unique combinations of \code{model.frame(model)[, terms]} and
@@ -60,7 +62,8 @@ utils::globalVariables(c("observed", "predicted"))
 #'          all remaining covariates that are not specified in \code{terms} are
 #'          held constant. Numeric values are set to the mean (unless changed
 #'          with the \code{typical}-argument), factors are set to their
-#'          reference level and character vectors to the most common element.
+#'          reference level and character vectors to their mode (most common
+#'          element).
 #'          \cr \cr
 #'          \code{ggaverage()} computes the average predicted values, by calling
 #'          \code{ggpredict()} with \code{full.data = TRUE}, where argument
@@ -79,11 +82,20 @@ utils::globalVariables(c("observed", "predicted"))
 #'       possible combinations of values in \code{terms} might be present in the data,
 #'       thus lines or confidence bands from \code{plot()} might not span over
 #'       the complete x-axis-range.
+#'       \cr \cr
+#'       There are some limitations for certain model objects. For example,
+#'       it is currently only possible to compute predicted risk scores for
+#'       \code{coxph}-models, but not expected number of events nor survival
+#'       probabilities.
+#'       \cr \cr
+#'       \code{polr}-models have an additional column \code{response.level},
+#'       which indicates with which level of the response variable the predicted
+#'       values are associated.
 #'
 #' @return A tibble (with \code{ggeffects} class attribute) with consistent data columns:
 #'         \describe{
 #'           \item{\code{x}}{the values of the first term in \code{terms}, used as x-position in plots.}
-#'           \item{\code{predicted}}{the predicted values, used as y-position in plots.}
+#'           \item{\code{predicted}}{the predicted values of the response, used as y-position in plots.}
 #'           \item{\code{conf.low}}{the lower bound of the confidence interval for the predicted values.}
 #'           \item{\code{conf.high}}{the upper bound of the confidence interval for the predicted values.}
 #'           \item{\code{observed}}{if \code{full.data = TRUE}, this columns contains the observed values (the response vector).}
@@ -91,6 +103,9 @@ utils::globalVariables(c("observed", "predicted"))
 #'           \item{\code{group}}{the grouping level from the second term in \code{terms}, used as grouping-aesthetics in plots.}
 #'           \item{\code{facet}}{the grouping level from the third term in \code{terms}, used to indicate facets in plots.}
 #'         }
+#'         For proportional odds logistic regression (see \code{\link[MASS]{polr}}),
+#'         an additional column \code{response.level} is returned, which indicates
+#'         the grouping of predictions based on the level of the model's response.
 #'
 #' @examples
 #' data(efc)
@@ -186,7 +201,7 @@ utils::globalVariables(c("observed", "predicted"))
 #'
 #' # or with ggeffects' plot-method
 #' \dontrun{
-#' plot(dat, ci = F)}
+#' plot(dat, ci = FALSE)}
 #'
 #' @importFrom stats predict predict.glm na.omit model.frame
 #' @importFrom dplyr "%>%" select mutate case_when arrange_ n_distinct
@@ -194,10 +209,17 @@ utils::globalVariables(c("observed", "predicted"))
 #' @importFrom tibble has_name as_tibble
 #' @importFrom purrr map
 #' @export
-ggpredict <- function(model, terms, ci.lvl = .95, type = c("fe", "re"), full.data = FALSE, typical = c("mean", "median"), ...) {
+ggpredict <- function(model, terms, ci.lvl = .95, type = c("fe", "re"), full.data = FALSE, typical = "mean", ...) {
   # check arguments
   type <- match.arg(type)
-  typical <- match.arg(typical)
+
+
+  # for gamm4 objects, we have a list with two items, mer and gam
+  # extract just the mer-part then
+  if (inherits(model, "list") && all(names(model %in% c("mer", "gam")))) {
+    model <- model$mer
+    class(model) <- "lmerMod"
+  }
 
   if (inherits(model, "list"))
     purrr::map(model, ~ggpredict_helper(.x, terms, ci.lvl, type, full.data, typical, ...))
@@ -249,8 +271,13 @@ ggpredict_helper <- function(model, terms, ci.lvl, type, full.data, typical, ...
   legend.labels <- NULL
 
   # get axis titles and labels
-  all.labels <- get_all_labels(ori.mf, terms, get_model_function(model), binom_fam, poisson_fam, FALSE)
-
+  all.labels <-
+    get_all_labels(ori.mf,
+                   terms,
+                   get_model_function(model),
+                   binom_fam,
+                   poisson_fam,
+                   FALSE)
 
   # check for correct terms specification
   if (!all(terms %in% colnames(fitfram))) {
@@ -260,10 +287,18 @@ ggpredict_helper <- function(model, terms, ci.lvl, type, full.data, typical, ...
   # now select only relevant variables: the predictors on the x-axis,
   # the predictions and the originial response vector (needed for scatter plot)
   mydf <-
-    dplyr::select(fitfram, match(
-      c(terms, "predicted", "conf.low", "conf.high"),
+    dplyr::select(fitfram, na.omit(match(
+      c(terms, "predicted", "conf.low", "conf.high", "response.level"),
       colnames(fitfram)
-    ))
+    )))
+
+
+  # no full data for certain models
+  if (full.data && fun == "polr") {
+    message("Argument `full.data` is not supported for this regression model.")
+    full.data <- FALSE
+  }
+
 
   # for full data, we can also get observed and residuals
   if (full.data) {
@@ -284,13 +319,19 @@ ggpredict_helper <- function(model, terms, ci.lvl, type, full.data, typical, ...
   } else {
     # name data depending on whether we have a facet-variable or not
     if (length(terms) == 2) {
+      # for some models, like MASS::polr, we have an additional
+      # column for the response category. So maximun ncol is 8, not 7
+      max_value <- ifelse(fun == "polr", 8, 7)
       colnames(mydf)[1:2] <- c("x", "group")
       # reorder columns
-      mydf <- mydf[, c(1, 3:7, 2)]
+      mydf <- mydf[, c(1, 3:max_value, 2)]
     } else {
+      # for some models, like MASS::polr, we have an additional
+      # column for the response category. So maximun ncol is 8, not 7
+      max_value <- ifelse(fun == "polr", 9, 8)
       colnames(mydf)[1:3] <- c("x", "group", "facet")
       # reorder columns
-      mydf <- mydf[, c(1, 4:8, 2:3)]
+      mydf <- mydf[, c(1, 4:max_value, 2:3)]
     }
 
     # if we have no full data, grouping variable may not be labelled
@@ -306,8 +347,12 @@ ggpredict_helper <- function(model, terms, ci.lvl, type, full.data, typical, ...
 
   # if we had numeric variable w/o labels, these still might be numeric
   # make sure we have factors here for our grouping and facet variables
-  if (is.numeric(mydf$group)) mydf$group <- sjmisc::to_factor(mydf$group)
-  if (tibble::has_name(mydf, "facet") && is.numeric(mydf$facet)) mydf$facet <- sjmisc::to_factor(mydf$facet)
+  if (is.numeric(mydf$group))
+    mydf$group <- sjmisc::to_factor(mydf$group)
+
+  if (tibble::has_name(mydf, "facet") && is.numeric(mydf$facet))
+    mydf$facet <- sjmisc::to_factor(mydf$facet)
+
 
   # remember if x is factor and if we had full data
   x.is.factor <- ifelse(is.factor(mydf$x), "1", "0")
@@ -342,6 +387,6 @@ ggpredict_helper <- function(model, terms, ci.lvl, type, full.data, typical, ...
 
 #' @rdname ggpredict
 #' @export
-mem <- function(model, terms, ci.lvl = .95, type = c("fe", "re"), full.data = FALSE, typical = c("mean", "median"), ...) {
+mem <- function(model, terms, ci.lvl = .95, type = c("fe", "re"), full.data = FALSE, typical = "mean", ...) {
   ggpredict(model, terms, ci.lvl, type, full.data, typical, ...)
 }

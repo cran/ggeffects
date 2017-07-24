@@ -31,7 +31,8 @@ get_colors <- function(geom.colors, collen) {
   } else {
     geom.colors <- scales::brewer_pal(palette = "Set1")(collen)
   }
-  return(geom.colors)
+
+  geom.colors
 }
 
 
@@ -41,12 +42,16 @@ is.brewer.pal <- function(pal) {
   bp.seq <- c("BuGn", "BuPu", "GnBu", "OrRd", "PuBu", "PuBuGn", "PuRd", "RdPu",
               "YlGn", "YlGnBu", "YlOrBr", "YlOrRd", "Blues", "Greens", "Greys",
               "Oranges", "Purples", "Reds")
+
   bp.div <- c("BrBG", "PiYG", "PRGn", "PuOr", "RdBu", "RdGy", "RdYlBu",
               "RdYlGn", "Spectral")
+
   bp.qul <- c("Accent", "Dark2", "Paired", "Pastel1", "Pastel2", "Set1",
               "Set2", "Set3")
+
   bp <- c(bp.seq, bp.div, bp.qul)
-  return(any(bp == pal))
+
+  any(bp == pal)
 }
 
 
@@ -75,6 +80,12 @@ get_raw_data <- function(model, mf, terms) {
   # get response and x-value
   response <- sjstats::resp_val(model)
   x <- sjmisc::to_value(mf[[terms[1]]])
+
+  # for cox-models, modify response
+  if (inherits(model, "coxph")) {
+    lr <- length(response)
+    response <- response[((lr / 2) + 1):lr]
+  }
 
   # add optional grouping variable
   if (length(terms) > 1)

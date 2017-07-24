@@ -8,16 +8,16 @@
 \title{Get marginal effects from model terms}
 \usage{
 ggaverage(model, terms, ci.lvl = 0.95, type = c("fe", "re"),
-  typical = c("mean", "median"), ...)
+  typical = "mean", ...)
 
-ame(model, terms, ci.lvl = 0.95, type = c("fe", "re"), typical = c("mean",
-  "median"), ...)
+ame(model, terms, ci.lvl = 0.95, type = c("fe", "re"), typical = "mean",
+  ...)
 
 ggpredict(model, terms, ci.lvl = 0.95, type = c("fe", "re"),
-  full.data = FALSE, typical = c("mean", "median"), ...)
+  full.data = FALSE, typical = "mean", ...)
 
 mem(model, terms, ci.lvl = 0.95, type = c("fe", "re"), full.data = FALSE,
-  typical = c("mean", "median"), ...)
+  typical = "mean", ...)
 }
 \arguments{
 \item{model}{A fitted model object, or a list of model objects. Any model
@@ -42,13 +42,14 @@ as they happen to be; see 'Details').}
 use \code{ci.lvl = NA}, if confidence intervals should not be calculated
 (for instance, due to computation time).}
 
-\item{type}{Character, only applies for mixed effects models. Indicates whether
-predicted values should be conditioned on random effects
-(\code{type = "re"}) or fixed effects only (\code{type = "fe"}, the
-default).}
+\item{type}{Character, only applies for mixed effects models. Indicates
+whether predicted values should be conditioned on random effects
+(\code{type = "re"}) or fixed effects only (\code{type = "fe"},
+the default).}
 
 \item{typical}{Character vector, naming the function to be applied to the
-covariates over which the effect is "averaged". The default is "mean".}
+covariates over which the effect is "averaged". The default is "mean".
+See \code{\link[sjstats]{typical_value}} for options.}
 
 \item{...}{Further arguments passed down to \code{predict()}.}
 
@@ -65,7 +66,7 @@ Usually, this argument is only used internally by \code{ggaverage()}.}
 A tibble (with \code{ggeffects} class attribute) with consistent data columns:
         \describe{
           \item{\code{x}}{the values of the first term in \code{terms}, used as x-position in plots.}
-          \item{\code{predicted}}{the predicted values, used as y-position in plots.}
+          \item{\code{predicted}}{the predicted values of the response, used as y-position in plots.}
           \item{\code{conf.low}}{the lower bound of the confidence interval for the predicted values.}
           \item{\code{conf.high}}{the upper bound of the confidence interval for the predicted values.}
           \item{\code{observed}}{if \code{full.data = TRUE}, this columns contains the observed values (the response vector).}
@@ -73,6 +74,9 @@ A tibble (with \code{ggeffects} class attribute) with consistent data columns:
           \item{\code{group}}{the grouping level from the second term in \code{terms}, used as grouping-aesthetics in plots.}
           \item{\code{facet}}{the grouping level from the third term in \code{terms}, used to indicate facets in plots.}
         }
+        For proportional odds logistic regression (see \code{\link[MASS]{polr}}),
+        an additional column \code{response.level} is returned, which indicates
+        the grouping of predictions based on the level of the model's response.
 }
 \description{
 \code{ggpredict()} computes predicted (fitted) values for the
@@ -86,11 +90,12 @@ A tibble (with \code{ggeffects} class attribute) with consistent data columns:
                (average marginal effects).
 }
 \details{
-Currently supported model-objects are: \code{lm, glm, lme, lmer, glmer,
-         glmer.nb, nlmer, glmTMB, gam, vgam, gamm, gamm4, gls, gee, plm, lrm,
-         svyglm, svyglm.nb}. Other models not listed here are passed to a generic
-         predict-function and might work as well, or maybe with \code{ggeffect()},
-         which effectively does the same as \code{ggpredict()}.
+Currently supported model-objects are: \code{lm, glm, glm.nb, lme, lmer,
+         glmer, glmer.nb, nlmer, glmmTMB, gam, vgam, gamm, gamm4, betareg, gls,
+         gee, plm, lrm, polr, hurdle, zeroinfl, svyglm, svyglm.nb, truncreg, coxph}.
+         Other models not listed here are passed to a generic predict-function
+         and might work as well, or maybe with \code{ggeffect()}, which
+         effectively does the same as \code{ggpredict()}.
          \cr \cr
          If \code{full.data = FALSE}, \code{expand.grid()} is called
          on all unique combinations of \code{model.frame(model)[, terms]} and
@@ -98,7 +103,8 @@ Currently supported model-objects are: \code{lm, glm, lme, lmer, glmer,
          all remaining covariates that are not specified in \code{terms} are
          held constant. Numeric values are set to the mean (unless changed
          with the \code{typical}-argument), factors are set to their
-         reference level and character vectors to the most common element.
+         reference level and character vectors to their mode (most common
+         element).
          \cr \cr
          \code{ggaverage()} computes the average predicted values, by calling
          \code{ggpredict()} with \code{full.data = TRUE}, where argument
@@ -118,6 +124,15 @@ Since data for \code{ggaverage()} comes from the model frame, not all
       possible combinations of values in \code{terms} might be present in the data,
       thus lines or confidence bands from \code{plot()} might not span over
       the complete x-axis-range.
+      \cr \cr
+      There are some limitations for certain model objects. For example,
+      it is currently only possible to compute predicted risk scores for
+      \code{coxph}-models, but not expected number of events nor survival
+      probabilities.
+      \cr \cr
+      \code{polr}-models have an additional column \code{response.level},
+      which indicates with which level of the response variable the predicted
+      values are associated.
 }
 \examples{
 data(efc)
@@ -213,6 +228,6 @@ ggplot(dat, aes(x = x, y = predicted, colour = group)) +
 
 # or with ggeffects' plot-method
 \dontrun{
-plot(dat, ci = F)}
+plot(dat, ci = FALSE)}
 
 }

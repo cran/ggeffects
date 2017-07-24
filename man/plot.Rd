@@ -6,7 +6,7 @@
 \title{Plot ggeffects-objects}
 \usage{
 \method{plot}{ggeffects}(x, ci = TRUE, facets, rawdata = FALSE,
-  colors = "Set1", alpha = 0.15, dodge = 0.1, ...)
+  colors = "Set1", alpha = 0.15, dodge = 0.1, use.theme = TRUE, ...)
 }
 \arguments{
 \item{x}{An object of class \code{ggeffects}, as returned by the functions
@@ -45,6 +45,10 @@ with argument \code{full.data = TRUE}.}
 Only applies, if a factor is plotted at the x-axis; in such cases,
 the confidence bands are replaced by error bars.}
 
+\item{use.theme}{Logical, if \code{TRUE}, a slightly tweaked version of ggplot's
+minimal-theme is applied to the plot. If \code{FALSE}, no theme-modifications
+are applied.}
+
 \item{...}{Currently not used.}
 }
 \value{
@@ -79,6 +83,10 @@ A generic plot-method for \code{ggeffects}-objects.
          that match the predicted values of the average marginal effects
          (maybe, at this point, it is helpful to inspect the code to better
          understand what is happening...).
+         \cr \cr
+         For proportional odds logistic regression (see \code{\link[MASS]{polr}}),
+         plots are automatically facetted by \code{response.level}, which indicates
+         the grouping of predictions based on the level of the model's response.
 }
 \examples{
 library(sjmisc)

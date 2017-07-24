@@ -8,6 +8,7 @@ get_model_function <- function(model) {
     inherits(model, "glmmTMB") ~ "glm",
     inherits(model, "negbin") ~ "glm",
     inherits(model, "gam") ~ "glm",
+    inherits(model, "polr") ~ "glm",
     inherits(model, "vgam") ~ "glm",
     inherits(model, "vglm") ~ "glm",
     inherits(model, "glm") ~ "glm",
@@ -16,8 +17,12 @@ get_model_function <- function(model) {
     inherits(model, "plm") ~ "lm",
     inherits(model, "lm") ~ "lm",
     inherits(model, "lme") ~ "lm",
+    inherits(model, "truncreg") ~ "lm",
     inherits(model, "glmerMod") ~ "glm",
+    inherits(model, "betareg") ~ "betareg",
+    inherits(model, "coxph") ~ "coxph",
     inherits(model, "nlmerMod") ~ "lm",
+    inherits(model, c("zeroinfl", "hurdle")) ~ "glm",
     inherits(model, c("lmerMod", "merModLmerTest")) ~ "lm",
     TRUE ~ "glm"
   )
@@ -37,6 +42,7 @@ get_predict_function <- function(model) {
     inherits(model, c("lmerMod", "merModLmerTest")) ~ "lmer",
     inherits(model, "lme") ~ "lme",
     inherits(model, "gls") ~ "gls",
+    inherits(model, "polr") ~ "polr",
     inherits(model, "gee") ~ "gee",
     inherits(model, "plm") ~ "plm",
     inherits(model, "negbin") ~ "glm.nb",
@@ -44,6 +50,10 @@ get_predict_function <- function(model) {
     inherits(model, "vglm") ~ "vglm",
     inherits(model, "glm") ~ "glm",
     inherits(model, "lm") ~ "lm",
+    inherits(model, "betareg") ~ "betareg",
+    inherits(model, "truncreg") ~ "truncreg",
+    inherits(model, "coxph") ~ "coxph",
+    inherits(model, c("zeroinfl", "hurdle")) ~ "zeroinfl",
     TRUE ~ "generic"
   )
 }

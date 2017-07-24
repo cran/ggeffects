@@ -10,11 +10,14 @@ select_prediction_method <- function(fun, model, expanded_frame, ci.lvl, type, b
   } else if (fun == "svyglm.nb") {
     # survey-glm.nb-objects -----
     fitfram <- get_predictions_svyglmnb(model, expanded_frame, ci.lvl, linv, ...)
+  } else if (fun == "coxph") {
+    # coxph-objects -----
+    fitfram <- get_predictions_coxph(model, expanded_frame, ci.lvl, ...)
   } else if (fun == "lrm") {
     # lrm-objects -----
     fitfram <- get_predictions_lrm(model, expanded_frame, ci.lvl, linv, ...)
   } else if (fun == "glmmTMB") {
-    # glmTMB-objects -----
+    # glmmTMB-objects -----
     fitfram <- get_predictions_glmmTMB(model, expanded_frame, ci.lvl, linv, ...)
   } else if (fun %in% c("lmer", "nlmer", "glmer")) {
     # merMod-objects, variant -----
@@ -23,7 +26,7 @@ select_prediction_method <- function(fun, model, expanded_frame, ci.lvl, type, b
     # gam-objects -----
     fitfram <- get_predictions_gam(model, expanded_frame, ci.lvl, linv, ...)
   } else if (fun == "vgam") {
-    # gam-objects -----
+    # vgam-objects -----
     fitfram <- get_predictions_vgam(model, expanded_frame, ci.lvl, linv, ...)
   } else if (fun %in% c("lme", "gls", "plm")) {
     # lme-objects -----
@@ -31,6 +34,12 @@ select_prediction_method <- function(fun, model, expanded_frame, ci.lvl, type, b
   } else if (fun == "gee") {
     # gee-objects -----
     fitfram <- get_predictions_gee(model, expanded_frame, linv, ...)
+  } else if (fun == "polr") {
+    # polr-objects -----
+    fitfram <- get_predictions_polr(model, expanded_frame, linv, ...)
+  } else if (fun %in% c("betareg", "truncreg", "zeroinfl", "hurdle")) {
+    # betareg, truncreg, zeroinfl and hurdle-objects -----
+    fitfram <- get_predictions_generic2(model, expanded_frame, ...)
   } else if (fun %in% c("glm", "glm.nb")) {
     # glm-objects -----
     fitfram <- get_predictions_glm(model, expanded_frame, ci.lvl, linv, ...)
@@ -114,6 +123,67 @@ get_predictions_glm <- function(model, fitfram, ci.lvl, linv, ...) {
 
   # copy predictions
   get_base_fitfram(fitfram, linv, prdat, se)
+}
+
+
+# predictions for polr ----
+
+#' @importFrom tidyr gather
+#' @importFrom dplyr bind_cols bind_rows
+#' @importFrom tibble rownames_to_column
+get_predictions_polr <- function(model, fitfram, linv, ...) {
+  prdat <-
+    stats::predict(
+      model,
+      newdata = fitfram,
+      type = "probs",
+      ...
+    )
+
+  prdat <- as.data.frame(prdat)
+
+  # usually, we have same numbers of rows for predictions and model frame.
+  # this is, however. not true when calling the "emm()" function. in this
+  # case. just return predictions
+  if (nrow(prdat) > nrow(fitfram) && ncol(prdat) == 1) {
+    colnames(prdat)[1] <- "predicted"
+    return(tibble::rownames_to_column(prdat, var = "response.level"))
+  }
+
+  # bind predictions to model frame
+  fitfram <- dplyr::bind_cols(prdat, fitfram)
+
+  # for proportional ordinal logistic regression (see MASS::polr),
+  # we have predicted values for each response category. Hence,
+  # gather columns
+  fitfram <- tidyr::gather(fitfram, key = "response.level", value = "predicted", 1:ncol(prdat))
+
+  # No CI
+  fitfram$conf.low <- NA
+  fitfram$conf.high <- NA
+
+  fitfram
+}
+
+
+# predictions for regression models w/o SE ----
+
+get_predictions_generic2 <- function(model, fitfram, ...) {
+  prdat <-
+    stats::predict(
+      model,
+      newdata = fitfram,
+      type = "response",
+      ...
+    )
+
+  fitfram$predicted <- as.vector(prdat)
+
+  # No CI
+  fitfram$conf.low <- NA
+  fitfram$conf.high <- NA
+
+  fitfram
 }
 
 
@@ -278,15 +348,78 @@ get_predictions_merMod <- function(model, fitfram, ci.lvl, linv, type, ...) {
 }
 
 
+
+# predictions for coxph ----
+
+#' @importFrom prediction prediction
+get_predictions_coxph <- function(model, fitfram, ci.lvl, ...) {
+  # does user want standard errors?
+  se <- !is.null(ci.lvl) && !is.na(ci.lvl)
+
+  prdat <-
+    stats::predict(
+      model,
+      newdata = fitfram,
+      type = "lp",
+      se.fit = se,
+      ...
+    )
+
+  # did user request standard errors? if yes, compute CI
+  if (se) {
+    # copy predictions
+    fitfram$predicted <- exp(prdat$fit)
+
+    # calculate CI
+    fitfram$conf.low <- exp(prdat$fit - stats::qnorm(.975) * prdat$se.fit)
+    fitfram$conf.high <- exp(prdat$fit + stats::qnorm(.975) * prdat$se.fit)
+  } else {
+    # copy predictions
+    fitfram$predicted <- exp(as.vector(prdat))
+
+    # no CI
+    fitfram$conf.low <- NA
+    fitfram$conf.high <- NA
+  }
+
+  fitfram
+}
+
+
+
 # predictions for gam ----
 
 #' @importFrom prediction prediction
 get_predictions_gam <- function(model, fitfram, ci.lvl, ...) {
-  # call prediction
-  prdat <- prediction::prediction(model, data = fitfram, at = NULL, type = "response", ...)
+  # No standard errors (currently) for gam predictions with newdata
+  # se <- !is.null(ci.lvl) && !is.na(ci.lvl)
+  se <- FALSE
 
-  # copy predictions
-  fitfram$predicted <- prdat$fitted
+  prdat <-
+    stats::predict(
+      model,
+      newdata = fitfram,
+      type = "response",
+      se.fit = se,
+      ...
+    )
+
+  # did user request standard errors? if yes, compute CI
+  if (se) {
+    # copy predictions
+    fitfram$predicted <- prdat$fit
+
+    # calculate CI
+    fitfram$conf.low <- prdat$fit - stats::qnorm(.975) * prdat$se.fit
+    fitfram$conf.high <- prdat$fit + stats::qnorm(.975) * prdat$se.fit
+  } else {
+    # copy predictions
+    fitfram$predicted <- as.vector(prdat)
+
+    # no CI
+    fitfram$conf.low <- NA
+    fitfram$conf.high <- NA
+  }
 
   fitfram
 }
@@ -406,7 +539,7 @@ get_predictions_lme <- function(model, fitfram, ci.lvl, linv, ...) {
 # predictions for gee ----
 
 get_predictions_gee <- function(model, fitfram, linv, ...) {
-  prdat <- prdat <-
+  prdat <-
     stats::predict(
       model,
       type = "response",
@@ -446,7 +579,6 @@ get_predictions_generic <- function(model, fitfram, linv, ...) {
 
   fitfram
 }
-
 
 
 get_base_fitfram <- function(fitfram, linv, prdat, se) {
