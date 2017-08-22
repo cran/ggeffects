@@ -45,13 +45,20 @@ utils::globalVariables(c("observed", "predicted"))
 #'          predictors. Residuals and observed values are set to \code{NA}.
 #'          Usually, this argument is only used internally by \code{ggaverage()}.
 #' @param typical Character vector, naming the function to be applied to the
-#'           covariates over which the effect is "averaged". The default is "mean".
-#'           See \code{\link[sjstats]{typical_value}} for options.
+#'          covariates over which the effect is "averaged". The default is "mean".
+#'          See \code{\link[sjstats]{typical_value}} for options.
+#' @param ppd Logical, if \code{TRUE}, predictions for \code{stanreg}-models are
+#'          based on the posterior predictive distribution
+#'          (\code{\link[rstanarm]{posterior_predict}}). If \code{FALSE} (the
+#'          default), predictions are based on posterior draws of the linear
+#'          predictor (\code{\link[rstanarm]{posterior_linpred}}). See 'Details'
+#'          for non-gaussian models used with \code{posterior_predict()}.
 #' @param ... Further arguments passed down to \code{predict()}.
 #'
 #' @details Currently supported model-objects are: \code{lm, glm, glm.nb, lme, lmer,
 #'          glmer, glmer.nb, nlmer, glmmTMB, gam, vgam, gamm, gamm4, betareg, gls,
-#'          gee, plm, lrm, polr, hurdle, zeroinfl, svyglm, svyglm.nb, truncreg, coxph}.
+#'          gee, plm, lrm, polr, hurdle, zeroinfl, svyglm, svyglm.nb, truncreg,
+#'          coxph, stanreg}.
 #'          Other models not listed here are passed to a generic predict-function
 #'          and might work as well, or maybe with \code{ggeffect()}, which
 #'          effectively does the same as \code{ggpredict()}.
@@ -77,6 +84,26 @@ utils::globalVariables(c("observed", "predicted"))
 #'          Thus, \code{ggpredict()} can be considered as calculating marginal
 #'          effects at the mean, while \code{ggaverage()} computes average
 #'          marginal effects.
+#'          \cr \cr
+#'          \code{ggpredict()} also works with \strong{stanreg}-models from
+#'          the \CRANpkg{rstanarm}-package. The predicted values are the median
+#'          value of all drawn posterior samples. The confidence intervals for
+#'          \code{stanreg}-models are actually high density intervals, computed
+#'          by \code{\link[sjstats]{hdi}}. By default, the predictions are
+#'          based on \code{\link[rstanarm]{posterior_linpred}} and hence have some
+#'          limitations: the uncertainty of the error term is not taken into
+#'          account. The recommendation is to use the posterior predictive
+#'          distribution (\code{\link[rstanarm]{posterior_predict}}), however,
+#'          \code{posterior_linpred()} is faster and easier to compute (especially
+#'          for models with binary outcome). Use the argument \code{ppd = TRUE}
+#'          to compute predictions based on draws from the posterior predictive
+#'          distribution. Note that for binomial models, the \code{newdata}-argument
+#'          used in \code{posterior_predict()} must also contain the vector
+#'          with the number of trials. In this case, a dummy-vector is used,
+#'          where all values for the response are set to 1. Also, for non-gaussian
+#'          models and \code{ppd = TRUE}, no confidence intervals are calculated,
+#'          since this would require drawing many replicates of the posterior
+#'          predictive distributions.
 #'
 #' @note Since data for \code{ggaverage()} comes from the model frame, not all
 #'       possible combinations of values in \code{terms} might be present in the data,
@@ -209,7 +236,7 @@ utils::globalVariables(c("observed", "predicted"))
 #' @importFrom tibble has_name as_tibble
 #' @importFrom purrr map
 #' @export
-ggpredict <- function(model, terms, ci.lvl = .95, type = c("fe", "re"), full.data = FALSE, typical = "mean", ...) {
+ggpredict <- function(model, terms, ci.lvl = .95, type = c("fe", "re"), full.data = FALSE, typical = "mean", ppd = FALSE, ...) {
   # check arguments
   type <- match.arg(type)
 
@@ -222,15 +249,15 @@ ggpredict <- function(model, terms, ci.lvl = .95, type = c("fe", "re"), full.dat
   }
 
   if (inherits(model, "list"))
-    purrr::map(model, ~ggpredict_helper(.x, terms, ci.lvl, type, full.data, typical, ...))
+    purrr::map(model, ~ggpredict_helper(.x, terms, ci.lvl, type, full.data, typical, ppd, ...))
   else
-    ggpredict_helper(model, terms, ci.lvl, type, full.data, typical, ...)
+    ggpredict_helper(model, terms, ci.lvl, type, full.data, typical, ppd, ...)
 }
 
 
 # workhorse that computes the predictions
 # and creates the tidy data frames
-ggpredict_helper <- function(model, terms, ci.lvl, type, full.data, typical, ...) {
+ggpredict_helper <- function(model, terms, ci.lvl, type, full.data, typical, ppd, ...) {
   # check class of fitted model
   fun <- get_predict_function(model)
 
@@ -264,7 +291,7 @@ ggpredict_helper <- function(model, terms, ci.lvl, type, full.data, typical, ...
 
 
   # compute predictions here -----
-  fitfram <- select_prediction_method(fun, model, expanded_frame, ci.lvl, type, binom_fam, ...)
+  fitfram <- select_prediction_method(fun, model, expanded_frame, ci.lvl, type, faminfo, ppd, ...)
 
 
   # init legend labels
@@ -387,6 +414,6 @@ ggpredict_helper <- function(model, terms, ci.lvl, type, full.data, typical, ...
 
 #' @rdname ggpredict
 #' @export
-mem <- function(model, terms, ci.lvl = .95, type = c("fe", "re"), full.data = FALSE, typical = "mean", ...) {
-  ggpredict(model, terms, ci.lvl, type, full.data, typical, ...)
+mem <- function(model, terms, ci.lvl = .95, type = c("fe", "re"), full.data = FALSE, typical = "mean", ppd = FALSE, ...) {
+  ggpredict(model, terms, ci.lvl, type, full.data, typical, ppd, ...)
 }
