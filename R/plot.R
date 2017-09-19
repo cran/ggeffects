@@ -26,16 +26,22 @@
 #'            \item If \code{colors} is any valid color brewer palette name, the related palette will be used. Use \code{\link[RColorBrewer]{display.brewer.all}} to view all available palette names.
 #'            \item Else specify own color values or names as vector (e.g. \code{colors = c("#f00000", "#00ff00")}).
 #'          }
-#' @param alpha Alpha value for the confidence bands, or for data points. Data points
-#'          are only plotted for \code{ggeffects}-objects from \code{ggpredict()}
-#'          with argument \code{full.data = TRUE}.
+#' @param alpha Alpha value for the confidence bands.
 #' @param dodge Value for offsetting or shifting error bars, to avoid overlapping.
 #'          Only applies, if a factor is plotted at the x-axis; in such cases,
 #'          the confidence bands are replaced by error bars.
 #' @param use.theme Logical, if \code{TRUE}, a slightly tweaked version of ggplot's
 #'          minimal-theme is applied to the plot. If \code{FALSE}, no theme-modifications
 #'          are applied.
+#' @param dot.alpha Alpha value for data points, when \code{rawdata = TRUE}.
+#' @param jitter Logical, if \code{TRUE} and \code{rawdata = TRUE}, adds a small
+#'          amount of random variation to the location of data points dots, to
+#'          avoid overplotting. Hence the points don't reflect exact
+#'          values in the data. For binary outcomes, raw data is never jittered
+#'          to avoid that data points exceed the axis limits.
 #' @param ... Currently not used.
+#'
+#' @inheritParams get_title
 #'
 #' @return A ggplot2-object.
 #'
@@ -108,7 +114,7 @@
 #' @importFrom scales percent
 #' @importFrom dplyr n_distinct
 #' @export
-plot.ggeffects <- function(x, ci = TRUE, facets, rawdata = FALSE, colors = "Set1", alpha = .15, dodge = .1, use.theme = TRUE, ...) {
+plot.ggeffects <- function(x, ci = TRUE, facets, rawdata = FALSE, colors = "Set1", alpha = .15, dodge = .1, use.theme = TRUE, dot.alpha = .5, jitter = TRUE, case = NULL, ...) {
   # do we have groups and facets?
   has_groups <- tibble::has_name(x, "group") && length(unique(x$group)) > 1
   has_facets <- tibble::has_name(x, "facet") && length(unique(x$facet)) > 1
@@ -211,7 +217,8 @@ plot.ggeffects <- function(x, ci = TRUE, facets, rawdata = FALSE, colors = "Set1
 
 
   # If we have x-axis-labels, use these to label the axis
-  x_lab <- get_x_labels(x)
+  x_lab <- get_x_labels(x, case)
+
   if (!is.null(x_lab)) {
     p <- p + ggplot2::scale_x_continuous(breaks = unique(x$x), labels = x_lab)
   }
@@ -242,6 +249,16 @@ plot.ggeffects <- function(x, ci = TRUE, facets, rawdata = FALSE, colors = "Set1
       # check if we have a group-variable with at least two groups
       if (tibble::has_name(rawdat, "group"))
         grps <- dplyr::n_distinct(rawdat$group, na.rm = TRUE) > 1
+      else
+        grps <- FALSE
+
+      # check if we have only selected values for groups, in this case
+      # filter raw data to match grouping colours
+      if (grps &&
+          dplyr::n_distinct(rawdat$group, na.rm = TRUE) > dplyr::n_distinct(x$group, na.rm = TRUE)) {
+        rawdat <- rawdat[which(rawdat$group %in% x$group), ]
+      }
+
 
       # if we have groups, add colour aes, to map raw data to
       # grouping variable
@@ -251,11 +268,11 @@ plot.ggeffects <- function(x, ci = TRUE, facets, rawdata = FALSE, colors = "Set1
         mp <- ggplot2::aes_string(x = "x", y = "response")
 
       # for binary response, no jittering
-      if (attr(x, "logistic", exact = TRUE) == "1") {
+      if (attr(x, "logistic", exact = TRUE) == "1" || !jitter) {
         p <- p + ggplot2::geom_point(
           data = rawdat,
           mapping = mp,
-          alpha = alpha,
+          alpha = dot.alpha,
           show.legend = FALSE,
           inherit.aes = FALSE
         )
@@ -263,7 +280,7 @@ plot.ggeffects <- function(x, ci = TRUE, facets, rawdata = FALSE, colors = "Set1
         p <- p + ggplot2::geom_jitter(
           data = rawdat,
           mapping = mp,
-          alpha = alpha,
+          alpha = dot.alpha,
           show.legend = FALSE,
           inherit.aes = FALSE
         )
@@ -282,16 +299,16 @@ plot.ggeffects <- function(x, ci = TRUE, facets, rawdata = FALSE, colors = "Set1
 
   # set axis titles
   p <- p + ggplot2::labs(
-    title = attr(x, "title", exact = TRUE),
-    x = attr(x, "x.title", exact = TRUE),
-    y = attr(x, "y.title", exact = TRUE),
+    title = get_title(x, case),
+    x = get_x_title(x, case),
+    y = get_y_title(x, case),
     fill = NULL
   )
 
   if (has_groups)
     p <- p + ggplot2::labs(
-      colour = attr(x, "legend.title", exact = TRUE),
-      linetype = attr(x, "legend.title", exact = TRUE)
+      colour = get_legend_title(x, case),
+      linetype = get_legend_title(x, case)
     )
 
   # no legend for fill-aes

@@ -2,10 +2,15 @@
 #' @importFrom sjstats pred_vars typical_value
 #' @importFrom sjmisc to_value to_factor
 #' @importFrom stats terms
-#' @importFrom purrr map map_lgl map_df
-get_expanded_data <- function(model, mf, terms, typ.fun) {
+#' @importFrom purrr map map_lgl map_df modify_if
+# fac.typical indicates if factors should bne held constant or not
+# need to be false for computing std.error for merMod objects
+get_expanded_data <- function(model, mf, terms, typ.fun, fac.typical = TRUE) {
   # special handling for coxph
   if (inherits(model, "coxph")) mf <- dplyr::select(mf, -1)
+
+  # make sure we don't have arrays as variables
+  mf <- purrr::modify_if(mf, is.array, as.vector)
 
   # use tibble, no drop = FALSE
   mf <- tibble::as_tibble(mf)
@@ -58,7 +63,22 @@ get_expanded_data <- function(model, mf, terms, typ.fun) {
   # add all to list. For those predictors that have to be held constant,
   # use "typical" values - mean/median for numeric values, reference
   # level for factors and most common element for character vectors
-  first <- c(first, lapply(mf[, alle], function(x) sjstats::typical_value(x, typ.fun)))
+  if (fac.typical) {
+    first <-
+      c(first, lapply(mf[, alle], function(x) sjstats::typical_value(x, typ.fun)))
+  } else {
+    # if factors should not be held constant (needed when computing
+    # std.error for merMod objects), we need all factor levels,
+    # and not just the typical value
+    first <-
+      c(first, lapply(mf[, alle], function(x) {
+        if (is.factor(x))
+          levels(x)
+        else
+          sjstats::typical_value(x, typ.fun)
+      }))
+  }
+
 
   # create data frame with all unqiue combinations
   dat <- tibble::as_tibble(expand.grid(first))

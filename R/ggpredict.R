@@ -1,5 +1,3 @@
-utils::globalVariables(c("observed", "predicted"))
-
 #' @title Get marginal effects from model terms
 #' @name ggpredict
 #'
@@ -61,11 +59,15 @@ utils::globalVariables(c("observed", "predicted"))
 #'          coxph, stanreg}.
 #'          Other models not listed here are passed to a generic predict-function
 #'          and might work as well, or maybe with \code{ggeffect()}, which
-#'          effectively does the same as \code{ggpredict()}.
+#'          effectively does the same as \code{ggpredict()}. The main difference
+#'          between \code{ggpredict()} and \code{ggeffect()} is how factors are
+#'          held constant: \code{ggpredict()} uses the reference level, while
+#'          \code{ggeffect()} computes a kind of "average" value, which represents
+#'          the proportions of each factor's category.
 #'          \cr \cr
-#'          If \code{full.data = FALSE}, \code{expand.grid()} is called
-#'          on all unique combinations of \code{model.frame(model)[, terms]} and
-#'          used as \code{newdata}-argument for \code{predict()}. In this case,
+#'          For \code{ggpredict()}, if \code{full.data = FALSE}, \code{expand.grid()}
+#'          is called on all unique combinations of \code{model.frame(model)[, terms]}
+#'          and used as \code{newdata}-argument for \code{predict()}. In this case,
 #'          all remaining covariates that are not specified in \code{terms} are
 #'          held constant. Numeric values are set to the mean (unless changed
 #'          with the \code{typical}-argument), factors are set to their
@@ -231,7 +233,7 @@ utils::globalVariables(c("observed", "predicted"))
 #' plot(dat, ci = FALSE)}
 #'
 #' @importFrom stats predict predict.glm na.omit model.frame
-#' @importFrom dplyr "%>%" select mutate case_when arrange_ n_distinct
+#' @importFrom dplyr "%>%" select mutate case_when arrange n_distinct
 #' @importFrom sjmisc to_value to_factor to_label is_num_fac remove_empty_cols
 #' @importFrom tibble has_name as_tibble
 #' @importFrom purrr map
@@ -291,7 +293,7 @@ ggpredict_helper <- function(model, terms, ci.lvl, type, full.data, typical, ppd
 
 
   # compute predictions here -----
-  fitfram <- select_prediction_method(fun, model, expanded_frame, ci.lvl, type, faminfo, ppd, ...)
+  fitfram <- select_prediction_method(fun, model, expanded_frame, ci.lvl, type, faminfo, ppd, terms, typical, ...)
 
 
   # init legend labels
@@ -331,7 +333,7 @@ ggpredict_helper <- function(model, terms, ci.lvl, type, full.data, typical, ppd
   if (full.data) {
     mydf <- dplyr::mutate(mydf,
       observed = sjmisc::to_value(fitfram[[1]], start.at = 0, keep.labels = F),
-      residuals = observed - predicted
+      residuals = .data$observed - .data$predicted
     )
   } else {
     mydf <- dplyr::mutate(mydf, observed = NA, residuals = NA)
@@ -391,7 +393,7 @@ ggpredict_helper <- function(model, terms, ci.lvl, type, full.data, typical, ppd
   # to tibble
   mydf <- mydf %>%
     tibble::as_tibble() %>%
-    dplyr::arrange_("x", "group") %>%
+    dplyr::arrange(.data$x, .data$group) %>%
     sjmisc::remove_empty_cols()
 
   # add raw data as well

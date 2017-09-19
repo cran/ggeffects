@@ -1,14 +1,26 @@
+# ggeffects 0.2.2
+
+## Changes to functions
+
+* `plot()` gets a `dot.alpha`-argument, to specify a different alpha-values for data points when plotting raw data.
+* `plot()` gets a `jitter`-argument, to add a small amount of random variation to the location of data points when plotting raw data.
+* `plot()` and getter-functions (like `get_title()` or `get_x_labels()`) get a `case`-argument, to convert labels into any case, using the [snakecase](https://cran.r-project.org/package=snakecase)-package.
+* Confidence intervals are now also computed for `hurdle`, `zeroinfl`, `truncreg` and `betareg`-models. Note, however, that due to some uncertainty, the intervals may not be "smooth".
+
+## Bug fixes
+
+* Confidence intervals for generalized mixed effects models are now computed properly.
+* Different levels for confidence intervals (argument `ci.lvl`) were not always recognized.
+* Fixed issues with `glmmTMB`-models.
+* Fixed issues with `lme`-models.
+* Fixed issue when plotting data returned from `ggeffect()`, if the term in question was categorical.
+
 # ggeffects 0.2.1
 
 ## General
 
 * Support for `stanreg` models (pkg _rstanarm_).
 * Fixed issue with latest tidyr-update on CRAN.
-
-## Changes to functions
-
-* `plot()` gets a `dot.alpha`-argument, to specify a different alpha-values for data points when plotting raw data.
-* `plot()` gets a `jitter`-argument, to add a small amount of random variation to the location of data points when plotting raw data.
 
 ## Bug fixes
 
