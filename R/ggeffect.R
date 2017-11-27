@@ -42,7 +42,7 @@
 #' @importFrom sjstats pred_vars resp_var
 #' @importFrom dplyr if_else case_when bind_rows filter mutate
 #' @importFrom tibble as_tibble
-#' @importFrom sjmisc is_empty str_contains to_label
+#' @importFrom sjmisc is_empty str_contains
 #' @importFrom stats na.omit
 #' @importFrom effects Effect
 #' @importFrom sjlabelled as_numeric
@@ -56,6 +56,7 @@ ggeffect <- function(model, terms, ci.lvl = .95, ...) {
 }
 
 
+#' @importFrom sjstats model_frame
 ggeffect_helper <- function(model, terms, ci.lvl, ...) {
   # check terms argument
   terms <- check_vars(terms)
@@ -64,7 +65,7 @@ ggeffect_helper <- function(model, terms, ci.lvl, ...) {
   fun <- get_model_function(model)
 
   # get model frame
-  fitfram <- get_model_frame(model)
+  fitfram <- sjstats::model_frame(model)
 
   # get model family
   faminfo <- get_glm_family(model)

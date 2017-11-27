@@ -39,6 +39,7 @@
 #'          avoid overplotting. Hence the points don't reflect exact
 #'          values in the data. For binary outcomes, raw data is never jittered
 #'          to avoid that data points exceed the axis limits.
+#' @param show.legend Logical, shows or hides the plot legend.
 #' @param ... Currently not used.
 #'
 #' @inheritParams get_title
@@ -76,9 +77,9 @@
 #'          the grouping of predictions based on the level of the model's response.
 #'
 #' @examples
-#' library(sjmisc)
+#' library(sjlabelled)
 #' data(efc)
-#' efc$c172code <- to_label(efc$c172code)
+#' efc$c172code <- as_label(efc$c172code)
 #' fit <- lm(barthtot ~ c12hour + neg_c_7 + c161sex + c172code, data = efc)
 #'
 #' dat <- ggpredict(fit, terms = "c12hour")
@@ -110,11 +111,12 @@
 #' @importFrom tibble has_name
 #' @importFrom ggplot2 ggplot aes_string geom_smooth facet_wrap labs guides geom_point geom_ribbon geom_errorbar scale_x_continuous position_dodge theme_minimal position_jitter scale_color_manual scale_fill_manual geom_line geom_jitter scale_y_continuous element_text theme element_line element_rect
 #' @importFrom stats binomial poisson gaussian Gamma inverse.gaussian quasi quasibinomial quasipoisson
-#' @importFrom sjmisc empty_cols to_value
+#' @importFrom sjmisc empty_cols
+#' @importFrom sjlabelled as_numeric
 #' @importFrom scales percent
 #' @importFrom dplyr n_distinct
 #' @export
-plot.ggeffects <- function(x, ci = TRUE, facets, rawdata = FALSE, colors = "Set1", alpha = .15, dodge = .1, use.theme = TRUE, dot.alpha = .5, jitter = TRUE, case = NULL, ...) {
+plot.ggeffects <- function(x, ci = TRUE, facets, rawdata = FALSE, colors = "Set1", alpha = .15, dodge = .1, use.theme = TRUE, dot.alpha = .5, jitter = TRUE, case = NULL, show.legend = TRUE, ...) {
   # do we have groups and facets?
   has_groups <- tibble::has_name(x, "group") && length(unique(x$group)) > 1
   has_facets <- tibble::has_name(x, "facet") && length(unique(x$facet)) > 1
@@ -244,7 +246,7 @@ plot.ggeffects <- function(x, ci = TRUE, facets, rawdata = FALSE, colors = "Set1
 
     if (!is.null(rawdat)) {
       # make sure response is numeric
-      rawdat$response <- sjmisc::to_value(rawdat$response)
+      rawdat$response <- sjlabelled::as_numeric(rawdat$response)
 
       # check if we have a group-variable with at least two groups
       if (tibble::has_name(rawdat, "group"))
@@ -305,7 +307,7 @@ plot.ggeffects <- function(x, ci = TRUE, facets, rawdata = FALSE, colors = "Set1
     fill = NULL
   )
 
-  if (has_groups)
+  if (has_groups && show.legend)
     p <- p + ggplot2::labs(
       colour = get_legend_title(x, case),
       linetype = get_legend_title(x, case)
@@ -313,6 +315,16 @@ plot.ggeffects <- function(x, ci = TRUE, facets, rawdata = FALSE, colors = "Set1
 
   # no legend for fill-aes
   p <- p + ggplot2::guides(fill = "none")
+
+
+  # show or hide legend?
+  if (!show.legend) {
+    p <- p + ggplot2::labs(
+      colour = NULL,
+      linetype = NULL
+    ) + ggplot2::guides(colour = "none", linetype = "none")
+  }
+
 
   # for binomial family, fix coord
   if (attr(x, "logistic", exact = TRUE) == "1")

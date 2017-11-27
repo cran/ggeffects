@@ -45,18 +45,17 @@
 #' @param typical Character vector, naming the function to be applied to the
 #'          covariates over which the effect is "averaged". The default is "mean".
 #'          See \code{\link[sjstats]{typical_value}} for options.
-#' @param ppd Logical, if \code{TRUE}, predictions for \code{stanreg}-models are
+#' @param ppd Logical, if \code{TRUE}, predictions for Stan-models are
 #'          based on the posterior predictive distribution
-#'          (\code{\link[rstanarm]{posterior_predict}}). If \code{FALSE} (the
+#'          (\code{\link[rstantools]{posterior_predict}}). If \code{FALSE} (the
 #'          default), predictions are based on posterior draws of the linear
-#'          predictor (\code{\link[rstanarm]{posterior_linpred}}). See 'Details'
-#'          for non-gaussian models used with \code{posterior_predict()}.
+#'          predictor (\code{\link[rstantools]{posterior_linpred}}).
 #' @param ... Further arguments passed down to \code{predict()}.
 #'
 #' @details Currently supported model-objects are: \code{lm, glm, glm.nb, lme, lmer,
-#'          glmer, glmer.nb, nlmer, glmmTMB, gam, vgam, gamm, gamm4, betareg, gls,
-#'          gee, plm, lrm, polr, hurdle, zeroinfl, svyglm, svyglm.nb, truncreg,
-#'          coxph, stanreg}.
+#'          glmer, glmer.nb, nlmer, glmmTMB, gam, vgam, gamm, gamm4, multinom,
+#'          betareg, gls, gee, plm, lrm, polr, clm, hurdle, zeroinfl, svyglm,
+#'          svyglm.nb, truncreg, coxph, stanreg, brmsfit}.
 #'          Other models not listed here are passed to a generic predict-function
 #'          and might work as well, or maybe with \code{ggeffect()}, which
 #'          effectively does the same as \code{ggpredict()}. The main difference
@@ -87,25 +86,23 @@
 #'          effects at the mean, while \code{ggaverage()} computes average
 #'          marginal effects.
 #'          \cr \cr
-#'          \code{ggpredict()} also works with \strong{stanreg}-models from
-#'          the \CRANpkg{rstanarm}-package. The predicted values are the median
-#'          value of all drawn posterior samples. The confidence intervals for
-#'          \code{stanreg}-models are actually high density intervals, computed
-#'          by \code{\link[sjstats]{hdi}}. By default, the predictions are
-#'          based on \code{\link[rstanarm]{posterior_linpred}} and hence have some
+#'          \code{ggpredict()} also works with \strong{Stan}-models from
+#'          the \CRANpkg{rstanarm} or \CRANpkg{brms}-package. The predicted
+#'          values are the median value of all drawn posterior samples. The
+#'          confidence intervals for Stan-models are actually high density
+#'          intervals, computed by \code{\link[sjstats]{hdi}}, unless \code{ppd = TRUE}.
+#'          If \code{ppd = TRUE}, predictions are based on draws of the posterior
+#'          predictive  distribution and the uncertainty interval is computed
+#'          using  \code{\link[rstantools]{predictive_interval}}. By default (i.e.
+#'          \code{ppd = FALSE}), the predictions are based on
+#'          \code{\link[rstantools]{posterior_linpred}} and hence have some
 #'          limitations: the uncertainty of the error term is not taken into
 #'          account. The recommendation is to use the posterior predictive
-#'          distribution (\code{\link[rstanarm]{posterior_predict}}), however,
-#'          \code{posterior_linpred()} is faster and easier to compute (especially
-#'          for models with binary outcome). Use the argument \code{ppd = TRUE}
-#'          to compute predictions based on draws from the posterior predictive
-#'          distribution. Note that for binomial models, the \code{newdata}-argument
+#'          distribution (\code{\link[rstantools]{posterior_predict}}).
+#'          Note that for binomial models, the \code{newdata}-argument
 #'          used in \code{posterior_predict()} must also contain the vector
 #'          with the number of trials. In this case, a dummy-vector is used,
-#'          where all values for the response are set to 1. Also, for non-gaussian
-#'          models and \code{ppd = TRUE}, no confidence intervals are calculated,
-#'          since this would require drawing many replicates of the posterior
-#'          predictive distributions.
+#'          where all values for the response are set to 1.
 #'
 #' @note Since data for \code{ggaverage()} comes from the model frame, not all
 #'       possible combinations of values in \code{terms} might be present in the data,
@@ -117,9 +114,9 @@
 #'       \code{coxph}-models, but not expected number of events nor survival
 #'       probabilities.
 #'       \cr \cr
-#'       \code{polr}-models have an additional column \code{response.level},
-#'       which indicates with which level of the response variable the predicted
-#'       values are associated.
+#'       \code{polr}- or \code{clm}-models have an additional column
+#'       \code{response.level}, which indicates with which level of the response
+#'       variable the predicted values are associated.
 #'
 #' @return A tibble (with \code{ggeffects} class attribute) with consistent data columns:
 #'         \describe{
@@ -132,7 +129,8 @@
 #'           \item{\code{group}}{the grouping level from the second term in \code{terms}, used as grouping-aesthetics in plots.}
 #'           \item{\code{facet}}{the grouping level from the third term in \code{terms}, used to indicate facets in plots.}
 #'         }
-#'         For proportional odds logistic regression (see \code{\link[MASS]{polr}}),
+#'         For proportional odds logistic regression (see \code{\link[MASS]{polr}})
+#'         resp. cumulative link models (e.g., see \code{\link[ordinal]{clm}}),
 #'         an additional column \code{response.level} is returned, which indicates
 #'         the grouping of predictions based on the level of the model's response.
 #'
@@ -193,9 +191,9 @@
 #'
 #' # level indication also works for factors with non-numeric levels
 #' # and in combination with numeric levels for other variables
-#' library(sjmisc)
+#' library(sjlabelled)
 #' data(efc)
-#' efc$c172code <- to_label(efc$c172code)
+#' efc$c172code <- as_label(efc$c172code)
 #' fit <- lm(barthtot ~ c12hour + neg_c_7 + c161sex + c172code, data = efc)
 #' ggpredict(fit, terms = c("c12hour",
 #'   "c172code [low level of education, high level of education]",
@@ -214,7 +212,7 @@
 #' # 3-way-interaction with 2 continuous variables
 #' data(efc)
 #' # make categorical
-#' efc$c161sex <- to_factor(efc$c161sex)
+#' efc$c161sex <- as_factor(efc$c161sex)
 #' fit <- lm(neg_c_7 ~ c12hour * barthtot * c161sex, data = efc)
 #' # select only levels 30, 50 and 70 from continuous variable Barthel-Index
 #' dat <- ggpredict(fit, terms = c("c12hour", "barthtot [30,50,70]", "c161sex"))
@@ -232,11 +230,12 @@
 #' \dontrun{
 #' plot(dat, ci = FALSE)}
 #'
-#' @importFrom stats predict predict.glm na.omit model.frame
-#' @importFrom dplyr "%>%" select mutate case_when arrange n_distinct
-#' @importFrom sjmisc to_value to_factor to_label is_num_fac remove_empty_cols
+#' @importFrom stats predict predict.glm na.omit
+#' @importFrom dplyr select mutate case_when arrange n_distinct
+#' @importFrom sjmisc to_factor is_num_fac remove_empty_cols
 #' @importFrom tibble has_name as_tibble
 #' @importFrom purrr map
+#' @importFrom sjlabelled as_numeric
 #' @export
 ggpredict <- function(model, terms, ci.lvl = .95, type = c("fe", "re"), full.data = FALSE, typical = "mean", ppd = FALSE, ...) {
   # check arguments
@@ -259,6 +258,7 @@ ggpredict <- function(model, terms, ci.lvl = .95, type = c("fe", "re"), full.dat
 
 # workhorse that computes the predictions
 # and creates the tidy data frames
+#' @importFrom sjstats model_frame
 ggpredict_helper <- function(model, terms, ci.lvl, type, full.data, typical, ppd, ...) {
   # check class of fitted model
   fun <- get_predict_function(model)
@@ -274,7 +274,7 @@ ggpredict_helper <- function(model, terms, ci.lvl, type, full.data, typical, ppd
   poisson_fam <- faminfo$is_pois
 
   # get model frame
-  fitfram <- get_model_frame(model, fe.only = FALSE)
+  fitfram <- sjstats::model_frame(model, fe.only = FALSE)
 
 
   # expand model frame to grid of unique combinations, if
@@ -282,7 +282,7 @@ ggpredict_helper <- function(model, terms, ci.lvl, type, full.data, typical, ppd
   if (full.data) {
     expanded_frame <- get_sliced_data(fitfram, terms)
   } else {
-    expanded_frame <- get_expanded_data(model, fitfram, terms, typical)
+    expanded_frame <- get_expanded_data(model, fitfram, terms, typical, type = type)
   }
 
   # save original frame, for labels
@@ -313,13 +313,16 @@ ggpredict_helper <- function(model, terms, ci.lvl, type, full.data, typical, ppd
     stop("At least one term specified in `terms` is no valid model term.", call. = FALSE)
   }
 
+
   # now select only relevant variables: the predictors on the x-axis,
   # the predictions and the originial response vector (needed for scatter plot)
-  mydf <-
-    dplyr::select(fitfram, na.omit(match(
-      c(terms, "predicted", "conf.low", "conf.high", "response.level"),
-      colnames(fitfram)
-    )))
+
+  cols.to.keep <- na.omit(match(
+    c(terms, "predicted", "conf.low", "conf.high", "response.level"),
+    colnames(fitfram)
+  ))
+
+  mydf <- dplyr::select(fitfram, !! cols.to.keep)
 
 
   # no full data for certain models
@@ -332,7 +335,7 @@ ggpredict_helper <- function(model, terms, ci.lvl, type, full.data, typical, ppd
   # for full data, we can also get observed and residuals
   if (full.data) {
     mydf <- dplyr::mutate(mydf,
-      observed = sjmisc::to_value(fitfram[[1]], start.at = 0, keep.labels = F),
+      observed = sjlabelled::as_numeric(fitfram[[1]], start.at = 0, keep.labels = F),
       residuals = .data$observed - .data$predicted
     )
   } else {
@@ -388,7 +391,7 @@ ggpredict_helper <- function(model, terms, ci.lvl, type, full.data, typical, ppd
   has.full.data <- ifelse(full.data, "1", "0")
 
   # x needs to be numeric
-  mydf$x <- sjmisc::to_value(mydf$x)
+  mydf$x <- sjlabelled::as_numeric(mydf$x)
 
   # to tibble
   mydf <- mydf %>%
@@ -410,7 +413,8 @@ ggpredict_helper <- function(model, terms, ci.lvl, type, full.data, typical, ppd
                            x.axis.labels = all.labels$axis.labels,
                            faminfo = faminfo,
                            x.is.factor = x.is.factor,
-                           full.data = has.full.data)
+                           full.data = has.full.data,
+                           constant.values = attr(expanded_frame, "constant.values", exact = TRUE))
 }
 
 

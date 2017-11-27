@@ -1,11 +1,12 @@
 #' @importFrom tibble as_tibble
-#' @importFrom sjstats pred_vars typical_value
-#' @importFrom sjmisc to_value to_factor
+#' @importFrom sjstats pred_vars typical_value var_names
+#' @importFrom sjmisc to_factor is_empty
 #' @importFrom stats terms
 #' @importFrom purrr map map_lgl map_df modify_if
-# fac.typical indicates if factors should bne held constant or not
+#' @importFrom sjlabelled as_numeric
+# fac.typical indicates if factors should be held constant or not
 # need to be false for computing std.error for merMod objects
-get_expanded_data <- function(model, mf, terms, typ.fun, fac.typical = TRUE) {
+get_expanded_data <- function(model, mf, terms, typ.fun, fac.typical = TRUE, type = "fe") {
   # special handling for coxph
   if (inherits(model, "coxph")) mf <- dplyr::select(mf, -1)
 
@@ -15,13 +16,34 @@ get_expanded_data <- function(model, mf, terms, typ.fun, fac.typical = TRUE) {
   # use tibble, no drop = FALSE
   mf <- tibble::as_tibble(mf)
 
+
+  # any weights?
+  w <- get_model_weights(model)
+  if (all(w == 1)) w <- NULL
+
+  ## TODO handle random effects in predict correctly
+
+  # get random effects, if any
+
+  rand.eff <- NULL
+  # tryCatch(
+  #   {
+  #     rand.eff <- names(lme4::ranef(model))
+  #   },
+  #   error = function(x) { NULL },
+  #   warning = function(x) { NULL },
+  #   finally = function(x) { NULL }
+  # )
+
+
   # clean variable names
-  colnames(mf) <- get_cleaned_varnames(colnames(mf))
+  colnames(mf) <- sjstats::var_names(colnames(mf))
 
   # get specific levels
   first <- get_xlevels_vector(terms)
   # and all specified variables
   rest <- get_clear_vars(terms)
+
 
   # create unique combinations
   rest <- rest[!(rest %in% names(first))]
@@ -36,6 +58,7 @@ get_expanded_data <- function(model, mf, terms, typ.fun, fac.typical = TRUE) {
 
   # remove NA from values, so we don't have expanded data grid
   # with missing values. this causes an error with predict()
+
   if (any(purrr::map_lgl(first, ~ anyNA(.x)))) {
     first <- purrr::map(first, ~ as.vector(na.omit(.x)))
   }
@@ -44,6 +67,7 @@ get_expanded_data <- function(model, mf, terms, typ.fun, fac.typical = TRUE) {
   # names of predictor variables may vary, e.g. if log(x)
   # or poly(x) etc. is used. so check if we have correct
   # predictor names that also appear in model frame
+
   if (sum(!(alle %in% colnames(mf))) > 0) {
     # get terms from model directly
     alle <- attr(stats::terms(model), "term.labels", exact = TRUE)
@@ -60,48 +84,79 @@ get_expanded_data <- function(model, mf, terms, typ.fun, fac.typical = TRUE) {
   # keep those, which we did not process yet
   alle <- alle[!(alle %in% names(first))]
 
+  # exclude random effects
+  if (!is.null(rand.eff) && type == "re")
+    alle <- alle[!(alle %in% rand.eff)]
+
+
+  # if we have weights, and typical value is mean, use weighted means
+  # as function for the typical values
+
+  if (!sjmisc::is_empty(w) && length(w) == nrow(mf) && typ.fun == "mean")
+    typ.fun <- "weighted.mean"
+
+  if (typ.fun == "weighted.mean" && sjmisc::is_empty(w))
+    typ.fun <- "mean"
+
+
   # add all to list. For those predictors that have to be held constant,
   # use "typical" values - mean/median for numeric values, reference
   # level for factors and most common element for character vectors
+
   if (fac.typical) {
-    first <-
-      c(first, lapply(mf[, alle], function(x) sjstats::typical_value(x, typ.fun)))
+    const.values <- lapply(mf[, alle], function(x) sjstats::typical_value(x, typ.fun, w = w))
   } else {
     # if factors should not be held constant (needed when computing
     # std.error for merMod objects), we need all factor levels,
     # and not just the typical value
-    first <-
-      c(first, lapply(mf[, alle], function(x) {
+    const.values <-
+      lapply(mf[, alle], function(x) {
         if (is.factor(x))
           levels(x)
         else
-          sjstats::typical_value(x, typ.fun)
-      }))
+          sjstats::typical_value(x, typ.fun, w = w)
+      })
   }
+
+  # add constant values.
+  first <- c(first, const.values)
+
+  # add back random effects
+  if (!is.null(rand.eff) && type == "re")
+    first <- c(first, lapply(mf[, rand.eff], unique))
 
 
   # create data frame with all unqiue combinations
   dat <- tibble::as_tibble(expand.grid(first))
+
 
   # we have to check type consistency. If user specified certain value
   # (e.g. "education [1,3]"), these are returned as string and coerced
   # to factor, even if original vector was numeric. In this case, we have
   # to coerce back these variables. Else, predict() complains that model
   # was fitted with numeric, but newdata has factor (or vice versa).
+
   datlist <- purrr::map(colnames(dat), function(x) {
+
     # check for consistent vector type: numeric
     if (is.numeric(mf[[x]]) && !is.numeric(dat[[x]]))
-      return(sjmisc::to_value(dat[[x]]))
+      return(sjlabelled::as_numeric(dat[[x]]))
+
     # check for consistent vector type: factor
     if (is.factor(mf[[x]]) && !is.factor(dat[[x]]))
       return(sjmisc::to_factor(dat[[x]]))
+
     # else return original vector
     return(dat[[x]])
   })
 
+
   # get list names. we need to remove patterns like "log()" etc.
   # and give list elements names, so we can make a tibble
   names(datlist) <- names(first)
+
+  # save constant values as attribute
+  attr(datlist, "constant.values") <- const.values
 
   tibble::as_tibble(datlist)
 }
@@ -110,6 +165,7 @@ get_expanded_data <- function(model, mf, terms, typ.fun, fac.typical = TRUE) {
 #' @importFrom sjmisc is_empty
 #' @importFrom dplyr slice
 #' @importFrom tibble as_tibble
+#' @importFrom sjstats var_names
 get_sliced_data <- function(fitfram, terms) {
   # check if we have specific levels in square brackets
   x.levels <- get_xlevels_vector(terms)
@@ -126,26 +182,7 @@ get_sliced_data <- function(fitfram, terms) {
   }
 
   # clean variable names
-  colnames(fitfram) <- get_cleaned_varnames(colnames(fitfram))
+  colnames(fitfram) <- sjstats::var_names(colnames(fitfram))
 
   tibble::as_tibble(fitfram)
 }
-
-
-#' @importFrom purrr map_chr
-get_cleaned_varnames <- function(x) {
-  # for gam-smoothers/loess, remove s()- and lo()-function in column name
-  # for survival, remove strata()
-  pattern <- c("log", "s", "lo", "bs", "poly", "strata")
-
-  # do we have a "log()" pattern here? if yes, get capture region
-  # which matches the "cleaned" variable name
-  purrr::map_chr(1:length(x), function(i) {
-    for (j in 1:length(pattern)) {
-      p <- paste0("^", pattern[j], "\\(([^,)]*).*")
-      x[i] <- unique(sub(p, "\\1", x[i]))
-    }
-    x[i]
-  })
-}
-

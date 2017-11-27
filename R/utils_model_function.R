@@ -36,6 +36,7 @@ get_predict_function <- function(model) {
     inherits(model, "svyglm.nb") ~ "svyglm.nb",
     inherits(model, "svyglm") ~ "svyglm",
     inherits(model, "stanreg") ~ "stanreg",
+    inherits(model, "brmsfit") ~ "brmsfit",
     inherits(model, "gam") ~ "gam",
     inherits(model, "glmerMod") ~ "glmer",
     inherits(model, "glmmTMB") ~ "glmmTMB",
@@ -43,6 +44,7 @@ get_predict_function <- function(model) {
     inherits(model, c("lmerMod", "merModLmerTest")) ~ "lmer",
     inherits(model, "lme") ~ "lme",
     inherits(model, "gls") ~ "gls",
+    inherits(model, "clm") ~ "clm",
     inherits(model, "polr") ~ "polr",
     inherits(model, "gee") ~ "gee",
     inherits(model, "plm") ~ "plm",
@@ -55,6 +57,7 @@ get_predict_function <- function(model) {
     inherits(model, "betareg") ~ "betareg",
     inherits(model, "truncreg") ~ "truncreg",
     inherits(model, "coxph") ~ "coxph",
+    inherits(model, "multinom") ~ "multinom",
     inherits(model, c("zeroinfl", "hurdle")) ~ "zeroinfl",
     TRUE ~ "generic"
   )

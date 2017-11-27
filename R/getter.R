@@ -107,26 +107,20 @@ get_x_labels <- function(x, case = NULL) {
 
 
 #' @rdname get_title
-#' @importFrom sjmisc to_value
+#' @importFrom sjlabelled as_numeric
 #' @importFrom dplyr bind_rows
 #' @export
 get_complete_df <- function(x, case = NULL) {
   suppressWarnings(dplyr::bind_rows(lapply(x, function(df) {
-    df$x <- sjmisc::to_value(df$x)
+    df$x <- sjlabelled::as_numeric(df$x)
     df
   })))
 }
 
 
+#' @importFrom snakecase to_any_case
 convert_case <- function(lab, case) {
   if (!is.null(case) && !is.null(lab)) {
-
-    # check if package available
-    if (!requireNamespace("snakecase", quietly = TRUE)) {
-      message("Package `snakecase` required for case-conversion.")
-      return(lab)
-    }
-
     snakecase::to_any_case(
       lab,
       case = case,

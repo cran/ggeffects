@@ -1,3 +1,27 @@
+# ggeffects 0.3.0
+
+## General
+
+* Support for `brmsfit`-models from the *brms*-package.
+* Support for `clm`-models from the *ordinal*-package.
+* Support for `multinom`-models from the *nnet*-package.
+* Posterior predictive distributions (see argument `ppd`) now compute uncertainty intervals also for non-gaussian models.
+* Use functions from package *sjstats* (link inverse, model frame etc.).
+* If the regression model used weights, `ggpredict()` now computes the weighted mean as typical value for predictors that are held constant.
+* Use select-helpers from package *tidyselect*, instead of *dplyr*.
+
+## New functions
+
+* New `summary()` function, to provide information on predictions by grouping variables, and on constant values from adjustments.
+
+## Changes to functions
+
+* `plot()` gets a `show.legend`-argument to show or hide the legend of plots.
+
+## Bug fixes
+
+* Fixed issues with `gam`- and `vgam`-models.
+
 # ggeffects 0.2.2
 
 ## Changes to functions

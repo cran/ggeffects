@@ -29,16 +29,17 @@
 #' house.plr <- polr(Sat ~ Infl + Type + Cont, weights = Freq, data = housing)
 #' emm(house.plr)
 #'
-#' @importFrom sjstats typical_value pred_vars
+#' @importFrom sjstats typical_value pred_vars model_frame
 #' @importFrom dplyr select
 #' @importFrom purrr map_df
+#' @importFrom tidyselect one_of
 #' @export
 emm <- function(model, ci.lvl = .95, type = c("fe", "re"), typical = "mean", ...) {
   # match arguments
   type <- match.arg(type)
 
   # get model frame
-  fitfram <- get_model_frame(model)
+  fitfram <- sjstats::model_frame(model)
 
   # create data frame
   newdat <- purrr::map_df(fitfram, ~ sjstats::typical_value(.x, fun = typical))
@@ -64,6 +65,6 @@ emm <- function(model, ci.lvl = .95, type = c("fe", "re"), typical = "mean", ...
     )
 
   suppressWarnings(
-    dplyr::select(preds, dplyr::one_of("predicted", "conf.low", "conf.high", "response.level"))
+    dplyr::select(preds, tidyselect::one_of("predicted", "conf.low", "conf.high", "response.level"))
   )
 }

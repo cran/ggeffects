@@ -72,11 +72,12 @@ utils::globalVariables("x")
 #' dat <- gginteraction(fit, mdrt.values = "meansd", swap.pred = TRUE)
 #' ggplot(dat, aes(x, predicted, colour = group)) + geom_line()
 #'
-#' @importFrom sjmisc is_empty trim is_num_fac to_value
+#' @importFrom sjmisc is_empty trim is_num_fac
 #' @importFrom stats formula na.omit model.frame quantile terms sd
 #' @importFrom sjstats resp_var
 #' @importFrom dplyr case_when
 #' @importFrom effects effect
+#' @importFrom sjlabelled as_numeric
 #' @export
 gginteraction <- function(model, mdrt.values = "minmax", swap.pred = FALSE, ci.lvl = .95, ...) {
   if (inherits(model, "list"))
@@ -85,12 +86,14 @@ gginteraction <- function(model, mdrt.values = "minmax", swap.pred = FALSE, ci.l
     gginteraction_helper(model, mdrt.values, swap.pred, ci.lvl, ...)
 }
 
+
+#' @importFrom sjstats model_frame
 gginteraction_helper <- function(model, mdrt.values, swap.pred, ci.lvl, ...) {
   # get link-function
   fun <- get_model_function(model)
 
   # get model frame
-  fitfram <- get_model_frame(model)
+  fitfram <- sjstats::model_frame(model)
 
   # get model family
   faminfo <- get_glm_family(model)
@@ -246,7 +249,7 @@ gginteraction_helper <- function(model, mdrt.values, swap.pred, ci.lvl, ...) {
 
 
   # make sure x is numeric
-  intdf$x <- sjmisc::to_value(intdf$x, keep.labels = F)
+  intdf$x <- sjlabelled::as_numeric(intdf$x, keep.labels = F)
 
   # effects-package creates "NA" factor levels, which
   # need to be removed

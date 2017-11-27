@@ -1,7 +1,8 @@
 # select prediction method, based on model-object
+#' @importFrom sjstats link_inverse
 select_prediction_method <- function(fun, model, expanded_frame, ci.lvl, type, faminfo, ppd, terms, typical, ...) {
   # get link-inverse-function
-  linv <- get_link_inverse(fun, model)
+  linv <- sjstats::link_inverse(model)
 
   if (fun == "svyglm") {
     # survey-objects -----
@@ -11,7 +12,10 @@ select_prediction_method <- function(fun, model, expanded_frame, ci.lvl, type, f
     fitfram <- get_predictions_svyglmnb(model, expanded_frame, ci.lvl, linv, ...)
   } else if (fun == "stanreg") {
     # stan-objects -----
-    fitfram <- get_predictions_stanreg(model, expanded_frame, ci.lvl, type, faminfo, ppd, ...)
+    fitfram <- get_predictions_stan(model, expanded_frame, ci.lvl, type, faminfo, ppd, ...)
+  } else if (fun == "brmsfit") {
+    # brms-objects -----
+    fitfram <- get_predictions_stan(model, expanded_frame, ci.lvl, type, faminfo, ppd, ...)
   } else if (fun == "coxph") {
     # coxph-objects -----
     fitfram <- get_predictions_coxph(model, expanded_frame, ci.lvl, ...)
@@ -32,10 +36,16 @@ select_prediction_method <- function(fun, model, expanded_frame, ci.lvl, type, f
     fitfram <- get_predictions_vgam(model, expanded_frame, ci.lvl, linv, ...)
   } else if (fun %in% c("lme", "gls", "plm")) {
     # lme-objects -----
-    fitfram <- get_predictions_lme(model, expanded_frame, ci.lvl, linv, terms, typical, ...)
+    fitfram <- get_predictions_lme(model, expanded_frame, ci.lvl, terms, typical, ...)
   } else if (fun == "gee") {
     # gee-objects -----
     fitfram <- get_predictions_gee(model, expanded_frame, linv, ...)
+  } else if (fun == "multinom") {
+    # multinom-objects -----
+    fitfram <- get_predictions_multinom(model, expanded_frame, linv, ...)
+  } else if (fun == "clm") {
+    # clm-objects -----
+    fitfram <- get_predictions_clm(model, expanded_frame, ci.lvl, linv, ...)
   } else if (fun == "polr") {
     # polr-objects -----
     fitfram <- get_predictions_polr(model, expanded_frame, linv, ...)
@@ -172,6 +182,74 @@ get_predictions_polr <- function(model, fitfram, linv, ...) {
   # No CI
   fitfram$conf.low <- NA
   fitfram$conf.high <- NA
+
+  fitfram
+}
+
+
+# predictions for cumulative link model ----
+
+#' @importFrom sjmisc to_long
+get_predictions_clm <- function(model, fitfram, ci.lvl, linv, ...) {
+  # does user want standard errors?
+  se <- !is.null(ci.lvl) && !is.na(ci.lvl)
+
+  # compute ci, two-ways
+  if (!is.null(ci.lvl) && !is.na(ci.lvl))
+    ci <- 1 - ((1 - ci.lvl) / 2)
+  else
+    ci <- .975
+
+  # prediction, with CI
+  prdat <-
+    stats::predict(
+      model,
+      newdata = fitfram,
+      type = "prob",
+      interval = se,
+      level = ci,
+      ...
+    )
+
+  # convert to data frame.
+  prdat <- as.data.frame(prdat)
+
+  # bind predictions to model frame
+  fitfram <- dplyr::bind_cols(prdat, fitfram)
+
+  # get levels of response
+  lv <- levels(sjstats::model_frame(model)[[sjstats::resp_var(model)]])
+
+  # for proportional ordinal logistic regression (see ordinal::clm),
+  # we have predicted values for each response category. Hence,
+  # gather columns. Since we also have conf. int. for each response
+  # category, we need to gather multiple columns at once
+
+  if (isTRUE(se)) {
+
+    # length of each variable block
+    l <- seq_len(ncol(prdat) / 3)
+    colnames(fitfram)[l] <- lv
+
+    fitfram <- sjmisc::to_long(
+      fitfram,
+      keys = "response.level",
+      values = c("predicted", "conf.low", "conf.high"),
+      l,
+      l + length(l),
+      l + 2 * length(l)
+    )
+
+  } else {
+    key_col <- "response.level"
+    value_col <- "predicted"
+
+    fitfram <- tidyr::gather(fitfram, !! key_col, !! value_col, !! 1:ncol(prdat))
+
+    # No CI
+    fitfram$conf.low <- NA
+    fitfram$conf.high <- NA
+  }
 
   fitfram
 }
@@ -364,7 +442,8 @@ get_predictions_merMod <- function(model, fitfram, ci.lvl, linv, type, terms, ty
         model = model,
         fitfram = fitfram,
         typical = typical,
-        terms = terms
+        terms = terms,
+        type = type
       )
 
     se.fit <- se.pred$se.fit
@@ -397,7 +476,7 @@ get_predictions_merMod <- function(model, fitfram, ci.lvl, linv, type, terms, ty
 
 
 
-# predictions for stanreg ----
+# predictions for stan ----
 
 #' @importFrom tibble as_tibble
 #' @importFrom sjstats hdi resp_var
@@ -405,10 +484,10 @@ get_predictions_merMod <- function(model, fitfram, ci.lvl, linv, type, terms, ty
 #' @importFrom purrr map_dbl map_df
 #' @importFrom dplyr bind_cols
 #' @importFrom stats median
-get_predictions_stanreg <- function(model, fitfram, ci.lvl, type, faminfo, ppd, ...) {
+get_predictions_stan <- function(model, fitfram, ci.lvl, type, faminfo, ppd, ...) {
   # check if pkg is available
-  if (!requireNamespace("rstanarm", quietly = TRUE)) {
-    stop("Package `rstanarm` is required to compute predictions.", call. = F)
+  if (!requireNamespace("rstantools", quietly = TRUE)) {
+    stop("Package `rstantools` is required to compute predictions.", call. = F)
   }
 
   # does user want standard errors?
@@ -416,7 +495,7 @@ get_predictions_stanreg <- function(model, fitfram, ci.lvl, type, faminfo, ppd, 
 
   # check whether predictions should be conditioned
   # on random effects (grouping level) or not.
-  if (inherits(model, "lmerMod") && type != "fe")
+  if (type != "fe")
     ref <- NULL
   else
     ref <- NA
@@ -431,50 +510,61 @@ get_predictions_stanreg <- function(model, fitfram, ci.lvl, type, faminfo, ppd, 
       fitfram[[resp.name]] <- factor(1)
     }
 
-    prdat <- rstanarm::posterior_predict(
-      model,
-      newdata = fitfram,
-      re.form = ref,
-      ...
-    )
+    if (inherits(model, "brmsfit")) {
+      prdat2 <- prdat <- rstantools::posterior_predict(
+        model,
+        newdata = fitfram,
+        re_formula = ref,
+        ...
+      )
+    } else {
+      prdat2 <- prdat <- rstantools::posterior_predict(
+        model,
+        newdata = fitfram,
+        re.form = ref,
+        ...
+      )
+    }
+
   } else {
     # get posterior distribution of the linear predictor
     # note that these are not best practice for inferences,
     # because they don't take the uncertainty of the Sd into account
-    prdat <- rstanarm::posterior_linpred(
+    prdat <- rstantools::posterior_linpred(
       model,
       newdata = fitfram,
       transform = TRUE,
       re.form = ref,
+      re_formula = ref,
       ...
     )
 
+
     # tell user
-    message("Note: uncertainty of error terms are not taken into account. You may want to use `rstanarm::posterior_predict()`.")
+    message("Note: uncertainty of error terms are not taken into account. You may want to use `rstantools::posterior_predict()`.")
   }
 
   # we have a list of 4000 samples, so we need to coerce to data frame
   prdat <- tibble::as_tibble(prdat)
 
-  # for models with binomial outcome, we just have 0 and 1 as predictions
-  # so we need to
-  if (faminfo$family != "gaussian" && ppd) {
-    # compute median, as "most probable estimate"
-    fitfram$predicted <- purrr::map_dbl(prdat, mean)
+  # compute median, as "most probable estimate"
+  fitfram$predicted <- purrr::map_dbl(prdat, stats::median)
 
-    # can't compute SE, because we would need many replicates
-    # of the posterior predicted distribution
-    se <- FALSE
-    message("For non-gaussian models and if `ppd = TRUE`, no confidence intervals are calculated.")
+  # for posterior predictive distributions, we compute
+  # the predictive intervals
+  if (ppd) {
+    tmp <- rstantools::predictive_interval(prdat2)
+    hdi <- list(
+      tmp[, 1],
+      tmp[, 2]
+    )
   } else {
-    # compute median, as "most probable estimate"
-    fitfram$predicted <- purrr::map_dbl(prdat, stats::median)
-
     # compute HDI, as alternative to CI
     hdi <- prdat %>%
       purrr::map_df(~ sjstats::hdi(.x, prob = ci.lvl)) %>%
       sjmisc::rotate_df()
   }
+
 
   if (se) {
     # bind HDI
@@ -538,9 +628,7 @@ get_predictions_coxph <- function(model, fitfram, ci.lvl, ...) {
 
 #' @importFrom prediction prediction
 get_predictions_gam <- function(model, fitfram, ci.lvl, ...) {
-  # No standard errors (currently) for gam predictions with newdata
-  # se <- !is.null(ci.lvl) && !is.na(ci.lvl)
-  se <- FALSE
+  se <- !is.null(ci.lvl) && !is.na(ci.lvl)
 
   # compute ci, two-ways
   if (!is.null(ci.lvl) && !is.na(ci.lvl))
@@ -553,8 +641,7 @@ get_predictions_gam <- function(model, fitfram, ci.lvl, ...) {
       model,
       newdata = fitfram,
       type = "response",
-      se.fit = se,
-      ...
+      se.fit = se
     )
 
   # did user request standard errors? if yes, compute CI
@@ -584,12 +671,13 @@ get_predictions_gam <- function(model, fitfram, ci.lvl, ...) {
 get_predictions_vgam <- function(model, fitfram, ci.lvl, linv, ...) {
   prdat <- stats::predict(
     model,
+    newdata = fitfram,
     type = "response",
-    ...
+    se.fit = FALSE
   )
 
   # copy predictions
-  fitfram$predicted <- prdat$fitted
+  fitfram$predicted <- as.vector(prdat)
 
   fitfram
 }
@@ -643,7 +731,7 @@ get_predictions_lm <- function(model, fitfram, ci.lvl, linv, ...) {
 #' @importFrom sjstats resp_var pred_vars
 #' @importFrom purrr map
 #' @importFrom tibble add_column
-get_predictions_lme <- function(model, fitfram, ci.lvl, linv, terms, typical, ...) {
+get_predictions_lme <- function(model, fitfram, ci.lvl, terms, typical, ...) {
   # does user want standard errors?
   se <- !is.null(ci.lvl) && !is.na(ci.lvl)
 
@@ -699,6 +787,35 @@ get_predictions_gee <- function(model, fitfram, linv, ...) {
     )
   # copy predictions
   fitfram$predicted <- as.vector(prdat)
+
+  # No CI
+  fitfram$conf.low <- NA
+  fitfram$conf.high <- NA
+
+  fitfram
+}
+
+
+# predictions for multinom ----
+
+#' @importFrom tidyr gather
+#' @importFrom dplyr bind_cols
+get_predictions_multinom <- function(model, fitfram, linv, ...) {
+  prdat <-
+    stats::predict(
+      model,
+      newdata = fitfram,
+      type = "probs",
+      ...
+    )
+
+  nc <- 1:ncol(prdat)
+
+  # Matrix to vector
+  fitfram <- prdat %>%
+    as.data.frame() %>%
+    dplyr::bind_cols(fitfram) %>%
+    tidyr::gather(key = "response.level", value = "predicted", !! nc)
 
   # No CI
   fitfram$conf.low <- NA
@@ -767,16 +884,17 @@ get_base_fitfram <- function(fitfram, linv, prdat, se, ci.lvl) {
 #' @importFrom tibble add_column
 #' @importFrom stats model.matrix terms vcov
 #' @importFrom dplyr arrange
-#' @importFrom sjstats resp_var
+#' @importFrom sjstats resp_var model_frame
 #' @importFrom rlang parse_expr
-get_se_from_vcov <- function(model, fitfram, typical, terms, fun = NULL) {
+get_se_from_vcov <- function(model, fitfram, typical, terms, fun = NULL, type = "fe") {
   # copy data frame with predictions
   newdata <- get_expanded_data(
     model,
-    get_model_frame(model, fe.only = FALSE),
+    sjstats::model_frame(model, fe.only = FALSE),
     terms,
     typ.fun = typical,
-    fac.typical = FALSE
+    fac.typical = FALSE,
+    type = type
   )
 
   # add response

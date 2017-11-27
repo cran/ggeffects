@@ -55,9 +55,11 @@ ggpoly <- function(model, poly.term, ci.lvl = .95, ...) {
     ggpoly_helper(model, poly.term, ci.lvl, ...)
 }
 
+
+#' @importFrom sjstats model_frame
 ggpoly_helper <- function(model, poly.term, ci.lvl, ...) {
   # get model frame
-  mf <- get_model_frame(model)
+  mf <- sjstats::model_frame(model)
 
   # check model family, do we have count model?
   faminfo <- get_glm_family(model)

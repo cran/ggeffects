@@ -7,7 +7,7 @@
 \usage{
 \method{plot}{ggeffects}(x, ci = TRUE, facets, rawdata = FALSE,
   colors = "Set1", alpha = 0.15, dodge = 0.1, use.theme = TRUE,
-  dot.alpha = 0.5, jitter = TRUE, case = NULL, ...)
+  dot.alpha = 0.5, jitter = TRUE, case = NULL, show.legend = TRUE, ...)
 }
 \arguments{
 \item{x}{An object of class \code{ggeffects}, as returned by the functions
@@ -60,6 +60,8 @@ to avoid that data points exceed the axis limits.}
 specified character case. See \code{\link[snakecase]{to_any_case}} for
 more details on this argument.}
 
+\item{show.legend}{Logical, shows or hides the plot legend.}
+
 \item{...}{Currently not used.}
 }
 \value{
@@ -100,9 +102,9 @@ A generic plot-method for \code{ggeffects}-objects.
          the grouping of predictions based on the level of the model's response.
 }
 \examples{
-library(sjmisc)
+library(sjlabelled)
 data(efc)
-efc$c172code <- to_label(efc$c172code)
+efc$c172code <- as_label(efc$c172code)
 fit <- lm(barthtot ~ c12hour + neg_c_7 + c161sex + c172code, data = efc)
 
 dat <- ggpredict(fit, terms = "c12hour")
