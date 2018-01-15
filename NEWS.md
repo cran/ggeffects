@@ -1,3 +1,13 @@
+# ggeffects 0.3.1
+
+## General
+
+* Use `convert_case()` from *sjlabelled*, in preparation for the latest *snakecase*-package update.
+
+## Bug fixes
+
+* Model weights are now correctly taken into account.
+
 # ggeffects 0.3.0
 
 ## General
