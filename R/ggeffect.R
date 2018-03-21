@@ -1,34 +1,36 @@
 #' @title Get marginal effects from model terms
 #' @name ggeffect
 #'
-#' @description \code{ggeffect()} computes marginal effects of model terms.
-#'                It internally calls \code{\link[effects]{Effect}} and
-#'                puts the result into tidy data frames.
-#'                \code{eff()} is an alias for \code{ggeffect()}
+#' @description
+#'   \code{ggeffect()} computes marginal effects of model terms. It internally
+#'   calls \code{\link[effects]{Effect}} and puts the result into tidy data
+#'   frames. \code{eff()} is an alias for \code{ggeffect()}.
 #'
 #' @param model A fitted model object, or a list of model objects. Any model
-#'          that is supported by the \CRANpkg{effects}-package should work.
+#'   that is supported by the \CRANpkg{effects}-package should work.
 #' @param ... Further arguments passed down to \code{\link[effects]{Effect}}.
 #' @inheritParams ggpredict
 #'
-#' @return A tibble (with \code{ggeffects} class attribute) with consistent data columns:
-#'         \describe{
-#'           \item{\code{x}}{the values of the model predictor to which the effect pertains, used as x-position in plots.}
-#'           \item{\code{predicted}}{the predicted values, used as y-position in plots.}
-#'           \item{\code{conf.low}}{the lower bound of the confidence interval for the predicted values.}
-#'           \item{\code{conf.high}}{the upper bound of the confidence interval for the predicted values.}
-#'           \item{\code{group}}{the grouping level from the second term in \code{terms}, used as grouping-aesthetics in plots.}
-#'           \item{\code{facet}}{the grouping level from the third term in \code{terms}, used to indicate facets in plots.}
-#'         }
+#' @return
+#'   A tibble (with \code{ggeffects} class attribute) with consistent data columns:
+#'   \describe{
+#'     \item{\code{x}}{the values of the model predictor to which the effect pertains, used as x-position in plots.}
+#'     \item{\code{predicted}}{the predicted values, used as y-position in plots.}
+#'     \item{\code{conf.low}}{the lower bound of the confidence interval for the predicted values.}
+#'     \item{\code{conf.high}}{the upper bound of the confidence interval for the predicted values.}
+#'     \item{\code{group}}{the grouping level from the second term in \code{terms}, used as grouping-aesthetics in plots.}
+#'     \item{\code{facet}}{the grouping level from the third term in \code{terms}, used to indicate facets in plots.}
+#'   }
 #'
-#' @note The results of \code{ggeffect()} and \code{ggpredict()} are usually (almost)
-#'       identical. It's just that \code{ggpredict()} calls \code{predict()}, while
-#'       \code{ggeffect()} calls \code{\link[effects]{Effect}} to compute marginal
-#'       effects at the mean. However, results may differ when using factors inside
-#'       the formula: in such cases, \code{Effect()} takes the "mean" value of factors
-#'       (i.e. computes a kind of "average" value, which represents the proportions
-#'       of each factor's category), while \code{ggpredict()} uses the base
-#'       (reference) level when holding these predictors at a constant value.
+#' @note
+#'   The results of \code{ggeffect()} and \code{ggpredict()} are usually (almost)
+#'   identical. It's just that \code{ggpredict()} calls \code{predict()}, while
+#'   \code{ggeffect()} calls \code{\link[effects]{Effect}} to compute marginal
+#'   effects at the mean. However, results may differ when using factors inside
+#'   the formula: in such cases, \code{Effect()} takes the "mean" value of factors
+#'   (i.e. computes a kind of "average" value, which represents the proportions
+#'   of each factor's category), while \code{ggpredict()} uses the base
+#'   (reference) level when holding these predictors at a constant value.
 #'
 #' @examples
 #' data(efc)
@@ -48,16 +50,16 @@
 #' @importFrom sjlabelled as_numeric
 #' @importFrom rlang .data
 #' @export
-ggeffect <- function(model, terms, ci.lvl = .95, ...) {
+ggeffect <- function(model, terms, ci.lvl = .95, x.as.factor = FALSE, ...) {
   if (inherits(model, "list"))
-    purrr::map(model, ~ggeffect_helper(.x, terms, ci.lvl, ...))
+    purrr::map(model, ~ggeffect_helper(.x, terms, ci.lvl, x.as.factor, ...))
   else
-    ggeffect_helper(model, terms, ci.lvl, ...)
+    ggeffect_helper(model, terms, ci.lvl, x.as.factor, ...)
 }
 
 
 #' @importFrom sjstats model_frame
-ggeffect_helper <- function(model, terms, ci.lvl, ...) {
+ggeffect_helper <- function(model, terms, ci.lvl, x.as.factor, ...) {
   # check terms argument
   terms <- check_vars(terms)
 
@@ -216,7 +218,7 @@ ggeffect_helper <- function(model, terms, ci.lvl, ...) {
   colnames(mydf) <- cnames
 
   # make x numeric
-  mydf$x <- sjlabelled::as_numeric(mydf$x, keep.labels = FALSE)
+  if (!x.as.factor) mydf$x <- sjlabelled::as_numeric(mydf$x, keep.labels = FALSE)
 
   mydf
 }
@@ -224,6 +226,6 @@ ggeffect_helper <- function(model, terms, ci.lvl, ...) {
 
 #' @rdname ggeffect
 #' @export
-eff <- function(model, terms, ci.lvl = .95, ...) {
-  ggeffect(model, terms, ci.lvl, ...)
+eff <- function(model, terms, ci.lvl = .95, x.as.factor = FALSE, ...) {
+  ggeffect(model, terms, ci.lvl, x.as.factor, ...)
 }

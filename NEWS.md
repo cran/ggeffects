@@ -1,3 +1,15 @@
+# ggeffects 0.3.2
+
+## General
+
+* `ggpredict()`, `ggeffect()` and `gginteraction()` get a `x.as.factor`-argument to preserve factor-class for the `x`-column in the returned data frame.
+* The `terms`-argument now also allows the specification of a range of numeric values in square brackets, e.g. `terms = "age [30:50]"`.
+
+## Bug fixes
+
+* Give proper warning that `clm`-models don't support `full.data`-argument.
+* `emm()` did not work properly for some random effects models.
+
 # ggeffects 0.3.1
 
 ## General

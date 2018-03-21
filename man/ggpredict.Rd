@@ -14,10 +14,11 @@ ame(model, terms, ci.lvl = 0.95, type = c("fe", "re"), typical = "mean",
   ppd = FALSE, ...)
 
 ggpredict(model, terms, ci.lvl = 0.95, type = c("fe", "re"),
-  full.data = FALSE, typical = "mean", ppd = FALSE, ...)
+  full.data = FALSE, typical = "mean", ppd = FALSE, x.as.factor = FALSE,
+  ...)
 
 mem(model, terms, ci.lvl = 0.95, type = c("fe", "re"), full.data = FALSE,
-  typical = "mean", ppd = FALSE, ...)
+  typical = "mean", ppd = FALSE, x.as.factor = FALSE, ...)
 }
 \arguments{
 \item{model}{A fitted model object, or a list of model objects. Any model
@@ -32,11 +33,12 @@ of first term are grouped by the levels of the second (and third)
 term. Indicating levels in square brackets allows for selecting
 only specific groups. Term name and levels in brackets must be
 separated by a whitespace character, e.g.
-\code{terms = c("age", "education [1,3]")}. See 'Examples'.
-All remaining covariates that are not specified in \code{terms}
-are held constant (if \code{full.data = FALSE}, the default)
-or are set to the values from the observations (i.e. are kept
-as they happen to be; see 'Details').}
+\code{terms = c("age", "education [1,3]")}. Numeric ranges, separated
+with colon, are also allowed: \code{terms = c("education", "age [30:60]")}.
+See 'Examples'. All remaining covariates that are not specified in
+\code{terms} are held constant (if \code{full.data = FALSE}, the default)
+or are set to the values from the observations (i.e. are kept as they
+happen to be; see 'Details').}
 
 \item{ci.lvl}{Numeric, the level of the confidence intervals. For \code{ggpredict()},
 use \code{ci.lvl = NA}, if confidence intervals should not be calculated
@@ -45,7 +47,12 @@ use \code{ci.lvl = NA}, if confidence intervals should not be calculated
 \item{type}{Character, only applies for mixed effects models. Indicates
 whether predicted values should be conditioned on random effects
 (\code{type = "re"}) or fixed effects only (\code{type = "fe"},
-the default).}
+the default). If \code{type = "re"}, the uncertainty in the variance
+parameters is currently not taken into account. The specific levels of
+the random effects are not provided in the \code{newdata}-argument. Hence,
+if \code{type = "re"}, \code{predict()} is called with \code{re.form = NULL},
+i.e. predictions are conditioned on random effects only using the first level
+of random effects, but the uncertainty in the variance parameters is ignored.}
 
 \item{typical}{Character vector, naming the function to be applied to the
 covariates over which the effect is "averaged". The default is "mean".
@@ -67,6 +74,10 @@ If \code{FALSE} (the default), the returned data frame only contains
 predictions for all combinations of unique values of the model's
 predictors. Residuals and observed values are set to \code{NA}.
 Usually, this argument is only used internally by \code{ggaverage()}.}
+
+\item{x.as.factor}{Logical, if \code{TRUE}, preserves factor-class as
+\code{x}-column in the returned data frame. By default, the \code{x}-column
+is always numeric.}
 }
 \value{
 A tibble (with \code{ggeffects} class attribute) with consistent data columns:
@@ -87,82 +98,82 @@ A tibble (with \code{ggeffects} class attribute) with consistent data columns:
 }
 \description{
 \code{ggpredict()} computes predicted (fitted) values for the
-               response, at the margin of specific values from certain model terms,
-               where additional model terms indicate the grouping structure.
-               \code{ggaverage()} computes the average predicted values.
-               The result is returned as tidy data frame.
-               \cr \cr
-               \code{mem()} is an alias for \code{ggpredict()} (marginal effects
-               at the mean), \code{ame()} is an alias for \code{ggaverage()}
-               (average marginal effects).
+  response, at the margin of specific values from certain model terms,
+  where additional model terms indicate the grouping structure.
+  \code{ggaverage()} computes the average predicted values.
+  The result is returned as tidy data frame.
+  \cr \cr
+  \code{mem()} is an alias for \code{ggpredict()} (marginal effects
+  at the mean), \code{ame()} is an alias for \code{ggaverage()}
+  (average marginal effects).
 }
 \details{
 Currently supported model-objects are: \code{lm, glm, glm.nb, lme, lmer,
-         glmer, glmer.nb, nlmer, glmmTMB, gam, vgam, gamm, gamm4, multinom,
-         betareg, gls, gee, plm, lrm, polr, clm, hurdle, zeroinfl, svyglm,
-         svyglm.nb, truncreg, coxph, stanreg, brmsfit}.
-         Other models not listed here are passed to a generic predict-function
-         and might work as well, or maybe with \code{ggeffect()}, which
-         effectively does the same as \code{ggpredict()}. The main difference
-         between \code{ggpredict()} and \code{ggeffect()} is how factors are
-         held constant: \code{ggpredict()} uses the reference level, while
-         \code{ggeffect()} computes a kind of "average" value, which represents
-         the proportions of each factor's category.
-         \cr \cr
-         For \code{ggpredict()}, if \code{full.data = FALSE}, \code{expand.grid()}
-         is called on all unique combinations of \code{model.frame(model)[, terms]}
-         and used as \code{newdata}-argument for \code{predict()}. In this case,
-         all remaining covariates that are not specified in \code{terms} are
-         held constant. Numeric values are set to the mean (unless changed
-         with the \code{typical}-argument), factors are set to their
-         reference level and character vectors to their mode (most common
-         element).
-         \cr \cr
-         \code{ggaverage()} computes the average predicted values, by calling
-         \code{ggpredict()} with \code{full.data = TRUE}, where argument
-         \code{newdata = model.frame(model)} is used in \code{predict()}.
-         Hence, predictions are made on the model data. In this case, all
-         remaining covariates that are not specified in \code{terms} are
-         \emph{not} held constant, but vary between observations (and are
-         kept as they happen to be). The predicted values are then averaged
-         for each group (if any).
-         \cr \cr
-         Thus, \code{ggpredict()} can be considered as calculating marginal
-         effects at the mean, while \code{ggaverage()} computes average
-         marginal effects.
-         \cr \cr
-         \code{ggpredict()} also works with \strong{Stan}-models from
-         the \CRANpkg{rstanarm} or \CRANpkg{brms}-package. The predicted
-         values are the median value of all drawn posterior samples. The
-         confidence intervals for Stan-models are actually high density
-         intervals, computed by \code{\link[sjstats]{hdi}}, unless \code{ppd = TRUE}.
-         If \code{ppd = TRUE}, predictions are based on draws of the posterior
-         predictive  distribution and the uncertainty interval is computed
-         using  \code{\link[rstantools]{predictive_interval}}. By default (i.e.
-         \code{ppd = FALSE}), the predictions are based on
-         \code{\link[rstantools]{posterior_linpred}} and hence have some
-         limitations: the uncertainty of the error term is not taken into
-         account. The recommendation is to use the posterior predictive
-         distribution (\code{\link[rstantools]{posterior_predict}}).
-         Note that for binomial models, the \code{newdata}-argument
-         used in \code{posterior_predict()} must also contain the vector
-         with the number of trials. In this case, a dummy-vector is used,
-         where all values for the response are set to 1.
+  glmer, glmer.nb, nlmer, glmmTMB, gam, vgam, gamm, gamm4, multinom,
+  betareg, gls, gee, plm, lrm, polr, clm, hurdle, zeroinfl, svyglm,
+  svyglm.nb, truncreg, coxph, stanreg, brmsfit}.
+  Other models not listed here are passed to a generic predict-function
+  and might work as well, or maybe with \code{ggeffect()}, which
+  effectively does the same as \code{ggpredict()}. The main difference
+  between \code{ggpredict()} and \code{ggeffect()} is how factors are
+  held constant: \code{ggpredict()} uses the reference level, while
+  \code{ggeffect()} computes a kind of "average" value, which represents
+  the proportions of each factor's category.
+  \cr \cr
+  For \code{ggpredict()}, if \code{full.data = FALSE}, \code{expand.grid()}
+  is called on all unique combinations of \code{model.frame(model)[, terms]}
+  and used as \code{newdata}-argument for \code{predict()}. In this case,
+  all remaining covariates that are not specified in \code{terms} are
+  held constant. Numeric values are set to the mean (unless changed
+  with the \code{typical}-argument), factors are set to their
+  reference level and character vectors to their mode (most common
+  element).
+  \cr \cr
+  \code{ggaverage()} computes the average predicted values, by calling
+  \code{ggpredict()} with \code{full.data = TRUE}, where argument
+  \code{newdata = model.frame(model)} is used in \code{predict()}.
+  Hence, predictions are made on the model data. In this case, all
+  remaining covariates that are not specified in \code{terms} are
+  \emph{not} held constant, but vary between observations (and are
+  kept as they happen to be). The predicted values are then averaged
+  for each group (if any).
+  \cr \cr
+  Thus, \code{ggpredict()} can be considered as calculating marginal
+  effects at the mean, while \code{ggaverage()} computes average
+  marginal effects.
+  \cr \cr
+  \code{ggpredict()} also works with \strong{Stan}-models from
+  the \CRANpkg{rstanarm} or \CRANpkg{brms}-package. The predicted
+  values are the median value of all drawn posterior samples. The
+  confidence intervals for Stan-models are actually high density
+  intervals, computed by \code{\link[sjstats]{hdi}}, unless \code{ppd = TRUE}.
+  If \code{ppd = TRUE}, predictions are based on draws of the posterior
+  predictive  distribution and the uncertainty interval is computed
+  using  \code{\link[rstantools]{predictive_interval}}. By default (i.e.
+  \code{ppd = FALSE}), the predictions are based on
+  \code{\link[rstantools]{posterior_linpred}} and hence have some
+  limitations: the uncertainty of the error term is not taken into
+  account. The recommendation is to use the posterior predictive
+  distribution (\code{\link[rstantools]{posterior_predict}}).
+  Note that for binomial models, the \code{newdata}-argument
+  used in \code{posterior_predict()} must also contain the vector
+  with the number of trials. In this case, a dummy-vector is used,
+  where all values for the response are set to 1.
 }
 \note{
 Since data for \code{ggaverage()} comes from the model frame, not all
-      possible combinations of values in \code{terms} might be present in the data,
-      thus lines or confidence bands from \code{plot()} might not span over
-      the complete x-axis-range.
-      \cr \cr
-      There are some limitations for certain model objects. For example,
-      it is currently only possible to compute predicted risk scores for
-      \code{coxph}-models, but not expected number of events nor survival
-      probabilities.
-      \cr \cr
-      \code{polr}- or \code{clm}-models have an additional column
-      \code{response.level}, which indicates with which level of the response
-      variable the predicted values are associated.
+  possible combinations of values in \code{terms} might be present in the data,
+  thus lines or confidence bands from \code{plot()} might not span over
+  the complete x-axis-range.
+  \cr \cr
+  There are some limitations for certain model objects. For example,
+  it is currently only possible to compute predicted risk scores for
+  \code{coxph}-models, but not expected number of events nor survival
+  probabilities.
+  \cr \cr
+  \code{polr}- or \code{clm}-models have an additional column
+  \code{response.level}, which indicates with which level of the response
+  variable the predicted values are associated.
 }
 \examples{
 data(efc)
@@ -172,6 +183,9 @@ ggpredict(fit, terms = "c12hour")
 ggpredict(fit, terms = "c12hour", full.data = TRUE)
 ggpredict(fit, terms = c("c12hour", "c172code"))
 ggpredict(fit, terms = c("c12hour", "c172code", "c161sex"))
+
+# only range of 40 to 60 for variable 'c12hour'
+ggpredict(fit, terms = "c12hour [40:60]")
 
 # to plot ggeffects-objects, you can use the 'plot()'-function.
 # the following examples show how to build your ggplot by hand.
@@ -259,5 +273,11 @@ ggplot(dat, aes(x = x, y = predicted, colour = group)) +
 # or with ggeffects' plot-method
 \dontrun{
 plot(dat, ci = FALSE)}
+
+# use factor levels as x-column in returned data frame
+data(efc)
+efc$c161sex <- as_label(efc$c161sex)
+fit <- lm(neg_c_7 ~ c12hour + c161sex, data = efc)
+ggpredict(fit, terms = "c161sex", x.as.factor = TRUE)
 
 }
