@@ -1,3 +1,19 @@
+# ggeffects 0.3.3
+
+## General
+
+* Better support for multivariate-response-models from _brms_.
+* Support for cumulative-link-models from _brms_.
+* `ggpredict()` now supports linear multivariate response models, i.e. `lm()` with multiple outcomes.
+
+## Changes to functions
+
+* `ggpredict()` gets a `pretty`-argument to reduce and "prettify" the value range from variables in `terms` for predictions. This applies to all variables in `terms` with more than 25 unique values.
+
+## Bug fixes
+
+* Recognize negative binomial family from `brmsfit`-models.
+
 # ggeffects 0.3.2
 
 ## General

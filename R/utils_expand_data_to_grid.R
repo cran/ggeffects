@@ -4,9 +4,10 @@
 #' @importFrom stats terms
 #' @importFrom purrr map map_lgl map_df modify_if
 #' @importFrom sjlabelled as_numeric
+#' @importFrom dplyr n_distinct
 # fac.typical indicates if factors should be held constant or not
 # need to be false for computing std.error for merMod objects
-get_expanded_data <- function(model, mf, terms, typ.fun, fac.typical = TRUE, type = "fe") {
+get_expanded_data <- function(model, mf, terms, typ.fun, fac.typical = TRUE, type = "fe", prettify = TRUE, prettify.at = 25) {
   # special handling for coxph
   if (inherits(model, "coxph")) mf <- dplyr::select(mf, -1)
 
@@ -86,7 +87,7 @@ get_expanded_data <- function(model, mf, terms, typ.fun, fac.typical = TRUE, typ
 
   # create unique combinations
   rest <- rest[!(rest %in% names(first))]
-  first <- c(first, lapply(mf[, rest], unique, na.rm = TRUE))
+  first <- c(first, lapply(mf[, rest], function(i) sort(unique(i, na.rm = TRUE))))
 
   # get names of all predictor variable
   alle <- sjstats::pred_vars(model)
@@ -107,7 +108,9 @@ get_expanded_data <- function(model, mf, terms, typ.fun, fac.typical = TRUE, typ
   # or poly(x) etc. is used. so check if we have correct
   # predictor names that also appear in model frame
 
-  if (sum(!(alle %in% colnames(mf))) > 0) {
+  ## TODO brms does currently not support "terms()" generic
+
+  if (sum(!(alle %in% colnames(mf))) > 0 && !inherits(model, "brmsfit")) {
     # get terms from model directly
     alle <- attr(stats::terms(model), "term.labels", exact = TRUE)
   }
@@ -163,6 +166,21 @@ get_expanded_data <- function(model, mf, terms, typ.fun, fac.typical = TRUE, typ
   # add back random effects
   if (!is.null(rand.eff) && type == "re")
     first <- c(first, lapply(mf[, rand.eff], unique))
+
+
+  # reduce and prettify elements with too many values
+  if (prettify) {
+    .pred <- function(p) is.numeric(p) && dplyr::n_distinct(p) > prettify.at
+    too.many <- purrr::map_lgl(first, .pred)
+    first <- purrr::map_if(first, .p = .pred, ~ pretty(.x, n = round(sqrt(diff(range(.x))))))
+
+    if (any(too.many)) {
+      message(sprintf(
+        "Following variables had many unique values and were prettified: %s. Use `pretty = FALSE` to get smoother plots with all values, however, at the cost of increased memory usage.",
+        paste(names(first)[too.many], collapse = ", "))
+      )
+    }
+  }
 
 
   # create data frame with all unqiue combinations
