@@ -71,6 +71,16 @@ ggplot(mydf, aes(x, predicted, colour = group)) +
   facet_wrap(~facet)
 ```
 
+# Marginal effects for each model term
+
+If the `term` argument is either missing or `NULL`, marginal effects for each model term are calculated. The result is returned as a list, which can be plotted manually (or using the `plot()` function).
+
+```{r}
+mydf <- ggpredict(fit)
+mydf
+```
+
+
 # Average marginal effects
 
 `ggaverage()` compute average marginal effects. While `ggpredict()` creates a data-grid (using `expand.grid()`) for all possible combinations of values (even if some combinations are not present in the data), `ggaverage()` computes predicted values based on the given data. This means that _different_ predicted values for the outcome may occure at the _same_ value or level for the term in question. The predicted values are then averaged for each value of the term in question and the linear trend is smoothed accross the averaged predicted values. This means that the line representing the marginal effects may cross or diverge, and are not necessarily in paralell to each other.
@@ -99,10 +109,16 @@ mpg_model <- lm(mpg ~ log(hp), data = mtcars)
 # x-values and predictions based on the log(hp)-values
 ggpredict(mpg_model, "hp")
 
-# x-values and predictions based hp-values from 50 to 150
+# x-values and predictions based on hp-values from 50 to 150
 ggpredict(mpg_model, "hp [50:150]")
 ```
 
+The brackets in the `terms`-argument also accept the name of a valid function, to (back-)transform predicted valued. In this example, an alternative would be to specify that values should be exponentiated, which is indicated by `[exp]` in the `terms`-argument:
+
+```{r}
+# x-values and predictions based on exponentiated hp-values
+ggpredict(mpg_model, "hp [exp]")
+```
 
 # Two- and Three-Way-Interactions
 

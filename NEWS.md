@@ -1,3 +1,19 @@
+# ggeffects 0.3.4
+
+## General
+
+* Prediction for `glmmTMB`-objects now compute proper confidence intervals, due to fix in package _glmmTMB_ 0.2.1
+* If `terms` in `ggpredict()` is missing or `NULL`, marginal effects for each model term are calculated. `ggpredict()` then returns a list of data frames, which can also be plotted with `plot()`.
+
+## Changes to functions
+
+* The `jitter`-argument from `plot()` now accepts a numeric value between 0 and 1, to control the width of the random variation in data points.
+* `ggpredict()` and `ggeffect()` can now predict transformed values, which is useful, for instance, to exponentiate predictions for `log(term)` on the original scale of the variable. See package vignette, section _Marginal effects at specific values or levels_ for examples.
+
+## Bug fixes
+
+* Multivariate response models in _brms_ with variable names with underscores and dots were not correctly plotted.
+
 # ggeffects 0.3.3
 
 ## General

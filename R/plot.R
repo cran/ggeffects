@@ -34,11 +34,12 @@
 #'          minimal-theme is applied to the plot. If \code{FALSE}, no theme-modifications
 #'          are applied.
 #' @param dot.alpha Alpha value for data points, when \code{rawdata = TRUE}.
-#' @param jitter Logical, if \code{TRUE} and \code{rawdata = TRUE}, adds a small
-#'          amount of random variation to the location of data points dots, to
-#'          avoid overplotting. Hence the points don't reflect exact
-#'          values in the data. For binary outcomes, raw data is never jittered
-#'          to avoid that data points exceed the axis limits.
+#' @param jitter Numeric, between 0 and 1. If not \code{NULL} and
+#'          \code{rawdata = TRUE}, adds a small amount of random variation to
+#'          the location of data points dots, to avoid overplotting. Hence the
+#'          points don't reflect exact values in the data. For binary outcomes,
+#'          raw data is never jittered to avoid that data points exceed the axis
+#'          limits.
 #' @param show.legend Logical, shows or hides the plot legend.
 #' @param ... Currently not used.
 #'
@@ -116,7 +117,14 @@
 #' @importFrom scales percent
 #' @importFrom dplyr n_distinct
 #' @export
-plot.ggeffects <- function(x, ci = TRUE, facets, rawdata = FALSE, colors = "Set1", alpha = .15, dodge = .1, use.theme = TRUE, dot.alpha = .5, jitter = TRUE, case = NULL, show.legend = TRUE, ...) {
+plot.ggeffects <- function(x, ci = TRUE, facets, rawdata = FALSE, colors = "Set1", alpha = .15, dodge = .1, use.theme = TRUE, dot.alpha = .5, jitter = .2, case = NULL, show.legend = TRUE, ...) {
+
+  if (isTRUE(jitter))
+    jitter <- .2
+  else if (is.logical(jitter) && length(jitter) == 1L && !is.na(jitter) && !jitter)
+    jitter <- NULL
+
+
   # do we have groups and facets?
   has_groups <- tibble::has_name(x, "group") && length(unique(x$group)) > 1
   has_facets <- tibble::has_name(x, "facet") && length(unique(x$facet)) > 1
@@ -143,7 +151,7 @@ plot.ggeffects <- function(x, ci = TRUE, facets, rawdata = FALSE, colors = "Set1
   # set default, if argument not specified
   if (has_facets)
     facets <- TRUE
-  else if (missing(facets))
+  else if (missing(facets) || is.null(facets))
     facets <- has_facets
 
 
@@ -273,7 +281,7 @@ plot.ggeffects <- function(x, ci = TRUE, facets, rawdata = FALSE, colors = "Set1
         mp <- ggplot2::aes_string(x = "x", y = "response")
 
       # for binary response, no jittering
-      if (attr(x, "logistic", exact = TRUE) == "1" || !jitter) {
+      if (attr(x, "logistic", exact = TRUE) == "1" || is.null(jitter)) {
         p <- p + ggplot2::geom_point(
           data = rawdat,
           mapping = mp,
@@ -286,6 +294,7 @@ plot.ggeffects <- function(x, ci = TRUE, facets, rawdata = FALSE, colors = "Set1
           data = rawdat,
           mapping = mp,
           alpha = dot.alpha,
+          width = jitter,
           show.legend = FALSE,
           inherit.aes = FALSE
         )
@@ -350,6 +359,34 @@ plot.ggeffects <- function(x, ci = TRUE, facets, rawdata = FALSE, colors = "Set1
   }
 
   p
+}
+
+
+#' @importFrom purrr map
+#' @importFrom graphics plot
+#' @export
+plot.ggeffectslist <- function(x, ci = TRUE, facets, rawdata = FALSE, colors = "Set1", alpha = .15, dodge = .1, use.theme = TRUE, dot.alpha = .5, jitter = TRUE, case = NULL, show.legend = TRUE, ...) {
+
+  if (missing(facets)) facets <- NULL
+
+  purrr::map(
+    x,
+    ~ graphics::plot(
+      x = .x,
+      ci = ci,
+      facets = facets,
+      rawdata = rawdata,
+      colors = colors,
+      alpha = alpha,
+      dodge = dodge,
+      use.theme = use.theme,
+      dot.alpha = dot.alpha,
+      jitter = jitter,
+      case = case,
+      show.legend = show.legend,
+      ...
+    )
+  )
 }
 
 
