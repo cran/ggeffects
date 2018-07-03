@@ -51,7 +51,7 @@ get_xlevels_single <- function(x) {
   tmp <- sjmisc::trim(gsub("(\\[*)(\\]*)", "", tmp))
 
   # return as numeric
-  if (!anyNA(as.numeric(tmp))) tmp <- as.numeric(tmp)
+  if (!anyNA(suppressWarnings(as.numeric(tmp)))) tmp <- as.numeric(tmp)
 
   stats::setNames(tmp, vars.names)
 }
@@ -62,7 +62,7 @@ get_xlevels_single <- function(x) {
 # $edu [1] 1 3; $sex [1] 2
 #' @importFrom sjmisc is_empty trim str_contains
 #' @importFrom purrr map possibly
-#' @importFrom stats setNames
+#' @importFrom stats setNames sd
 #' @importFrom sjlabelled as_numeric
 get_xlevels_vector <- function(x, mf = NULL) {
   # get variable with suffix
@@ -96,6 +96,9 @@ get_xlevels_vector <- function(x, mf = NULL) {
   # see if we have multiple values, split at comma
   tmp <- sjmisc::trim(strsplit(tmp, ",", fixed = T))
 
+  # moderator pattern
+  mp <- c("minmax", "meansd", "zeromax", "quart")
+
   # now check for ranges
   tmp <-
     purrr::map2(tmp, vars.names, function(x, y) {
@@ -117,10 +120,16 @@ get_xlevels_vector <- function(x, mf = NULL) {
         # Else, it also might be the name of a value labels, so no
         # valid function name. In this case, simply return the label.
 
-        maf <- purrr::possibly(match.fun, NULL)
-        funtrans <- maf(x)
-        if (!is.null(funtrans) && !is.null(mf)) {
-          x <- funtrans(sort(unique(mf[[y]])))
+        if (x == "pretty") {
+          x <- pretty_range(mf[[y]])
+        } else if (x %in% mp) {
+          x <- moderator_pattern(mf[[y]], x)
+        } else {
+          maf <- purrr::possibly(match.fun, NULL)
+          funtrans <- maf(x)
+          if (!is.null(funtrans) && !is.null(mf)) {
+            x <- funtrans(sort(unique(mf[[y]])))
+          }
         }
       }
 
@@ -163,4 +172,43 @@ get_clear_vars <- function(x) {
 
   # get variable names only
   sjmisc::trim(substr(x, 0, cleaned.pos))
+}
+
+
+#' @importFrom stats sd quantile
+moderator_pattern <- function(x, mdrt.values) {
+  # we have more than two values, so re-calculate effects, just using
+  # min and max value of moderator.
+  if (mdrt.values == "minmax") {
+    # retrieve min and max values
+    mv.min <- min(x, na.rm = T)
+    mv.max <- max(x, na.rm = T)
+    # re-compute effects, prepare xlevels
+    xl <- c(mv.min, mv.max)
+    # we have more than two values, so re-calculate effects, just using
+    # 0 and max value of moderator.
+  } else if (mdrt.values == "zeromax") {
+    # retrieve max values
+    mv.max <- max(x, na.rm = T)
+    # re-compute effects, prepare xlevels
+    xl <- c(0, mv.max)
+    # compute mean +/- sd
+  } else if (mdrt.values == "meansd") {
+    # retrieve mean and sd
+    mv.mean <- mean(x, na.rm = T)
+    mv.sd <- stats::sd(x, na.rm = T)
+    # re-compute effects, prepare xlevels
+    xl <- c(mv.mean - mv.sd, mv.mean, mv.mean + mv.sd)
+  } else if (mdrt.values == "all") {
+    # re-compute effects, prepare xlevels
+    xl <- as.vector(unique(sort(x, na.last = NA)))
+  } else if (mdrt.values == "quart") {
+    # re-compute effects, prepare xlevels
+    xl <- as.vector(stats::quantile(x, na.rm = T))
+  } else if (mdrt.values == "quart2") {
+    # re-compute effects, prepare xlevels
+    xl <- as.vector(stats::quantile(x, na.rm = T))[2:4]
+  }
+
+  round(xl, 2)
 }

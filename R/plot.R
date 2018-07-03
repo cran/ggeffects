@@ -4,44 +4,51 @@
 #' @description A generic plot-method for \code{ggeffects}-objects.
 #'
 #' @param x An object of class \code{ggeffects}, as returned by the functions
-#'          from this package.
+#'   from this package.
 #' @param ci Logical, if \code{TRUE}, confidence bands (for continuous variables
-#'          at x-axis) resp. error bars (for factors at x-axis) are plotted.
-#'          For \code{ggeffects}-objects from \code{ggpredict()} with argument
-#'          \code{full.data = TRUE}, \code{ci} is automatically set to \code{FALSE}.
+#'   at x-axis) resp. error bars (for factors at x-axis) are plotted.
+#'   For \code{ggeffects}-objects from \code{ggpredict()} with argument
+#'   \code{full.data = TRUE}, \code{ci} is automatically set to \code{FALSE}.
 #' @param facets Logical, defaults to \code{TRUE}, if \code{x} has a column named
-#'          \code{facet}, and defaults to \code{FALSE}, if \code{x} has no such
-#'          column. Set \code{facets = TRUE} to wrap the plot into facets even
-#'          for grouping variables (see 'Examples').
+#'   \code{facet}, and defaults to \code{FALSE}, if \code{x} has no such
+#'   column. Set \code{facets = TRUE} to wrap the plot into facets even
+#'   for grouping variables (see 'Examples').
 #' @param rawdata Logical, if \code{TRUE}, a layer with raw data from response by
-#'          predictor on the x-axis, plotted as point-geoms, is added to the plot.
+#'   predictor on the x-axis, plotted as point-geoms, is added to the plot.
 #' @param colors Character vector with color values in hex-format, valid
-#'          color value names (see \code{demo("colors")} or a name of a
-#'          \href{http://colorbrewer2.org}{color brewer} palette.
-#'          Following options are valid for \code{colors}:
-#'          \itemize{
-#'            \item If not specified, the color brewer palette "Set1" will be used.
-#'            \item If \code{"gs"}, a greyscale will be used.
-#'            \item If \code{"bw"}, the plot is black/white and uses different line types to distinguish groups.
-#'            \item If \code{colors} is any valid color brewer palette name, the related palette will be used. Use \code{\link[RColorBrewer]{display.brewer.all}} to view all available palette names.
-#'            \item Else specify own color values or names as vector (e.g. \code{colors = c("#f00000", "#00ff00")}).
-#'          }
+#'   color value names (see \code{demo("colors")} or a name of a
+#'   \href{http://colorbrewer2.org}{color brewer} palette.
+#'   Following options are valid for \code{colors}:
+#'   \itemize{
+#'     \item If not specified, the color brewer palette "Set1" will be used.
+#'     \item If \code{"gs"}, a greyscale will be used.
+#'     \item If \code{"bw"}, the plot is black/white and uses different line types to distinguish groups.
+#'     \item If \code{colors} is any valid color brewer palette name, the related palette will be used. Use \code{\link[RColorBrewer]{display.brewer.all}} to view all available palette names.
+#'     \item Else specify own color values or names as vector (e.g. \code{colors = c("#f00000", "#00ff00")}).
+#'   }
 #' @param alpha Alpha value for the confidence bands.
 #' @param dodge Value for offsetting or shifting error bars, to avoid overlapping.
-#'          Only applies, if a factor is plotted at the x-axis; in such cases,
-#'          the confidence bands are replaced by error bars.
+#'   Only applies, if a factor is plotted at the x-axis; in such cases,
+#'   the confidence bands are replaced by error bars.
 #' @param use.theme Logical, if \code{TRUE}, a slightly tweaked version of ggplot's
-#'          minimal-theme is applied to the plot. If \code{FALSE}, no theme-modifications
-#'          are applied.
+#'   minimal-theme is applied to the plot. If \code{FALSE}, no theme-modifications
+#'   are applied.
 #' @param dot.alpha Alpha value for data points, when \code{rawdata = TRUE}.
 #' @param jitter Numeric, between 0 and 1. If not \code{NULL} and
-#'          \code{rawdata = TRUE}, adds a small amount of random variation to
-#'          the location of data points dots, to avoid overplotting. Hence the
-#'          points don't reflect exact values in the data. For binary outcomes,
-#'          raw data is never jittered to avoid that data points exceed the axis
-#'          limits.
+#'   \code{rawdata = TRUE}, adds a small amount of random variation to
+#'   the location of data points dots, to avoid overplotting. Hence the
+#'   points don't reflect exact values in the data. For binary outcomes,
+#'   raw data is never jittered to avoid that data points exceed the axis
+#'   limits.
+#' @param log.y Logical, if \code{TRUE}, the y-axis scale is log-transformed.
+#'   This might be useful for binomial models with predicted probabilities on
+#'   the y-axis.
 #' @param show.legend Logical, shows or hides the plot legend.
-#' @param ... Currently not used.
+#' @param show.title Logical, shows or hides the plot title-
+#' @param show.x.title Logical, shows or hides the plot title for the x-axis.
+#' @param show.y.title Logical, shows or hides the plot title for the y-axis.
+#' @param ... Further arguments passed down to \code{ggplot::scale_y*()}, to
+#'    control the appearance of the y-axis.
 #'
 #' @inheritParams get_title
 #'
@@ -73,9 +80,10 @@
 #'          (maybe, at this point, it is helpful to inspect the code to better
 #'          understand what is happening...).
 #'          \cr \cr
-#'          For proportional odds logistic regression (see \code{\link[MASS]{polr}}),
-#'          plots are automatically facetted by \code{response.level}, which indicates
-#'          the grouping of predictions based on the level of the model's response.
+#'          For proportional odds logistic regression (see \code{\link[MASS]{polr}})
+#'          or cumulative link models in general, plots are automatically facetted
+#'          by \code{response.level}, which indicates the grouping of predictions
+#'          based on the level of the model's response.
 #'
 #' @examples
 #' library(sjlabelled)
@@ -110,19 +118,40 @@
 #'
 #'
 #' @importFrom tibble has_name
-#' @importFrom ggplot2 ggplot aes_string geom_smooth facet_wrap labs guides geom_point geom_ribbon geom_errorbar scale_x_continuous position_dodge theme_minimal position_jitter scale_color_manual scale_fill_manual geom_line geom_jitter scale_y_continuous element_text theme element_line element_rect
+#' @importFrom ggplot2 ggplot aes_string geom_smooth facet_wrap labs guides geom_point geom_ribbon geom_errorbar scale_x_continuous position_dodge theme_minimal position_jitter scale_color_manual scale_fill_manual geom_line geom_jitter scale_y_continuous element_text theme element_line element_rect scale_y_log10
 #' @importFrom stats binomial poisson gaussian Gamma inverse.gaussian quasi quasibinomial quasipoisson
-#' @importFrom sjmisc empty_cols
+#' @importFrom sjmisc empty_cols zap_inf
 #' @importFrom sjlabelled as_numeric
 #' @importFrom scales percent
 #' @importFrom dplyr n_distinct
 #' @export
-plot.ggeffects <- function(x, ci = TRUE, facets, rawdata = FALSE, colors = "Set1", alpha = .15, dodge = .1, use.theme = TRUE, dot.alpha = .5, jitter = .2, case = NULL, show.legend = TRUE, ...) {
+plot.ggeffects <- function(x, ci = TRUE, facets, rawdata = FALSE, colors = "Set1", alpha = .15, dodge = .1, use.theme = TRUE, dot.alpha = .5, jitter = .2, log.y = FALSE, case = NULL, show.legend = TRUE, show.title = TRUE, show.x.title = TRUE, show.y.title = TRUE, ...) {
+
+  # set some defaults
 
   if (isTRUE(jitter))
     jitter <- .2
   else if (is.logical(jitter) && length(jitter) == 1L && !is.na(jitter) && !jitter)
     jitter <- NULL
+
+  y.breaks <- NULL
+  y.limits <- NULL
+
+  add.args <- lapply(match.call(expand.dots = F)$`...`, function(x) x)
+  if (!("breaks" %in% names(add.args)) && isTRUE(log.y)) {
+    y.breaks <- 2 ^ sjmisc::zap_inf(unique(round(log2(pretty(c(min(x$conf.low), max(x$conf.high)))))))
+    y.breaks <- y.breaks[!is.na(y.breaks)]
+    y.limits <- c(min(y.breaks), max(y.breaks))
+
+    # this is a REALLY sloppy hack to avoid that axis limits are not 0 for
+    # log-scale, and that axis limits cover the range of the plotted geoms
+    # I think there's a more elegant solution, so please let me know...
+
+    if (y.limits[1] > min(x$conf.low)) y.limits[1] <- y.limits[1] / 2
+    if (y.limits[2] < max(x$conf.high)) y.limits[2] <- y.limits[2] * 2
+    if (y.limits[1] > min(x$conf.low)) y.limits[1] <- y.limits[1] / 2
+    if (y.limits[2] < max(x$conf.high)) y.limits[2] <- y.limits[2] * 2
+  }
 
 
   # do we have groups and facets?
@@ -311,6 +340,12 @@ plot.ggeffects <- function(x, ci = TRUE, facets, rawdata = FALSE, colors = "Set1
     ggplot2::scale_fill_manual(values = colors)
 
 
+  # show/hide titles
+  if (!show.title) attr(x, "title") <- NULL
+  if (!show.x.title) attr(x, "x.title") <- NULL
+  if (!show.y.title) attr(x, "y.title") <- NULL
+
+
   # set axis titles
   p <- p + ggplot2::labs(
     title = get_title(x, case),
@@ -339,8 +374,22 @@ plot.ggeffects <- function(x, ci = TRUE, facets, rawdata = FALSE, colors = "Set1
 
 
   # for binomial family, fix coord
-  if (attr(x, "logistic", exact = TRUE) == "1")
-    p <- p + ggplot2::scale_y_continuous(labels = scales::percent)
+  if (attr(x, "logistic", exact = TRUE) == "1") {
+    if (log.y) {
+      if (is.null(y.breaks))
+        p <- p + ggplot2::scale_y_log10(labels = scales::percent, ...)
+      else
+        p <- p + ggplot2::scale_y_log10(labels = scales::percent, breaks = y.breaks, limits = y.limits, ...)
+    } else
+      p <- p + ggplot2::scale_y_continuous(labels = scales::percent, ...)
+  } else if (log.y) {
+    if (is.null(y.breaks))
+      p <- p + ggplot2::scale_y_log10(...)
+    else
+      p <- p + ggplot2::scale_y_log10(breaks = y.breaks, limits = y.limits, ...)
+  } else {
+    p <- p + ggplot2::scale_y_continuous(...)
+  }
 
 
   # tweak theme
@@ -362,19 +411,39 @@ plot.ggeffects <- function(x, ci = TRUE, facets, rawdata = FALSE, colors = "Set1
 }
 
 
-#' @importFrom purrr map
+#' @importFrom purrr map map_df
 #' @importFrom graphics plot
 #' @export
-plot.ggeffectslist <- function(x, ci = TRUE, facets, rawdata = FALSE, colors = "Set1", alpha = .15, dodge = .1, use.theme = TRUE, dot.alpha = .5, jitter = TRUE, case = NULL, show.legend = TRUE, ...) {
+plot.ggalleffects <- function(x, ci = TRUE, facets, rawdata = FALSE, colors = "Set1", alpha = .15, dodge = .1, use.theme = TRUE, dot.alpha = .5, jitter = TRUE, log.y = FALSE, case = NULL, show.legend = TRUE, show.title = TRUE, show.x.title = TRUE, show.y.title = TRUE, ...) {
 
   if (missing(facets)) facets <- NULL
 
-  purrr::map(
-    x,
-    ~ graphics::plot(
-      x = .x,
+  if (isTRUE(facets)) {
+    # merge all effect-data frames into one
+    dat <- get_complete_df(x)
+
+    rawdat <- suppressWarnings(
+      purrr::map_df(x, function(d) {
+        tmp <- attr(d, "rawdata")
+        tmp$group <- d$group[1]
+        tmp
+      })
+    )
+
+    # copy raw data
+    attr(dat, "rawdata") <- rawdat
+
+    # set various attributes
+    attr(dat, "x.is.factor") <- attr(x[[1]], "x.is.factor", exact = T)
+    attr(dat, "family") <- attr(x[[1]], "family", exact = T)
+    attr(dat, "link") <- attr(x[[1]], "link", exact = T)
+    attr(dat, "logistic") <- attr(x[[1]], "logistic", exact = T)
+    attr(dat, "fitfun") <- attr(x[[1]], "fitfun", exact = T)
+
+    graphics::plot(
+      x = dat,
       ci = ci,
-      facets = facets,
+      facets = TRUE,
       rawdata = rawdata,
       colors = colors,
       alpha = alpha,
@@ -382,38 +451,36 @@ plot.ggeffectslist <- function(x, ci = TRUE, facets, rawdata = FALSE, colors = "
       use.theme = use.theme,
       dot.alpha = dot.alpha,
       jitter = jitter,
+      log.y = log.y,
       case = case,
       show.legend = show.legend,
+      show.title = FALSE,
+      show.x.title = show.x.title,
+      show.y.title = FALSE,
       ...
     )
-  )
-}
-
-
-#' @importFrom purrr map_df
-#' @export
-plot.ggalleffects <- function(x, ci = TRUE, rawdata = FALSE, colors = "Set1", alpha = .15, dodge = .1, ...) {
-
-  # merge all effect-data frames into one
-  dat <- get_complete_df(x)
-
-  rawdat <- suppressWarnings(
-    purrr::map_df(x, function(d) {
-      tmp <- attr(d, "rawdata")
-      tmp$group <- d$group[1]
-      tmp
-    })
-  )
-
-  # copy raw data
-  attr(dat, "rawdata") <- rawdat
-
-  # set various attributes
-  attr(dat, "x.is.factor") <- attr(x[[1]], "x.is.factor", exact = T)
-  attr(dat, "family") <- attr(x[[1]], "family", exact = T)
-  attr(dat, "link") <- attr(x[[1]], "link", exact = T)
-  attr(dat, "logistic") <- attr(x[[1]], "logistic", exact = T)
-  attr(dat, "fitfun") <- attr(x[[1]], "fitfun", exact = T)
-
-  plot.ggeffects(x = dat, ci = ci, facets = TRUE, rawdata = rawdata, colors = colors, alpha = alpha, dodge = dodge, ...)
+  } else {
+    purrr::map(
+      x,
+      ~ graphics::plot(
+          x = .x,
+          ci = ci,
+          facets = facets,
+          rawdata = rawdata,
+          colors = colors,
+          alpha = alpha,
+          dodge = dodge,
+          use.theme = use.theme,
+          dot.alpha = dot.alpha,
+          jitter = jitter,
+          log.y = log.y,
+          case = case,
+          show.legend = show.legend,
+          show.title = show.title,
+          show.x.title = show.x.title,
+          show.y.title = show.y.title,
+          ...
+        )
+    )
+  }
 }

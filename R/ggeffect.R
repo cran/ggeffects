@@ -4,7 +4,7 @@
 #' @description
 #'   \code{ggeffect()} computes marginal effects of model terms. It internally
 #'   calls \code{\link[effects]{Effect}} and puts the result into tidy data
-#'   frames. \code{eff()} is an alias for \code{ggeffect()}.
+#'   frames.
 #'
 #' @param model A fitted model object, or a list of model objects. Any model
 #'   that is supported by the \CRANpkg{effects}-package should work.
@@ -22,7 +22,7 @@
 #'     \item{\code{facet}}{the grouping level from the third term in \code{terms}, used to indicate facets in plots.}
 #'   }
 #'
-#' @note
+#' @details
 #'   The results of \code{ggeffect()} and \code{ggpredict()} are usually (almost)
 #'   identical. It's just that \code{ggpredict()} calls \code{predict()}, while
 #'   \code{ggeffect()} calls \code{\link[effects]{Effect}} to compute marginal
@@ -221,11 +221,4 @@ ggeffect_helper <- function(model, terms, ci.lvl, x.as.factor, ...) {
   if (!x.as.factor) mydf$x <- sjlabelled::as_numeric(mydf$x, keep.labels = FALSE)
 
   mydf
-}
-
-
-#' @rdname ggeffect
-#' @export
-eff <- function(model, terms, ci.lvl = .95, x.as.factor = FALSE, ...) {
-  ggeffect(model, terms, ci.lvl, x.as.factor, ...)
 }

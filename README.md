@@ -1,10 +1,24 @@
 # ggeffects - Create Tidy Data Frames of Marginal Effects for 'ggplot' from Model Outputs <img src="man/figures/logo.png" align="right" />
 
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.1249195.svg)](https://doi.org/10.5281/zenodo.1249195)
+[![DOI](http://joss.theoj.org/papers/10.21105/joss.00772/status.svg)](https://doi.org/10.21105/joss.00772)
 
-This package computes marginal effects at the mean or average marginal effects from statistical models and returns the result as tidy data frames. These data frames are ready to use with the _ggplot2_-package. Marginal effects can be calculated for many different models. Currently supported model-objects are: `lm`, `glm`, `glm.nb`, `lme`, `lmer`, `glmer`, `glmer.nb`, `nlmer`, `glmmTMB`, `gam` (package *mgcv*), `vgam`, `gamm`, `gamm4`, `multinom`, `betareg`, `truncreg`, `coxph`, `gls`, `gee`, `plm`, `lrm`, `polr`, `clm`, `zeroinfl`, `hurdle`, `stanreg`, `brmsfit`, `svyglm` and `svyglm.nb`. Other models not listed here are passed to a generic predict-function and might work as well, or maybe with `ggeffect()`, which effectively does the same as `ggpredict()`.
+## Why do we need marginal effects?
 
-Interaction terms, splines and polynomial terms are also supported. The two main functions are `ggpredict()` and `ggaverage()`, however, there are some convenient wrapper-functions especially for polynomials or interactions. There is a generic `plot()`-method to plot the results using _ggplot2_.
+Results of regression models are typically presented as tables that are easy to understand. For more complex models that include interaction or quadratic / spline terms, tables with numbers are less helpful and difficult to interpret. In such cases, _marginal effects_ are far easier to understand. In particular, the visualization of marginal effects makes it possible to intuitively get the idea of how predictors and outcome are associated, even for complex models. 
+
+## Aim of this package
+
+**ggeffects** computes marginal effects at the mean or average marginal effects from statistical models and returns the result as tidy data frames. These data frames are ready to use with the **ggplot2**-package.
+
+## Documentation and Support
+
+Please visit [https://strengejacke.github.io/ggeffects/](https://strengejacke.github.io/ggeffects/) for documentation and vignettes. In case you want to file an issue or contribute in another way to the package, please follow [this guide](CONTRIBUTING.md). For questions about the functionality, you may either contact me via email or also file an issue.
+
+## ggeffects supports many different models and is easy to use
+
+Marginal effects can be calculated for many different models. Currently supported model-objects are: `lm`, `glm`, `glm.nb`, `lme`, `lmer`, `glmer`, `glmer.nb`, `nlmer`, `glmmTMB`, `gam` (package **mgcv**), `vgam`, `gamm`, `gamm4`, `multinom`, `betareg`, `truncreg`, `coxph`, `gls`, `gee`, `plm`, `lrm`, `polr`, `clm`, `zeroinfl`, `hurdle`, `stanreg`, `brmsfit`, `lmRob`, `glmRob`, `brglm`, `rlm`, `svyglm` and `svyglm.nb`. Other models not listed here are passed to a generic predict-function and might work as well, or maybe with `ggeffect()`, which effectively does the same as `ggpredict()`.
+
+Interaction terms, splines and polynomial terms are also supported. The two main functions are `ggpredict()` and `ggaverage()`, however, there are some convenient wrapper-functions especially for polynomials or interactions. There is a generic `plot()`-method to plot the results using **ggplot2**.
 
 ## Examples
 
@@ -42,6 +56,7 @@ ggplot(mydf, aes(x, predicted)) +
   geom_line() +
   geom_ribbon(aes(ymin = conf.low, ymax = conf.high), alpha = .1)
 ```
+![](man/figures/README-example-1.png)
 
 However, there is also a `plot()`-method. This method uses convenient defaults, to easily create the most suitable plot for the marginal effects.
 
@@ -49,6 +64,7 @@ However, there is also a `plot()`-method. This method uses convenient defaults, 
 mydf <- ggpredict(fit, terms = "c12hour")
 plot(mydf)
 ```
+![](man/figures/README-example-2.png)
 
 `plot()` offers a few, but useful arguments, so it's easy to use.
 
@@ -76,30 +92,20 @@ ggplot(mydf, aes(x = x, y = predicted, colour = group)) +
   stat_smooth(method = "lm", se = FALSE) +
   facet_wrap(~facet)
 ```
+![](man/figures/README-example-3.png)
 
-`plot()` works for this case, as well.
+`plot()` works for this case, as well:
+
+```
+plot(mydf)
+```
+![](man/figures/README-example-4.png)
 
 There are some more features, which are explained in more detail in the package-vignette.
 
-## Adding support for more model classes
+## Contributing to the package
 
-The package is easily extendable, to add support for other model objects. The only requirement is that following methods are available: `predict()`, `model.frame()` and `family()`. If model objects do not support these methods, you may implement workarounds (see below).
-
-Following code needs to be revised to add further model objects:
-
-* file *utils_model_function.R*, function `get_model_function()` needs a line to specify whether the new model can be considered as linear or generalized linear model.
-* file *utils_model_function.R*, function `get_predict_function()` needs a line to specify the class.
-* finally, in the file *predictions.R*, add a line to `select_prediction_method()` to call the right prediction-method, and add a method `get_predictions_<class>()`, if one of the existing prediction-methods does not fit the needs of the new model object.
-
-When the model object _does not_ support one of `predict()`, `model.frame()` or `family()`, you may add workarounds:
-
-* if the model does _not_ have a `family()`-function, a workaround has to be added to `model_family()` in [the sjstats-package](https://github.com/strengejacke/sjstats/blob/master/R/pred_vars.R).
-* if the model does _not_ have a `model.frame()`-function with standard arguments or return values, a workaround has to be added to `model_frame()` in [the sjstats-package](https://github.com/strengejacke/sjstats/blob/master/R/pred_vars.R).
-* if the model does _not_ have a `predict()`-function, a workaround has to be added to `get_predictions_<class>()` in the file *predictions.R* (in this package).
-
-## Documentation
-
-Please visit [https://strengejacke.github.io/ggeffects/](https://strengejacke.github.io/ggeffects/) for documentation and vignettes.
+Please follow [this guide](CONTRIBUTING.md) if you like to contribute to this package.
 
 ## Installation
 
@@ -135,4 +141,4 @@ install.packages("ggeffects")
 
 In case you want / have to cite my package, please use `citation('ggeffects')` for citation information.
 
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.1249195.svg)](https://doi.org/10.5281/zenodo.1249195)
+[![DOI](http://joss.theoj.org/papers/10.21105/joss.00772/status.svg)](https://doi.org/10.21105/joss.00772)

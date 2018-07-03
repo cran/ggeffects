@@ -90,35 +90,6 @@ mydf <- ggaverage(fit, terms = c("c12hour", "c172code"))
 ggplot(mydf, aes(x, predicted, colour = group)) + geom_line()
 ```
 
-# Marginal effects at specific values or levels
-
-The `terms`-argument not only defines the model terms of interest, but each model term _that defines the grouping structure_ can be limited to certain values. This allows to compute and plot marginal effects for terms at specific values only. To define these values, put them in square brackets directly after the term name. Ranges are specified with colon: `terms = c("c12hour [30:80]", "c172code [1,3]")`
-
-```{r}
-mydf <- ggpredict(fit, terms = c("c12hour [30:80]", "c172code [1,3]"))
-mydf
-ggplot(mydf, aes(x, predicted, colour = group)) + geom_line()
-```
-
-This is especially useful when variables are, for instance, log-transformed. `ggpredict()` then typically only uses the range of the log-transformed variable, which is in most cases not what we want. In such situation, specify the range in the `terms`-argument.
-
-```{r}
-data(mtcars)
-mpg_model <- lm(mpg ~ log(hp), data = mtcars)
-
-# x-values and predictions based on the log(hp)-values
-ggpredict(mpg_model, "hp")
-
-# x-values and predictions based on hp-values from 50 to 150
-ggpredict(mpg_model, "hp [50:150]")
-```
-
-The brackets in the `terms`-argument also accept the name of a valid function, to (back-)transform predicted valued. In this example, an alternative would be to specify that values should be exponentiated, which is indicated by `[exp]` in the `terms`-argument:
-
-```{r}
-# x-values and predictions based on exponentiated hp-values
-ggpredict(mpg_model, "hp [exp]")
-```
 
 # Two- and Three-Way-Interactions
 
@@ -197,29 +168,4 @@ ggplot(mydf, aes(x, predicted, colour = group)) +
     y = get_y_title(mydf),
     colour = get_legend_title(mydf)
   )
-```
-
-# plot()-method
-
-If you don't want to write your own ggplot-code, **ggeffects** has a `plot()`-method with some convenient defaults, which allows quickly creating ggplot-objects. `plot()` has only a few arguments to keep this function small and simple. For instance, `ci` allows you to show or hide confidence bands (or error bars, for discrete variables), `facets` allows you to create facets even for just one grouping variable, or `colors` allows you to quickly choose from some color-palettes, including black & white colored plots. Use `rawdata` to add the raw data points to the plot.
-
-```{r}
-data(efc)
-efc$c172code <- to_label(efc$c172code)
-fit <- lm(barthtot ~ c12hour + neg_c_7 + c161sex + c172code, data = efc)
-
-# facet by group
-dat <- ggpredict(fit, terms = c("c12hour", "c172code"))
-plot(dat, facet = TRUE)
-# don't use facets, b/w figure, w/o confidence bands
-plot(dat, colors = "bw", ci = FALSE)
-# plot raw data
-dat <- ggpredict(fit, terms = c("c12hour", "c172code"))
-plot(dat, rawdata = TRUE)
-# for three variables, automatic facetting
-dat <- ggpredict(fit, terms = c("c12hour", "c172code", "c161sex"))
-plot(dat)
-# categorical variables have errorbars
-dat <- ggpredict(fit, terms = c("c172code", "c161sex"))
-plot(dat)
 ```

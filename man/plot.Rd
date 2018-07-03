@@ -7,7 +7,9 @@
 \usage{
 \method{plot}{ggeffects}(x, ci = TRUE, facets, rawdata = FALSE,
   colors = "Set1", alpha = 0.15, dodge = 0.1, use.theme = TRUE,
-  dot.alpha = 0.5, jitter = 0.2, case = NULL, show.legend = TRUE, ...)
+  dot.alpha = 0.5, jitter = 0.2, log.y = FALSE, case = NULL,
+  show.legend = TRUE, show.title = TRUE, show.x.title = TRUE,
+  show.y.title = TRUE, ...)
 }
 \arguments{
 \item{x}{An object of class \code{ggeffects}, as returned by the functions
@@ -57,13 +59,24 @@ points don't reflect exact values in the data. For binary outcomes,
 raw data is never jittered to avoid that data points exceed the axis
 limits.}
 
+\item{log.y}{Logical, if \code{TRUE}, the y-axis scale is log-transformed.
+This might be useful for binomial models with predicted probabilities on
+the y-axis.}
+
 \item{case}{Desired target case. Labels will automatically converted into the
 specified character case. See \code{\link[sjlabelled]{convert_case}} for
 more details on this argument.}
 
 \item{show.legend}{Logical, shows or hides the plot legend.}
 
-\item{...}{Currently not used.}
+\item{show.title}{Logical, shows or hides the plot title-}
+
+\item{show.x.title}{Logical, shows or hides the plot title for the x-axis.}
+
+\item{show.y.title}{Logical, shows or hides the plot title for the y-axis.}
+
+\item{...}{Further arguments passed down to \code{ggplot::scale_y*()}, to
+control the appearance of the y-axis.}
 }
 \value{
 A ggplot2-object.
@@ -98,9 +111,10 @@ A generic plot-method for \code{ggeffects}-objects.
          (maybe, at this point, it is helpful to inspect the code to better
          understand what is happening...).
          \cr \cr
-         For proportional odds logistic regression (see \code{\link[MASS]{polr}}),
-         plots are automatically facetted by \code{response.level}, which indicates
-         the grouping of predictions based on the level of the model's response.
+         For proportional odds logistic regression (see \code{\link[MASS]{polr}})
+         or cumulative link models in general, plots are automatically facetted
+         by \code{response.level}, which indicates the grouping of predictions
+         based on the level of the model's response.
 }
 \examples{
 library(sjlabelled)

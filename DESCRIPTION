@@ -3,8 +3,8 @@ Type: Package
 Encoding: UTF-8
 Title: Create Tidy Data Frames of Marginal Effects for 'ggplot' from
         Model Outputs
-Version: 0.3.4
-Date: 2018-06-08
+Version: 0.4.0
+Date: 2018-07-03
 Authors@R: person("Daniel", "Lüdecke", role = c("aut", "cre"), email = "d.luedecke@uke.de", comment = c(ORCID = "0000-0002-8895-3206"))
 Maintainer: Daniel Lüdecke <d.luedecke@uke.de>
 Description: Compute marginal effects at the mean or average marginal effects from 
@@ -30,7 +30,7 @@ BugReports: https://github.com/strengejacke/ggeffects/issues
 RoxygenNote: 6.0.1
 VignetteBuilder: knitr
 NeedsCompilation: no
-Packaged: 2018-06-08 07:20:29 UTC; Daniel
+Packaged: 2018-07-03 11:17:33 UTC; Daniel
 Author: Daniel Lüdecke [aut, cre] (<https://orcid.org/0000-0002-8895-3206>)
 Repository: CRAN
-Date/Publication: 2018-06-08 10:12:55 UTC
+Date/Publication: 2018-07-03 11:50:03 UTC
