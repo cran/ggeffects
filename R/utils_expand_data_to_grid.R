@@ -4,11 +4,10 @@
 #' @importFrom stats terms
 #' @importFrom purrr map map_lgl map_df modify_if
 #' @importFrom sjlabelled as_numeric
-#' @importFrom dplyr n_distinct
 #' @importFrom tidyselect ends_with
 # fac.typical indicates if factors should be held constant or not
 # need to be false for computing std.error for merMod objects
-get_expanded_data <- function(model, mf, terms, typ.fun, fac.typical = TRUE, type = "fe", prettify = TRUE, prettify.at = 25, pretty.message = TRUE, condition = NULL) {
+get_expanded_data <- function(model, mf, terms, typ.fun, fac.typical = TRUE, type = "fe", pretty.message = TRUE, condition = NULL) {
   # special handling for coxph
   if (inherits(model, "coxph")) mf <- dplyr::select(mf, -1)
 
@@ -63,9 +62,14 @@ get_expanded_data <- function(model, mf, terms, typ.fun, fac.typical = TRUE, typ
     finally = function(x) { NULL }
   )
 
-  # create unique combinations
-  rest <- rest[!(rest %in% names(first))]
-  first <- c(first, lapply(mf[, rest], function(i) sort(unique(i, na.rm = TRUE))))
+
+  # find terms for which no specific values are given
+  xl.remain <- which(!(rest %in% names(first)))
+
+  # prettify numeric vectors, get representative values
+  xl <- prettify_data(xl.remain, mf, rest)
+  names(xl) <- rest[xl.remain]
+  first <- c(first, xl)
 
   # get names of all predictor variable
   alle <- sjstats::pred_vars(model)
@@ -144,21 +148,6 @@ get_expanded_data <- function(model, mf, terms, typ.fun, fac.typical = TRUE, typ
 
   # add constant values.
   first <- c(first, const.values)
-
-  # reduce and prettify elements with too many values
-  if (prettify) {
-    .pred <- function(p) is.numeric(p) && dplyr::n_distinct(p) > prettify.at
-    too.many <- purrr::map_lgl(first, .pred)
-    first <- purrr::map_if(first, .p = .pred, pretty_range)
-
-    if (any(too.many) && pretty.message) {
-      message(sprintf(
-        "Following variables had many unique values and were prettified: %s. Use `pretty = FALSE` to get smoother plots with all values, however, at the cost of increased memory usage.",
-        paste(names(first)[too.many], collapse = ", "))
-      )
-    }
-  }
-
 
   # create data frame with all unqiue combinations
   dat <- tibble::as_tibble(expand.grid(first))

@@ -1,10 +1,12 @@
-context("ggeffects, glmer")
+stopifnot(require("testthat"),
+          require("ggeffects"),
+          require("lme4"),
+          require("glmmTMB"))
 
-library(ggeffects)
+context("ggeffects, glmer")
 
 # glmer ----
 
-library(lme4)
 data(efc_test)
 fit <- glmer(
   negc7d ~ c12hour + e42dep + c161sex + c172code + (1 | grp),
@@ -27,20 +29,12 @@ test_that("ggaverage, glmer", {
   ggaverage(fit, c("c12hour", "c161sex", "c172code"))
 })
 
-test_that("ggalleffects, glmer", {
-  ggalleffects(fit, "c12hour")
-  ggalleffects(fit, c("c12hour", "c161sex"))
-  ggalleffects(fit, c("c12hour", "c161sex", "c172code"))
-  ggalleffects(fit)
-})
-
 test_that("ggeffect, glmer", {
   ggeffect(fit, "c12hour")
   ggeffect(fit, c("c12hour", "c161sex"))
   ggeffect(fit, c("c12hour", "c161sex", "c172code"))
 })
 
-library(glmmTMB)
 data(Owls)
 m <- glmer.nb(SiblingNegotiation ~ SexParent + ArrivalTime + (1 | Nest), data = Owls)
 

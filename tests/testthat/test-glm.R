@@ -1,9 +1,10 @@
-context("ggeffects, logistic regression")
+stopifnot(require("testthat"),
+          require("ggeffects"),
+          require("lme4"),
+          require("sjlabelled"),
+          require("sjmisc"))
 
-library(ggeffects)
-library(sjmisc)
-library(sjlabelled)
-library(lme4)
+context("ggeffects, logistic regression")
 
 # glm, logistic regression ----
 data(efc)
@@ -22,13 +23,6 @@ test_that("ggaverage, glm", {
   ggaverage(fit, c("c12hour", "c161sex", "c172code"))
 })
 
-test_that("ggalleffects, glm", {
-  ggalleffects(fit, "c12hour")
-  ggalleffects(fit, c("c12hour", "c161sex"))
-  ggalleffects(fit, c("c12hour", "c161sex", "c172code"))
-  ggalleffects(fit)
-})
-
 test_that("ggeffect, glm", {
   ggeffect(fit, "c12hour")
   ggeffect(fit, c("c12hour", "c161sex"))
@@ -43,5 +37,4 @@ test_that("ggeffects, glm", {
   )
   ggpredict(m, "period")
   ggeffect(m, "period")
-  ggalleffects(m)
 })

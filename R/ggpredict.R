@@ -5,12 +5,14 @@
 #'   \code{ggpredict()} computes predicted (fitted) values for the
 #'   response, at the margin of specific values from certain model terms,
 #'   where additional model terms indicate the grouping structure.
-#'   \code{ggaverage()} computes the average predicted values.
-#'   The result is returned as tidy data frame.
+#'   \code{ggeffect()} computes marginal effects by internally calling
+#'   \code{\link[effects]{Effect}}. \code{ggaverage()} computes the average
+#'   predicted values. The result is returned as tidy data frame.
 #'
 #' @param model A fitted model object, or a list of model objects. Any model
 #'   that supports common methods like \code{predict()}, \code{family()}
-#'   or \code{model.frame()} should work.
+#'   or \code{model.frame()} should work. For \code{ggeffect()}, any model
+#'   that is supported by the \CRANpkg{effects}-package should work.
 #' @param terms Character vector with the names of those terms from \code{model},
 #'   for which marginal effects should be displayed. At least one term
 #'   is required to calculate effects for certain terms, maximum length is
@@ -50,22 +52,15 @@
 #' @param x.as.factor Logical, if \code{TRUE}, preserves factor-class as
 #'   \code{x}-column in the returned data frame. By default, the \code{x}-column
 #'   is always numeric.
-#' @param pretty Logical, if \code{TRUE}, terms with many unique values (more
-#'   than 25 distinct values) will be "prettyfied" using the \code{pretty()}-function.
-#'   The number of intervals is the square-root of the value range of the
-#'   specific term, which will lead to reduced unique values for which predictions
-#'   need to be calculated. This is especially useful in cases where
-#'   out-of-memory-errors may occur, or if predictions should be computed for
-#'   representative pretty values. \code{pretty = FALSE} calculates predictions
-#'   for all values of continuous variables in \code{terms}, even if these
-#'   terms have many unique values. This is useful, for example, for splines.
+#' @param pretty Deprecated.
 #' @param condition Named character vector, which indicates covariates that
 #'   should be held constant at specific values. Unlike \code{typical}, which
 #'   applies a function to the covariates to determine the value that is used
 #'   to hold these covariates constant, \code{condition} can be used to define
 #'   exact values, for instance \code{condition = c(covariate1 = 20, covariate2 = 5)}.
 #'   See 'Examples'.
-#' @param ... Further arguments passed down to \code{predict()}.
+#' @param ... Further arguments passed down to \code{predict()} or
+#'   \code{\link[effects]{Effect}}.
 #'
 #' @details
 #'   \strong{Supported Models} \cr \cr
@@ -76,7 +71,9 @@
 #'   Other models not listed here are passed to a generic predict-function
 #'   and might work as well, or maybe with \code{ggeffect()}, which
 #'   effectively does the same as \code{ggpredict()}. The main difference
-#'   between \code{ggpredict()} and \code{ggeffect()} is how factors are
+#'   is that \code{ggpredict()} calls \code{predict()}, while \code{ggeffect()}
+#'   calls \code{\link[effects]{Effect}} to compute marginal effects.
+#'   \code{ggpredict()} and \code{ggeffect()} differ in how factors are
 #'   held constant: \code{ggpredict()} uses the reference level, while
 #'   \code{ggeffect()} computes a kind of "average" value, which represents
 #'   the proportions of each factor's category.
@@ -90,7 +87,7 @@
 #'   with colon, are also allowed: \code{terms = c("education", "age [30:60]")}.
 #'   \cr \cr
 #'   The \code{terms}-argument also supports the same shortcuts as the
-#'   \code{mdrt.values}-argument in \code{gginteraction()}. So
+#'   \code{values}-argument in \code{rprs_values()}. So
 #'   \code{terms = "age [meansd]"} would return predictions for the values
 #'   one standard deviation below the mean age, the mean age and
 #'   one SD above the mean age. \code{terms = "age [quart2]"} would calculate
@@ -101,11 +98,12 @@
 #'   This is useful when model predictors were transformed for fitting the
 #'   model and should be back-transformed to the original scale for predictions.
 #'   \cr \cr
-#'   A last option for numeric terms is \code{pretty}, e.g. \code{terms = "age [pretty]"}.
-#'   In this case, values are based on a "pretty" range of the variable, which
-#'   also means you can selectively prettify certain terms (while the logical
-#'   argument \code{pretty}, see above, usually prettifies all variables with
-#'   more than 25 unique values). See package vignettes.
+#'   Finally, numeric vectors for which no specific values are given, a
+#'   "pretty range" is calculated (see \code{\link{pretty_range}}), to avoid
+#'   memory allocation problems for vectors with many unique values. If a numeric
+#'   vector is specified as second or third term (i.e. if this vector represents
+#'   a grouping structure), representative values (see \code{\link{rprs_values}})
+#'   are chosen. See also package vignettes.
 #'   \cr \cr
 #'   \strong{Holding covariates at constant values} \cr \cr
 #'   For \code{ggpredict()}, if \code{full.data = FALSE}, \code{expand.grid()}
@@ -124,11 +122,13 @@
 #'   remaining covariates that are not specified in \code{terms} are
 #'   \emph{not} held constant, but vary between observations (and are
 #'   kept as they happen to be). The predicted values are then averaged
-#'   for each group (if any).
+#'   for each group (if any). Thus, \code{ggpredict()} can be considered
+#'   as calculating marginal effects at the mean, while \code{ggaverage()}
+#'   computes average marginal effects.
 #'   \cr \cr
-#'   Thus, \code{ggpredict()} can be considered as calculating marginal
-#'   effects at the mean, while \code{ggaverage()} computes average
-#'   marginal effects.
+#'   \code{ggeffect()}, by default, sets remaining numeric covariates to
+#'   their mean value, while for factors, a kind of "average" value, which
+#'   represents the proportions of each factor's category, is used.
 #'   \cr \cr
 #'   \strong{Bayesian Regression Models} \cr \cr
 #'   \code{ggpredict()} also works with \strong{Stan}-models from
@@ -294,14 +294,24 @@
 #' fit <- lm(neg_c_7 ~ c12hour + c161sex, data = efc)
 #' ggpredict(fit, terms = "c161sex", x.as.factor = TRUE)
 #'
+#' # marginal effects for polynomial terms
+#' data(efc)
+#' fit <- glm(
+#'   tot_sc_e ~ c12hour + e42dep + e17age + I(e17age^2) + I(e17age^3),
+#'   data = efc,
+#'   family = poisson()
+#' )
+#' ggeffect(fit, terms = "e17age")
+#'
 #' @importFrom stats predict predict.glm na.omit
 #' @importFrom dplyr select mutate case_when arrange n_distinct
 #' @importFrom sjmisc to_factor is_num_fac remove_empty_cols
 #' @importFrom tibble has_name as_tibble
 #' @importFrom purrr map
 #' @importFrom sjlabelled as_numeric
+#' @importFrom sjstats resp_var
 #' @export
-ggpredict <- function(model, terms, ci.lvl = .95, type = c("fe", "re"), full.data = FALSE, typical = "mean", ppd = FALSE, x.as.factor = FALSE, pretty = TRUE, condition = NULL, ...) {
+ggpredict <- function(model, terms, ci.lvl = .95, type = c("fe", "re"), full.data = FALSE, typical = "mean", ppd = FALSE, x.as.factor = FALSE, pretty = NULL, condition = NULL, ...) {
   # check arguments
   type <- match.arg(type)
 
@@ -314,7 +324,7 @@ ggpredict <- function(model, terms, ci.lvl = .95, type = c("fe", "re"), full.dat
   }
 
   if (inherits(model, "list")) {
-    res <- purrr::map(model, ~ggpredict_helper(.x, terms, ci.lvl, type, full.data, typical, ppd, x.as.factor, prettify = pretty, condition = condition, ...))
+    res <- purrr::map(model, ~ggpredict_helper(.x, terms, ci.lvl, type, full.data, typical, ppd, x.as.factor, condition = condition, ...))
     class(res) <- c("ggalleffects", class(res))
   } else {
     if (missing(terms) || is.null(terms)) {
@@ -322,7 +332,7 @@ ggpredict <- function(model, terms, ci.lvl = .95, type = c("fe", "re"), full.dat
       res <- purrr::map(
         predictors,
         function(.x) {
-          tmp <- ggpredict_helper(model, terms = .x, ci.lvl, type, full.data, typical, ppd, x.as.factor, prettify = pretty, condition = condition, ...)
+          tmp <- ggpredict_helper(model, terms = .x, ci.lvl, type, full.data, typical, ppd, x.as.factor, condition = condition, ...)
           tmp$group <- .x
           tmp
         }
@@ -330,7 +340,7 @@ ggpredict <- function(model, terms, ci.lvl = .95, type = c("fe", "re"), full.dat
       names(res) <- predictors
       class(res) <- c("ggalleffects", class(res))
     } else {
-      res <- ggpredict_helper(model, terms, ci.lvl, type, full.data, typical, ppd, x.as.factor, prettify = pretty, condition = condition, ...)
+      res <- ggpredict_helper(model, terms, ci.lvl, type, full.data, typical, ppd, x.as.factor, condition = condition, ...)
     }
   }
 
@@ -341,7 +351,7 @@ ggpredict <- function(model, terms, ci.lvl = .95, type = c("fe", "re"), full.dat
 # workhorse that computes the predictions
 # and creates the tidy data frames
 #' @importFrom sjstats model_frame
-ggpredict_helper <- function(model, terms, ci.lvl, type, full.data, typical, ppd, x.as.factor, prettify, condition, ...) {
+ggpredict_helper <- function(model, terms, ci.lvl, type, full.data, typical, ppd, x.as.factor, condition, ...) {
   # check class of fitted model
   fun <- get_predict_function(model)
 
@@ -358,11 +368,6 @@ ggpredict_helper <- function(model, terms, ci.lvl, type, full.data, typical, ppd
   # get model frame
   fitfram <- sjstats::model_frame(model, fe.only = FALSE)
 
-  # find additional tweak arguments
-  prettify.at <- 25
-  add.args <- lapply(match.call(expand.dots = F)$`...`, function(x) x)
-  if ("prettify.at" %in% names(add.args)) prettify.at <- eval(add.args[["prettify.at"]])
-
   # expand model frame to grid of unique combinations, if
   # user not requested full data
   if (full.data) {
@@ -370,8 +375,7 @@ ggpredict_helper <- function(model, terms, ci.lvl, type, full.data, typical, ppd
   } else {
     expanded_frame <- get_expanded_data(
       model = model, mf = fitfram, terms = terms, typ.fun = typical,
-      type = type, prettify = prettify, prettify.at = prettify.at,
-      condition = condition
+      type = type, condition = condition
     )
   }
 
@@ -385,8 +389,7 @@ ggpredict_helper <- function(model, terms, ci.lvl, type, full.data, typical, ppd
 
   # compute predictions here -----
   fitfram <- select_prediction_method(
-    fun, model, expanded_frame, ci.lvl, type, faminfo, ppd, terms = ori.terms, typical,
-    prettify, prettify.at, ...
+    fun, model, expanded_frame, ci.lvl, type, faminfo, ppd, terms = ori.terms, typical,...
   )
 
 
@@ -493,6 +496,19 @@ ggpredict_helper <- function(model, terms, ci.lvl, type, full.data, typical, ppd
     tibble::as_tibble() %>%
     dplyr::arrange(.data$x, .data$group) %>%
     sjmisc::remove_empty_cols()
+
+
+  # check if outcome is log-transformed, and if so,
+  # back-transform predicted values to response scale
+
+  rv <- sjstats::resp_var(model)
+  if (grepl("log\\((.*)\\)", rv)) {
+    mydf$predicted <- exp(mydf$predicted)
+    mydf$conf.low <- exp(mydf$conf.low)
+    mydf$conf.high <- exp(mydf$conf.high)
+    message("Model has log-transformed response. Back-transforming predictions to original response scale.")
+  }
+
 
   # add raw data as well
   attr(mydf, "rawdata") <- get_raw_data(model, ori.mf, terms)

@@ -1,48 +1,8 @@
-#' @title Get marginal effects from model terms
-#' @name ggeffect
+#' @rdname ggpredict
 #'
-#' @description
-#'   \code{ggeffect()} computes marginal effects of model terms. It internally
-#'   calls \code{\link[effects]{Effect}} and puts the result into tidy data
-#'   frames.
-#'
-#' @param model A fitted model object, or a list of model objects. Any model
-#'   that is supported by the \CRANpkg{effects}-package should work.
-#' @param ... Further arguments passed down to \code{\link[effects]{Effect}}.
-#' @inheritParams ggpredict
-#'
-#' @return
-#'   A tibble (with \code{ggeffects} class attribute) with consistent data columns:
-#'   \describe{
-#'     \item{\code{x}}{the values of the model predictor to which the effect pertains, used as x-position in plots.}
-#'     \item{\code{predicted}}{the predicted values, used as y-position in plots.}
-#'     \item{\code{conf.low}}{the lower bound of the confidence interval for the predicted values.}
-#'     \item{\code{conf.high}}{the upper bound of the confidence interval for the predicted values.}
-#'     \item{\code{group}}{the grouping level from the second term in \code{terms}, used as grouping-aesthetics in plots.}
-#'     \item{\code{facet}}{the grouping level from the third term in \code{terms}, used to indicate facets in plots.}
-#'   }
-#'
-#' @details
-#'   The results of \code{ggeffect()} and \code{ggpredict()} are usually (almost)
-#'   identical. It's just that \code{ggpredict()} calls \code{predict()}, while
-#'   \code{ggeffect()} calls \code{\link[effects]{Effect}} to compute marginal
-#'   effects at the mean. However, results may differ when using factors inside
-#'   the formula: in such cases, \code{Effect()} takes the "mean" value of factors
-#'   (i.e. computes a kind of "average" value, which represents the proportions
-#'   of each factor's category), while \code{ggpredict()} uses the base
-#'   (reference) level when holding these predictors at a constant value.
-#'
-#' @examples
-#' data(efc)
-#' fit <- lm(barthtot ~ c12hour + neg_c_7 + c161sex + c172code, data = efc)
-#' ggeffect(fit, terms = "c12hour")
-#'
-#' mydf <- ggeffect(fit, terms = c("c12hour", "c161sex"))
-#' plot(mydf)
-#'
-#' @importFrom purrr map
-#' @importFrom sjstats pred_vars resp_var model_family model_frame
-#' @importFrom dplyr if_else case_when bind_rows filter mutate
+#' @importFrom purrr map map2
+#' @importFrom sjstats pred_vars resp_var model_family model_frame link_inverse
+#' @importFrom dplyr if_else case_when bind_rows mutate
 #' @importFrom tibble as_tibble
 #' @importFrom sjmisc is_empty str_contains
 #' @importFrom stats na.omit
@@ -52,9 +12,26 @@
 #' @export
 ggeffect <- function(model, terms, ci.lvl = .95, x.as.factor = FALSE, ...) {
   if (inherits(model, "list"))
-    purrr::map(model, ~ggeffect_helper(.x, terms, ci.lvl, x.as.factor, ...))
-  else
-    ggeffect_helper(model, terms, ci.lvl, x.as.factor, ...)
+    res <- purrr::map(model, ~ggeffect_helper(.x, terms, ci.lvl, x.as.factor, ...))
+  else {
+    if (missing(terms) || is.null(terms)) {
+      predictors <- sjstats::pred_vars(model)
+      res <- purrr::map(
+        predictors,
+        function(.x) {
+          tmp <- ggeffect_helper(model, terms = .x, ci.lvl, x.as.factor,...)
+          tmp$group <- .x
+          tmp
+        }
+      )
+      names(res) <- predictors
+      class(res) <- c("ggalleffects", class(res))
+    } else {
+      res <- ggeffect_helper(model, terms, ci.lvl, x.as.factor, ...)
+    }
+  }
+
+  res
 }
 
 
@@ -62,9 +39,6 @@ ggeffect <- function(model, terms, ci.lvl = .95, x.as.factor = FALSE, ...) {
 ggeffect_helper <- function(model, terms, ci.lvl, x.as.factor, ...) {
   # check terms argument
   terms <- check_vars(terms)
-
-  # get link-function
-  fun <- get_model_function(model)
 
   # get model frame
   fitfram <- sjstats::model_frame(model)
@@ -94,87 +68,128 @@ ggeffect_helper <- function(model, terms, ci.lvl, x.as.factor, ...) {
   # clear argument from brackets
   terms <- get_clear_vars(terms)
 
-
-  # prepare getting unique values of predictors,
-  # which are passed to the allEffects-function
-  xl <- list()
-
-  # create levels for all terms of interest
-  for (t in terms) {
-    # get unique values
-    dummy <- list(x = sort(unique(stats::na.omit(fitfram[[t]]))))
-    # name list, needed for effect-function
-    names(dummy) <- t
-    # create list for "xlevels" argument of allEffects fucntion
-    xl <- c(xl, dummy)
+  # fix remaining x-levels
+  xl.remain <- which(!(terms %in% names(x.levels)))
+  if (!sjmisc::is_empty(xl.remain)) {
+    xl <- prettify_data(xl.remain, fitfram, terms)
+    names(xl) <- terms[xl.remain]
+    x.levels <- c(x.levels, xl)
   }
 
+  # restore inital order of focal predictors
+  x.levels <- x.levels[match(terms, names(x.levels))]
+
   # compute marginal effects for each model term
-  eff <- effects::Effect(focal.predictors = terms, mod = model, xlevels = xl, confidence.level = ci.lvl, ...)
-
-
-  # get term, for which effects were calculated
-  t <- eff$term
+  eff <- effects::Effect(
+    focal.predictors = terms,
+    mod = model,
+    xlevels = x.levels,
+    confidence.level = ci.lvl,
+    ...
+  )
 
   # build data frame, with raw values
   # predicted response and lower/upper ci
-  tmp <-
-    data.frame(
-      x = eff$x[[terms[1]]],
-      y = eff$fit,
-      lower = eff$lower,
-      upper = eff$upper
-    )
 
-  if (fun == "glm" && !no.transform) {
-    tmp <- dplyr::mutate(
-      tmp,
-      y = eff$transformation$inverse(eta = .data$y),
-      lower = eff$transformation$inverse(eta = .data$lower),
-      upper = eff$transformation$inverse(eta = .data$upper)
-    )
+  if (inherits(model, c("polr", "clm", "multinom"))) {
+
+    # for categorical outcomes, we need to gather the data
+    # from effects to get a single data frame
+
+    eff.logits <- as.data.frame(eff$logit)
+    tmp <- cbind(eff$x, eff.logits)
+    ft <- (ncol(tmp) - ncol(eff.logits) + 1):ncol(tmp)
+    tmp <- tidyr::gather(tmp, key = "response.level", value = "predicted", !! ft)
+
+    colnames(tmp)[1] <- "x"
+    if (length(terms) > 1) colnames(tmp)[2] <- "group"
+    if (length(terms) > 2) colnames(tmp)[3] <- "facet"
+
+    if (!is.null(ci.lvl) && !is.na(ci.lvl))
+      ci <- 1 - ((1 - ci.lvl) / 2)
+    else
+      ci <- .975
+
+    # same for standard errors. we need to gather all data frames together,
+    # compute CI manually and then also fix column names.
+
+    eff.se.logits <- as.data.frame(eff$se.logit)
+    tmp2 <- tidyr::gather(eff.se.logits, key = "response.level", value = "se")
+    tmp2$conf.low <- tmp$predicted - stats::qnorm(ci) * tmp2$se
+    tmp2$conf.high <- tmp$predicted + stats::qnorm(ci) * tmp2$se
+
+    tmp <- dplyr::bind_cols(tmp, tmp2[, c("conf.low", "conf.high")])
+    tmp$response.level <- substr(tmp$response.level, 7, max(nchar(tmp$response.level)))
+  } else {
+    tmp <-
+      data.frame(
+        x = eff$x[[terms[1]]],
+        predicted = eff$fit,
+        conf.low = eff$lower,
+        conf.high = eff$upper
+      )
+
+    # with or w/o grouping factor?
+    if (length(terms) == 1) {
+      # convert to factor for proper legend
+      tmp$group <- sjmisc::to_factor(1)
+    } else if (length(terms) == 2) {
+      tmp <- dplyr::mutate(tmp, group = sjmisc::to_factor(eff$x[[terms[2]]]))
+    } else {
+      tmp <- dplyr::mutate(
+        tmp,
+        group = sjmisc::to_factor(eff$x[[terms[2]]]),
+        facet = sjmisc::to_factor(eff$x[[terms[3]]])
+      )
+    }
+
+    # effects-package keeps the order of numeric value as they are
+    # returned by "unique()", so we want to sort the data frame
+    # in the order of ascending values
+
+    if (is.numeric(eff$data[[terms[1]]])) tmp <- tmp[order(tmp$x), ]
   }
 
 
-  # define column names
-  cnames <- c("x", "predicted", "conf.low", "conf.high", "group")
+  if (!no.transform) {
+    linv <- sjstats::link_inverse(model)
+    tmp$predicted <- linv(tmp$predicted)
+    tmp$conf.low <- linv(tmp$conf.low)
+    tmp$conf.high <- linv(tmp$conf.high)
+  }
+
 
   # init legend labels
   legend.labels <- NULL
 
   # get axis titles and labels
-  all.labels <- get_all_labels(fitfram, terms, get_model_function(model), binom_fam, poisson_fam, no.transform)
+  all.labels <- get_all_labels(
+    fitfram,
+    terms,
+    get_model_function(model),
+    binom_fam,
+    poisson_fam,
+    no.transform
+  )
 
 
-  # with or w/o grouping factor?
-  if (length(terms) == 1) {
-    # convert to factor for proper legend
-    tmp$group <- sjmisc::to_factor(1)
-  } else if (length(terms) == 2) {
-    tmp <- dplyr::mutate(tmp, group = sjmisc::to_factor(eff$x[[terms[2]]]))
-  } else {
-    tmp <- dplyr::mutate(
-      tmp,
-      group = sjmisc::to_factor(eff$x[[terms[2]]]),
-      facet = sjmisc::to_factor(eff$x[[terms[3]]])
-    )
-    cnames <- c(cnames, "facet")
+  # slice data, only select observations that have specified
+  # levels for the grouping variables
+  filter.keep <- tmp$x %in% x.levels[[1]]
+  tmp <- tmp[filter.keep, , drop = FALSE]
+
+  # slice data, only select observations that have specified
+  # levels for the facet variables
+  if (length(x.levels) > 1) {
+    filter.keep <- tmp$group %in% x.levels[[2]]
+    tmp <- tmp[filter.keep, , drop = FALSE]
   }
 
-
-  # if we have any x-levels, go on and filter
-  if (!sjmisc::is_empty(x.levels) && !is.null(x.levels)) {
-    # slice data, only select observations that have specified
-    # levels for the grouping variables
-    filter.remove <- tmp$group %in% x.levels[[1]]
-    tmp <- dplyr::filter(tmp, !! filter.remove)
-
-    # slice data, only select observations that have specified
-    # levels for the facet variables
-    if (length(x.levels) > 1) {
-      filter.remove <- tmp$facet %in% x.levels[[2]]
-      tmp <- dplyr::filter(tmp, !! filter.remove)
-    }
+  # slice data, only select observations that have specified
+  # levels for the facet variables
+  if (length(x.levels) > 2) {
+    filter.keep <- tmp$facet %in% x.levels[[3]]
+    tmp <- tmp[filter.keep, , drop = FALSE]
   }
 
 
@@ -198,6 +213,13 @@ ggeffect_helper <- function(model, terms, ci.lvl, x.as.factor, ...) {
   # add raw data as well
   attr(mydf, "rawdata") <- get_raw_data(model, fitfram, terms)
 
+
+  x_v <- fitfram[[eff$term]]
+  if (is.null(x_v))
+    xif <- ifelse(is.factor(tmp$x), "1", "0")
+  else
+    xif <- ifelse(is.factor(x_v), "1", "0")
+
   # set attributes with necessary information
   mydf <-
     set_attributes_and_class(
@@ -210,12 +232,9 @@ ggeffect_helper <- function(model, terms, ci.lvl, x.as.factor, ...) {
       legend.labels = legend.labels,
       x.axis.labels = all.labels$axis.labels,
       faminfo = faminfo,
-      x.is.factor = ifelse(is.factor(fitfram[[t]]), "1", "0"),
+      x.is.factor = xif,
       full.data = "0"
     )
-
-  # set consistent column names
-  colnames(mydf) <- cnames
 
   # make x numeric
   if (!x.as.factor) mydf$x <- sjlabelled::as_numeric(mydf$x, keep.labels = FALSE)

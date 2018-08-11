@@ -1,9 +1,7 @@
+stopifnot(require("testthat"),
+          require("ggeffects"))
+
 context("ggeffects, poisson model")
-
-library(ggeffects)
-library(sjmisc)
-library(sjlabelled)
-
 
 # glm, poisson regression ----
 data(efc)
@@ -19,13 +17,6 @@ test_that("ggaverage, glm", {
   ggaverage(fit, "c12hour")
   ggaverage(fit, c("c12hour", "c161sex"))
   ggaverage(fit, c("c12hour", "c161sex", "c172code"))
-})
-
-test_that("ggalleffects, glm", {
-  ggalleffects(fit, "c12hour")
-  ggalleffects(fit, c("c12hour", "c161sex"))
-  ggalleffects(fit, c("c12hour", "c161sex", "c172code"))
-  ggalleffects(fit)
 })
 
 test_that("ggeffect, glm", {
