@@ -6,7 +6,9 @@
 #' @param x An object of class \code{ggeffects}, as returned by the functions
 #'   from this package.
 #' @param ci Logical, if \code{TRUE}, confidence bands (for continuous variables
-#'   at x-axis) resp. error bars (for factors at x-axis) are plotted.
+#'   at x-axis) resp. error bars (for factors at x-axis) are plotted. May
+#'   also be a character vector with either \code{ci = "dash"} or \code{ci = "dot"},
+#'   to plot dashed or dotted lines instead of a ribbon for confidence bands.
 #'   For \code{ggeffects}-objects from \code{ggpredict()} with argument
 #'   \code{full.data = TRUE}, \code{ci} is automatically set to \code{FALSE}.
 #' @param facets Logical, defaults to \code{TRUE}, if \code{x} has a column named
@@ -27,6 +29,8 @@
 #'     \item Else specify own color values or names as vector (e.g. \code{colors = c("#f00000", "#00ff00")}).
 #'   }
 #' @param alpha Alpha value for the confidence bands.
+#' @param line.size Numeric, size of the line geoms.
+#' @param dot.size Numeric, size of the point geoms.
 #' @param dodge Value for offsetting or shifting error bars, to avoid overlapping.
 #'   Only applies, if a factor is plotted at the x-axis; in such cases,
 #'   the confidence bands are replaced by error bars.
@@ -99,6 +103,7 @@
 #'
 #' dat <- ggaverage(fit, terms = "neg_c_7")
 #' plot(dat)
+#' plot(dat, ci = "dash")
 #'
 #' # facet by group
 #' dat <- ggpredict(fit, terms = c("c12hour", "c172code"))
@@ -117,7 +122,6 @@
 #' plot(dat)
 #'
 #'
-#' @importFrom tibble has_name
 #' @importFrom ggplot2 ggplot aes_string geom_smooth facet_wrap labs guides geom_point geom_ribbon geom_errorbar scale_x_continuous position_dodge theme_minimal position_jitter scale_color_manual scale_fill_manual geom_line geom_jitter scale_y_continuous element_text theme element_line element_rect scale_y_log10
 #' @importFrom stats binomial poisson gaussian Gamma inverse.gaussian quasi quasibinomial quasipoisson
 #' @importFrom sjmisc empty_cols zap_inf
@@ -125,7 +129,25 @@
 #' @importFrom scales percent
 #' @importFrom dplyr n_distinct
 #' @export
-plot.ggeffects <- function(x, ci = TRUE, facets, rawdata = FALSE, colors = "Set1", alpha = .15, dodge = .1, use.theme = TRUE, dot.alpha = .5, jitter = .2, log.y = FALSE, case = NULL, show.legend = TRUE, show.title = TRUE, show.x.title = TRUE, show.y.title = TRUE, ...) {
+plot.ggeffects <- function(x,
+                           ci = TRUE,
+                           facets,
+                           rawdata = FALSE,
+                           colors = "Set1",
+                           alpha = .15,
+                           dodge = .1,
+                           use.theme = TRUE,
+                           dot.alpha = .5,
+                           jitter = .2,
+                           log.y = FALSE,
+                           case = NULL,
+                           show.legend = TRUE,
+                           show.title = TRUE,
+                           show.x.title = TRUE,
+                           show.y.title = TRUE,
+                           dot.size = NULL,
+                           line.size = NULL,
+                           ...) {
 
   # set some defaults
 
@@ -136,6 +158,17 @@ plot.ggeffects <- function(x, ci = TRUE, facets, rawdata = FALSE, colors = "Set1
 
   y.breaks <- NULL
   y.limits <- NULL
+
+  if (is.null(dot.size)) dot.size <- 2.5
+  if (is.null(line.size)) line.size <- .7
+
+  ci.type <- "ribbon"
+
+  if (!is.logical(ci) && !is.null(ci) && ci %in% c("dash", "dot")) {
+    ci.type <- ci
+    ci <- TRUE
+  }
+
 
   add.args <- lapply(match.call(expand.dots = F)$`...`, function(x) x)
   if (!("breaks" %in% names(add.args)) && isTRUE(log.y)) {
@@ -155,15 +188,15 @@ plot.ggeffects <- function(x, ci = TRUE, facets, rawdata = FALSE, colors = "Set1
 
 
   # do we have groups and facets?
-  has_groups <- tibble::has_name(x, "group") && length(unique(x$group)) > 1
-  has_facets <- tibble::has_name(x, "facet") && length(unique(x$facet)) > 1
+  has_groups <- obj_has_name(x, "group") && length(unique(x$group)) > 1
+  has_facets <- obj_has_name(x, "facet") && length(unique(x$facet)) > 1
 
   # convert x back to numeric
   if (!is.numeric(x$x)) x$x <- sjlabelled::as_numeric(x$x)
 
   # special solution for polr
   facet_polr <- FALSE
-  if (tibble::has_name(x, "response.level") && length(unique(x$response.level)) > 1) {
+  if (obj_has_name(x, "response.level") && length(unique(x$response.level)) > 1) {
     has_facets <- TRUE
     facet_polr <- TRUE
   }
@@ -195,7 +228,7 @@ plot.ggeffects <- function(x, ci = TRUE, facets, rawdata = FALSE, colors = "Set1
 
   # set CI to false if we don't have SE and CI, or if we have full data
   if ("conf.low" %in% names(sjmisc::empty_cols(x)) ||
-      has_full_data || !tibble::has_name(x, "conf.low"))
+      has_full_data || !obj_has_name(x, "conf.low"))
     ci <- FALSE
 
 
@@ -232,10 +265,13 @@ plot.ggeffects <- function(x, ci = TRUE, facets, rawdata = FALSE, colors = "Set1
 
   } else if (x_is_factor) {
     # for x as factor
-    p <- p + ggplot2::geom_point(position = ggplot2::position_dodge(width = dodge))
+    p <- p + ggplot2::geom_point(
+      position = ggplot2::position_dodge(width = dodge),
+      size = dot.size
+    )
   } else {
     # classical line
-    p <- p + ggplot2::geom_line()
+    p <- p + ggplot2::geom_line(size = line.size)
   }
 
 
@@ -246,14 +282,35 @@ plot.ggeffects <- function(x, ci = TRUE, facets, rawdata = FALSE, colors = "Set1
       p <- p + ggplot2::geom_errorbar(
         ggplot2::aes_string(ymin = "conf.low", ymax = "conf.high"),
         position = ggplot2::position_dodge(width = dodge),
-        width = .1
+        width = .1,
+        size = line.size
       )
     } else {
-      # for continuous x, use ribbons
-      p <- p + ggplot2::geom_ribbon(
-        ggplot2::aes_string(ymin = "conf.low", ymax = "conf.high", colour = NULL, linetype = NULL),
-        alpha = alpha
-      )
+      if (ci.type == "ribbon") {
+        # for continuous x, use ribbons
+        p <- p + ggplot2::geom_ribbon(
+          ggplot2::aes_string(ymin = "conf.low", ymax = "conf.high", colour = NULL, linetype = NULL),
+          alpha = alpha
+        )
+      } else {
+
+        lt <- switch(
+          ci.type,
+          dash = 2,
+          dot = 3,
+          2
+        )
+
+        p <- p +
+          ggplot2::geom_line(
+            ggplot2::aes_string(y = "conf.low", linetype = NULL),
+            linetype = lt
+          ) +
+          ggplot2::geom_line(
+            ggplot2::aes_string(y = "conf.high", linetype = NULL),
+            linetype = lt
+          )
+      }
     }
   }
 
@@ -289,7 +346,7 @@ plot.ggeffects <- function(x, ci = TRUE, facets, rawdata = FALSE, colors = "Set1
       rawdat$response <- sjlabelled::as_numeric(rawdat$response)
 
       # check if we have a group-variable with at least two groups
-      if (tibble::has_name(rawdat, "group"))
+      if (obj_has_name(rawdat, "group"))
         grps <- dplyr::n_distinct(rawdat$group, na.rm = TRUE) > 1
       else
         grps <- FALSE
@@ -315,6 +372,7 @@ plot.ggeffects <- function(x, ci = TRUE, facets, rawdata = FALSE, colors = "Set1
           data = rawdat,
           mapping = mp,
           alpha = dot.alpha,
+          size = dot.size,
           show.legend = FALSE,
           inherit.aes = FALSE
         )
@@ -323,6 +381,7 @@ plot.ggeffects <- function(x, ci = TRUE, facets, rawdata = FALSE, colors = "Set1
           data = rawdat,
           mapping = mp,
           alpha = dot.alpha,
+          size = dot.size,
           width = jitter,
           show.legend = FALSE,
           inherit.aes = FALSE
@@ -414,7 +473,25 @@ plot.ggeffects <- function(x, ci = TRUE, facets, rawdata = FALSE, colors = "Set1
 #' @importFrom purrr map map_df
 #' @importFrom graphics plot
 #' @export
-plot.ggalleffects <- function(x, ci = TRUE, facets, rawdata = FALSE, colors = "Set1", alpha = .15, dodge = .1, use.theme = TRUE, dot.alpha = .5, jitter = TRUE, log.y = FALSE, case = NULL, show.legend = TRUE, show.title = TRUE, show.x.title = TRUE, show.y.title = TRUE, ...) {
+plot.ggalleffects <- function(x,
+                              ci = TRUE,
+                              facets,
+                              rawdata = FALSE,
+                              colors = "Set1",
+                              alpha = .15,
+                              dodge = .1,
+                              use.theme = TRUE,
+                              dot.alpha = .5,
+                              jitter = TRUE,
+                              log.y = FALSE,
+                              case = NULL,
+                              show.legend = TRUE,
+                              show.title = TRUE,
+                              show.x.title = TRUE,
+                              show.y.title = TRUE,
+                              dot.size = NULL,
+                              line.size = NULL,
+                              ...) {
 
   if (missing(facets)) facets <- NULL
 
@@ -457,6 +534,8 @@ plot.ggalleffects <- function(x, ci = TRUE, facets, rawdata = FALSE, colors = "S
       show.title = FALSE,
       show.x.title = show.x.title,
       show.y.title = FALSE,
+      dot.size = dot.size,
+      line.size = line.size,
       ...
     )
   } else {
@@ -478,8 +557,10 @@ plot.ggalleffects <- function(x, ci = TRUE, facets, rawdata = FALSE, colors = "S
           show.legend = show.legend,
           show.title = show.title,
           show.x.title = show.x.title,
-          show.y.title = show.y.title
-        )
+          show.y.title = show.y.title,
+          dot.size = dot.size,
+          line.size = line.size
+      )
     )
   }
 }

@@ -3,14 +3,23 @@
 #' @importFrom purrr map map2
 #' @importFrom sjstats pred_vars resp_var model_family model_frame link_inverse
 #' @importFrom dplyr if_else case_when bind_rows mutate
-#' @importFrom tibble as_tibble
 #' @importFrom sjmisc is_empty str_contains
 #' @importFrom stats na.omit
-#' @importFrom effects Effect
 #' @importFrom sjlabelled as_numeric
 #' @importFrom rlang .data
 #' @export
 ggeffect <- function(model, terms, ci.lvl = .95, x.as.factor = FALSE, ...) {
+
+  if (!requireNamespace("effects", quietly = TRUE)) {
+    message("Package `effects` is not available, but needed for `ggeffect()`. Either install package `effects`, or use `ggpredict()`. Calling `ggpredict()` now.", call. = FALSE)
+    return(ggpredict(model = model, terms = terms, ci.lvl = ci.lvl, x.as.factor = x.as.factor))
+  }
+
+  # check if terms are a formula
+  if (!missing(terms) && !is.null(terms) && inherits(terms, "formula")) {
+    terms <- all.vars(terms)
+  }
+
   if (inherits(model, "list"))
     res <- purrr::map(model, ~ggeffect_helper(.x, terms, ci.lvl, x.as.factor, ...))
   else {
@@ -37,6 +46,7 @@ ggeffect <- function(model, terms, ci.lvl = .95, x.as.factor = FALSE, ...) {
 
 #' @importFrom sjstats model_frame
 ggeffect_helper <- function(model, terms, ci.lvl, x.as.factor, ...) {
+
   # check terms argument
   terms <- check_vars(terms)
 
@@ -91,12 +101,12 @@ ggeffect_helper <- function(model, terms, ci.lvl, x.as.factor, ...) {
   # build data frame, with raw values
   # predicted response and lower/upper ci
 
-  if (inherits(model, c("polr", "clm", "multinom"))) {
+  if (inherits(model, c("polr", "clm", "clm2", "multinom"))) {
 
     # for categorical outcomes, we need to gather the data
     # from effects to get a single data frame
 
-    eff.logits <- as.data.frame(eff$logit)
+    eff.logits <- as.data.frame(eff$logit, stringsAsFactors = FALSE)
     tmp <- cbind(eff$x, eff.logits)
     ft <- (ncol(tmp) - ncol(eff.logits) + 1):ncol(tmp)
     tmp <- tidyr::gather(tmp, key = "response.level", value = "predicted", !! ft)
@@ -126,7 +136,8 @@ ggeffect_helper <- function(model, terms, ci.lvl, x.as.factor, ...) {
         x = eff$x[[terms[1]]],
         predicted = eff$fit,
         conf.low = eff$lower,
-        conf.high = eff$upper
+        conf.high = eff$upper,
+        stringsAsFactors = FALSE
       )
 
     # with or w/o grouping factor?
@@ -169,7 +180,8 @@ ggeffect_helper <- function(model, terms, ci.lvl, x.as.factor, ...) {
     get_model_function(model),
     binom_fam,
     poisson_fam,
-    no.transform
+    no.transform,
+    type = NULL
   )
 
 
@@ -207,8 +219,8 @@ ggeffect_helper <- function(model, terms, ci.lvl, x.as.factor, ...) {
   }
 
 
-  # cpnvert to tibble
-  mydf <- tibble::as_tibble(tmp)
+  # convert to data frame
+  mydf <- as.data.frame(tmp, stringsAsFactors = FALSE)
 
   # add raw data as well
   attr(mydf, "rawdata") <- get_raw_data(model, fitfram, terms)

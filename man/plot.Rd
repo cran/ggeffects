@@ -9,14 +9,16 @@
   colors = "Set1", alpha = 0.15, dodge = 0.1, use.theme = TRUE,
   dot.alpha = 0.5, jitter = 0.2, log.y = FALSE, case = NULL,
   show.legend = TRUE, show.title = TRUE, show.x.title = TRUE,
-  show.y.title = TRUE, ...)
+  show.y.title = TRUE, dot.size = NULL, line.size = NULL, ...)
 }
 \arguments{
 \item{x}{An object of class \code{ggeffects}, as returned by the functions
 from this package.}
 
 \item{ci}{Logical, if \code{TRUE}, confidence bands (for continuous variables
-at x-axis) resp. error bars (for factors at x-axis) are plotted.
+at x-axis) resp. error bars (for factors at x-axis) are plotted. May
+also be a character vector with either \code{ci = "dash"} or \code{ci = "dot"},
+to plot dashed or dotted lines instead of a ribbon for confidence bands.
 For \code{ggeffects}-objects from \code{ggpredict()} with argument
 \code{full.data = TRUE}, \code{ci} is automatically set to \code{FALSE}.}
 
@@ -75,6 +77,10 @@ more details on this argument.}
 
 \item{show.y.title}{Logical, shows or hides the plot title for the y-axis.}
 
+\item{dot.size}{Numeric, size of the point geoms.}
+
+\item{line.size}{Numeric, size of the line geoms.}
+
 \item{...}{Further arguments passed down to \code{ggplot::scale_y*()}, to
 control the appearance of the y-axis.}
 }
@@ -130,6 +136,7 @@ plot(dat)
 
 dat <- ggaverage(fit, terms = "neg_c_7")
 plot(dat)
+plot(dat, ci = "dash")
 
 # facet by group
 dat <- ggpredict(fit, terms = c("c12hour", "c172code"))

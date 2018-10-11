@@ -3,13 +3,12 @@
 #' @importFrom dplyr n_distinct
 #' @importFrom sjmisc recode_to is_num_fac
 #' @importFrom sjlabelled get_labels set_labels
-#' @importFrom tibble has_name
 #' @importFrom stats na.omit
 add_groupvar_labels <- function(mydf, ori.mf, terms) {
   grp.lbl <- sjlabelled::get_labels(
     ori.mf[[terms[2]]],
-    include.non.labelled = TRUE,
-    include.values = "n",
+    non.labelled = TRUE,
+    values = "n",
     drop.unused = TRUE
   )
 
@@ -32,11 +31,11 @@ add_groupvar_labels <- function(mydf, ori.mf, terms) {
     mydf$group <- sjlabelled::set_labels(mydf$group, labels = grp.lbl)
   }
 
-  if (tibble::has_name(mydf, "facet")) {
+  if (obj_has_name(mydf, "facet")) {
     facet.lbl <- sjlabelled::get_labels(
       ori.mf[[terms[3]]],
-      include.non.labelled = TRUE,
-      include.values = "n",
+      non.labelled = TRUE,
+      values = "n",
       drop.unused = TRUE
     )
 
@@ -67,7 +66,6 @@ add_groupvar_labels <- function(mydf, ori.mf, terms) {
 # this method converts lavelled group variables
 # into factors with labelled levels
 #' @importFrom sjlabelled as_label
-#' @importFrom tibble has_name
 groupvar_to_label <- function(mydf) {
   mydf$group <-
     sjlabelled::as_label(
@@ -78,7 +76,7 @@ groupvar_to_label <- function(mydf) {
     )
 
   # make sure we have a facet-column at all
-  if (tibble::has_name(mydf, "facet")) {
+  if (obj_has_name(mydf, "facet")) {
     # convert to factor
     mydf$facet <-
       sjlabelled::as_label(
@@ -95,14 +93,14 @@ groupvar_to_label <- function(mydf) {
 
 # get labels from labelled data for axis titles and labels
 #' @importFrom sjlabelled get_label
-get_all_labels <- function(fitfram, terms, fun, binom_fam, poisson_fam, no.transform) {
+get_all_labels <- function(fitfram, terms, fun, binom_fam, poisson_fam, no.transform, type) {
   # Retrieve response for automatic title
   resp.col <- colnames(fitfram)[1]
 
   # check for family, and set appropriate scale-title
   # if we have transformation through effects-package,
   # check if data is on original or transformed scale
-  ysc <- get_title_labels(fun, binom_fam, poisson_fam, no.transform)
+  ysc <- get_title_labels(fun, binom_fam, poisson_fam, no.transform, type)
 
   # set plot-title
   t.title <-
@@ -114,6 +112,19 @@ get_all_labels <- function(fitfram, terms, fun, binom_fam, poisson_fam, no.trans
   x.title <- sjlabelled::get_label(fitfram[[terms[1]]], def.value = terms[1])
   y.title <- sjlabelled::get_label(fitfram[[1]], def.value = resp.col)
 
+
+  if (fun == "coxph") {
+    if (!is.null(type) && type == "surv") {
+      t.title <- y.title <- "Probability of Survival"
+    } else if (!is.null(type) && type == "cumhaz") {
+      t.title <- y.title <- "Cumulative Hazard"
+    } else {
+      t.title <- "Predicted risk scores"
+      y.title <- "Risk Score"
+    }
+  }
+
+
   # legend title
   l.title <- sjlabelled::get_label(fitfram[[terms[2]]], def.value = terms[2])
 
@@ -121,7 +132,7 @@ get_all_labels <- function(fitfram, terms, fun, binom_fam, poisson_fam, no.trans
   # labels at the x-axis.
   axis.labels <- sjlabelled::get_labels(
     fitfram[[terms[1]]],
-    include.non.labelled = TRUE,
+    non.labelled = TRUE,
     drop.unused = TRUE
   )
 
@@ -136,7 +147,7 @@ get_all_labels <- function(fitfram, terms, fun, binom_fam, poisson_fam, no.trans
 
 
 #' @importFrom dplyr if_else
-get_title_labels <- function(fun, binom_fam, poisson_fam, no.transform) {
+get_title_labels <- function(fun, binom_fam, poisson_fam, no.transform, type) {
   ysc <- "values"
 
   if (fun == "glm") {
@@ -159,7 +170,12 @@ get_title_labels <- function(fun, binom_fam, poisson_fam, no.transform) {
   } else if (fun == "betareg") {
     ysc <- "proportion"
   } else if (fun == "coxph") {
-    ysc <- "risk scores"
+    if (!is.null(type) && type == "surv")
+      ysc <- "survival probabilities"
+    else if (!is.null(type) && type == "cumhaz")
+      ysc <- "cumulative hazard"
+    else
+      ysc <- "risk scores"
   }
 
   ysc

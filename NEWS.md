@@ -1,3 +1,27 @@
+# ggeffects 0.6.0
+
+## General
+
+* Reduce package dependencies.
+* Moved package **effects** from dependencies to suggested packages, due to the restrictive requirements (R >= 3.5).
+* New `print()`-method, with a nicer print of the returned data frame. This method replaces the `summary()`-method, which was removed.
+* `ggeffect()` now supports `clm2`-models from the **ordinal**-package.
+* `ggpredict()` has improved support for `coxph`-models from the **survival**-package (survival probabilities, cumulative hazards).
+
+## Changes to functions
+
+* The `type`-argument in `ggpredict()` now has additional options, `type = "fe.zi"` and `type = "re.zi"`, to explicitely condition zero-inflated (mixed) models on their zero-inflation component.
+* The `type`-argument in `ggpredict()` now has additional options, `type = "surv"` and `type = "cumhaz"`, to plot probabilities of survival or cumulative hazards from `coxph`-models.
+* `ggpredict()` gets arguments `vcov.fun`, `vcov.type` and `vcov.args` to calculate robust standard errors for confidence intervals of predicted values. These are based on the various `sandwich::vcov*()`-functions, hence robust standard errors can be calculated for all models that are supported by `sandwich::vcov*()`.
+* The `plot()`-method gets two arguments `line.size` and `dot.size`, to determine the size of the geoms.
+* The `ci`-argument for the `plot()`-method now also accepts the character values `"dash"` and `"dot"` to plot dashed or dotted lines as confidence bands.
+* The `terms`-argument in `ggpredict()` and `ggeffect()` may also be a formula, which is more convenient for typing, but less flexible than specifying the terms as character vector with specific options.
+
+## Bug fixes
+
+* Fixed improper calculation of confidence intervals for hurdle- and zero-inflated models (from package **pscl**), which could exceed the range of plausible values (e.g. below zero for incidence rates).
+* Fixed issues with calculation of confidence intervals for mixed models with polynomial terms.
+
 # ggeffects 0.5.0
 
 ## General

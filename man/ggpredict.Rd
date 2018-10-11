@@ -6,15 +6,17 @@
 \alias{ggpredict}
 \title{Get marginal effects from model terms}
 \usage{
-ggaverage(model, terms, ci.lvl = 0.95, type = c("fe", "re"),
-  typical = "mean", ppd = FALSE, x.as.factor = FALSE,
-  pretty = TRUE, condition = NULL, ...)
+ggaverage(model, terms, ci.lvl = 0.95, type = c("fe", "re", "fe.zi",
+  "re.zi"), typical = "mean", ppd = FALSE, x.as.factor = FALSE,
+  condition = NULL, ...)
 
 ggeffect(model, terms, ci.lvl = 0.95, x.as.factor = FALSE, ...)
 
-ggpredict(model, terms, ci.lvl = 0.95, type = c("fe", "re"),
-  full.data = FALSE, typical = "mean", ppd = FALSE,
-  x.as.factor = FALSE, pretty = NULL, condition = NULL, ...)
+ggpredict(model, terms, ci.lvl = 0.95, type = c("fe", "re", "fe.zi",
+  "re.zi", "surv", "cumhaz", "debug"), typical = "mean",
+  condition = NULL, ppd = FALSE, x.as.factor = FALSE,
+  full.data = FALSE, vcov.fun = NULL, vcov.type = NULL,
+  vcov.args = NULL, ...)
 }
 \arguments{
 \item{model}{A fitted model object, or a list of model objects. Any model
@@ -22,9 +24,9 @@ that supports common methods like \code{predict()}, \code{family()}
 or \code{model.frame()} should work. For \code{ggeffect()}, any model
 that is supported by the \CRANpkg{effects}-package should work.}
 
-\item{terms}{Character vector with the names of those terms from \code{model},
-for which marginal effects should be displayed. At least one term
-is required to calculate effects for certain terms, maximum length is
+\item{terms}{Character vector (or a formula) with the names of those terms
+from \code{model}, for which marginal effects should be displayed. At least
+one term is required to calculate effects for certain terms, maximum length is
 three terms, where the second and third term indicate the groups, i.e.
 predictions of first term are grouped by the levels of the second (and third)
 term. If \code{terms} is missing or \code{NULL}, marginal effects for each
@@ -39,11 +41,51 @@ see 'Details'). See also argument \code{condition} and \code{typical}.}
 use \code{ci.lvl = NA}, if confidence intervals should not be calculated
 (for instance, due to computation time).}
 
-\item{type}{Character, only applies for mixed effects models. Indicates
-whether predicted values should be conditioned on random effects
-(\code{type = "re"}) or fixed effects only (\code{type = "fe"},
-the default). If \code{type = "re"}, prediction intervals also consider
-the uncertainty in the variance parameters.}
+\item{type}{Character, only applies for mixed effects models and/or models
+with zero-inflation.
+\describe{
+  \item{\code{"fe"}}{
+  Predicted values are conditioned on the fixed effects or conditional
+  model only. For instance, for models fitted with \code{zeroinfl} from
+  \pkg{pscl}, this would return the predicted mean from the count component
+  (without zero-inflation). For models of class \code{glmmTMB}, this type
+  calls \code{predict(..., type = "link")}.
+  }
+  \item{\code{"re"}}{
+  Predicted values are conditioned on the random effects. This only applies
+  to mixed models, and \code{type = "re"} does not condition on the
+  zero-inflation component of the model. Prediction intervals also consider
+  the uncertainty in the variance parameters. For models of class \code{glmmTMB},
+  this type calls \code{predict(..., type = "link")}. \strong{Note:} For
+  models of class \code{glmmTMB}, the random effect variances only affect
+  the confidence intervals of predictions, not the predicted values
+  themselves (because this is currently not implemented in \pkg{glmmTMB}).
+  }
+  \item{\code{"fe.zi"}}{
+  Predicted values are conditioned on the fixed effects and the zero-inflation
+  component. For instance, for models fitted with \code{zeroinfl}
+  from \pkg{pscl}, this would return the predicted response and for \code{glmmTMB},
+  this would return the expected value \code{mu*(1-p)} \emph{without}
+  conditioning on random effects. For models of class \code{glmmTMB}, this type
+  calls \code{predict(..., type = "response")}.
+  }
+  \item{\code{"re.zi"}}{
+  Predicted values are conditioned on the random effects and the
+  zero-inflation component. For models fitted with \code{glmmTMB}, this
+  would return the expected value \code{mu*(1-p)}, conditioned on random
+  effects. Prediction intervals also consider the uncertainty in the
+  variance parameters. For models of class \code{glmmTMB}, this type
+  calls \code{simulate()}, because conditioning on random effects is
+  not yet implemented in \code{predict.glmmTMB()}.
+  }
+  \item{\code{"surv"} and \code{"cumhaz"}}{
+  Applies only to \code{coxph}-objects from the \pkg{survial}-package and
+  calculates the survival probability or the cumulative hazard of an event.
+  }
+  \item{\code{"debug"}}{
+  Only used internally.
+  }
+}}
 
 \item{typical}{Character vector, naming the function to be applied to the
 covariates over which the effect is "averaged". The default is "mean".
@@ -59,8 +101,6 @@ predictor (\code{\link[rstantools]{posterior_linpred}}).}
 \code{x}-column in the returned data frame. By default, the \code{x}-column
 is always numeric.}
 
-\item{pretty}{Deprecated.}
-
 \item{condition}{Named character vector, which indicates covariates that
 should be held constant at specific values. Unlike \code{typical}, which
 applies a function to the covariates to determine the value that is used
@@ -68,8 +108,11 @@ to hold these covariates constant, \code{condition} can be used to define
 exact values, for instance \code{condition = c(covariate1 = 20, covariate2 = 5)}.
 See 'Examples'.}
 
-\item{...}{Further arguments passed down to \code{predict()} or
-\code{\link[effects]{Effect}}.}
+\item{...}{For \code{ggpredict()}, further arguments passed down to
+\code{predict()}, and for \code{ggeffect()}, further arguments passed
+down to \code{\link[effects]{Effect}}. If \code{model} is of class
+\code{glmmTMB}, \code{...} may also be used to set the number of
+simulation for bootstrapped confidence intervals, e.g. \code{nsim = 500}.}
 
 \item{full.data}{Logical, if \code{TRUE}, the returned data frame contains
 predictions for all observations. This data frame also has columns
@@ -79,9 +122,24 @@ If \code{FALSE} (the default), the returned data frame only contains
 predictions for all combinations of unique values of the model's
 predictors. Residuals and observed values are set to \code{NA}.
 Usually, this argument is only used internally by \code{ggaverage()}.}
+
+\item{vcov.fun}{String, indicating the name of the \code{vcov*()}-function
+from the \pkg{sandwich}-package, e.g. \code{vcov.fun = "vcovCL"},
+which is used to compute robust standard errors for predictions.
+If \code{NULL}, standard errors (and confidence intervals) for predictions
+are based on the standard errors as returned by the \code{predict()}-function.
+\strong{Note} that probably not all model objects that work with \code{ggpredict()}
+are also supported by the \pkg{sandwich}-package.}
+
+\item{vcov.type}{Character vector, specifying the estimation type for the
+robust covariance matrix estimation (see \code{\link[sandwich]{vcovHC}}
+for details).}
+
+\item{vcov.args}{List of named vectors, used as additional arguments that
+are passed down to \code{vcov.fun}.}
 }
 \value{
-A tibble (with \code{ggeffects} class attribute) with consistent data columns:
+A data frame (with \code{ggeffects} class attribute) with consistent data columns:
         \describe{
           \item{\code{x}}{the values of the first term in \code{terms}, used as x-position in plots.}
           \item{\code{predicted}}{the predicted values of the response, used as y-position in plots.}
@@ -106,22 +164,31 @@ A tibble (with \code{ggeffects} class attribute) with consistent data columns:
   predicted values. The result is returned as tidy data frame.
 }
 \details{
-\strong{Supported Models} \cr \cr
-  Currently supported model-objects are: \code{lm, glm, glm.nb, lme, lmer,
-  glmer, glmer.nb, nlmer, glmmTMB, gam, vgam, gamm, gamm4, multinom,
-  betareg, gls, gee, plm, lrm, polr, clm, hurdle, zeroinfl, svyglm,
-  svyglm.nb, truncreg, coxph, stanreg, brmsfit, lmRob, glmRob, brglm, rlm}.
+\strong{Supported Models}
+  \cr \cr
+  Currently supported model-objects are: \code{lm}, \code{glm}, \code{glm.nb},
+  \code{lme}, \code{lmer}, \code{glmer}, \code{glmer.nb}, \code{nlmer},
+  \code{glmmTMB}, \code{gam}, \code{vgam}, \code{gamm}, \code{gamm4},
+  \code{multinom}, \code{betareg}, \code{gls}, \code{gee}, \code{plm},
+  \code{lrm}, \code{polr}, \code{clm}, \code{hurdle}, \code{zeroinfl},
+  \code{svyglm}, \code{svyglm.nb}, \code{truncreg}, \code{coxph},
+  \code{stanreg}, \code{brmsfit}, \code{lmRob}, \code{glmRob}, \code{brglm}
+  and \code{rlm}.
   Other models not listed here are passed to a generic predict-function
   and might work as well, or maybe with \code{ggeffect()}, which
   effectively does the same as \code{ggpredict()}. The main difference
   is that \code{ggpredict()} calls \code{predict()}, while \code{ggeffect()}
   calls \code{\link[effects]{Effect}} to compute marginal effects.
+  \cr \cr
+  \strong{Difference between \code{ggpredict()} and \code{ggeffect()}}
+  \cr \cr
   \code{ggpredict()} and \code{ggeffect()} differ in how factors are
   held constant: \code{ggpredict()} uses the reference level, while
   \code{ggeffect()} computes a kind of "average" value, which represents
   the proportions of each factor's category.
   \cr \cr
-  \strong{Marginal Effects at Specific Values} \cr \cr
+  \strong{Marginal Effects at Specific Values}
+  \cr \cr
   Specific values of model terms can be specified via the \code{terms}-argument.
   Indicating levels in square brackets allows for selecting only
   specific groups or values resp. value ranges. Term name and levels in
@@ -146,14 +213,17 @@ A tibble (with \code{ggeffects} class attribute) with consistent data columns:
   memory allocation problems for vectors with many unique values. If a numeric
   vector is specified as second or third term (i.e. if this vector represents
   a grouping structure), representative values (see \code{\link{rprs_values}})
-  are chosen. See also package vignettes.
+  are chosen. If all values for a numeric vector should be used to compute
+  predictions, you may use e.g. \code{terms = "age [all]"}. See also
+  package vignettes.
   \cr \cr
-  \strong{Holding covariates at constant values} \cr \cr
+  \strong{Holding covariates at constant values}
+  \cr \cr
   For \code{ggpredict()}, if \code{full.data = FALSE}, \code{expand.grid()}
   is called on all unique combinations of \code{model.frame(model)[, terms]}
   and used as \code{newdata}-argument for \code{predict()}. In this case,
   all remaining covariates that are not specified in \code{terms} are
-  held constant. Numeric values are set to the mean (unless changed with
+  held constant: Numeric values are set to the mean (unless changed with
   the \code{condition} or \code{typical}-argument), factors are set to their
   reference level (may also be changed with \code{condition}) and character
   vectors to their mode (most common element).
@@ -173,7 +243,8 @@ A tibble (with \code{ggeffects} class attribute) with consistent data columns:
   their mean value, while for factors, a kind of "average" value, which
   represents the proportions of each factor's category, is used.
   \cr \cr
-  \strong{Bayesian Regression Models} \cr \cr
+  \strong{Bayesian Regression Models}
+  \cr \cr
   \code{ggpredict()} also works with \strong{Stan}-models from
   the \CRANpkg{rstanarm} or \CRANpkg{brms}-package. The predicted
   values are the median value of all drawn posterior samples. The
@@ -191,6 +262,17 @@ A tibble (with \code{ggeffects} class attribute) with consistent data columns:
   used in \code{posterior_predict()} must also contain the vector
   with the number of trials. In this case, a dummy-vector is used,
   where all values for the response are set to 1.
+  \cr \cr
+  \strong{Zero-Inflated Mixed Models with glmmTMB}
+  \cr \cr
+  If \code{model} is of class \code{glmmTMB}, bootstrapped confidence
+  intervals are calculated for predictions conditioned on the zero-inflated
+  part of the model, when the uncertainty in the random-effect paramters
+  is ignored (i.e. when \code{type = "fe.zi"}, see Brooks et al. 2017, pp.391-392
+  for details). \code{type = "fe.zi"} returns predicted values at population
+  \emph{mode}, not mean. If predictions are also conditioned on random
+  effects (i.e. \code{type = "re.zi"}), predicted values are based on
+  simulations (see Brooks et al. 2017, pp.392-393 for details).
 }
 \note{
 Since data for \code{ggaverage()} comes from the model frame, not all
@@ -198,18 +280,15 @@ Since data for \code{ggaverage()} comes from the model frame, not all
   thus lines or confidence bands from \code{plot()} might not span over
   the complete x-axis-range.
   \cr \cr
-  There are some limitations for certain model objects. For example,
-  it is currently only possible to compute predicted risk scores for
-  \code{coxph}-models, but not expected number of events nor survival
-  probabilities.
-  \cr \cr
-  \code{polr}- or \code{clm}-models have an additional column
+  \code{polr}-, \code{clm}-models, or more generally speaking, models with
+  ordinal or multinominal outcomes, have an additional column
   \code{response.level}, which indicates with which level of the response
   variable the predicted values are associated.
   \cr \cr
-  There is a \code{summary()}-method, which gives a cleaner output (especially
-  for predictions by groups), and which indicates at which values covariates
-  were held constant.
+  The \code{print()}-method gives a clean output (especially for predictions
+  by groups), and indicates at which values covariates were held constant.
+  Furthermore, the \code{print()}-method has the arguments \code{digits} and
+  \code{n}, to control number of decimals and lines to be printed.
 }
 \examples{
 data(efc)
@@ -219,6 +298,9 @@ ggpredict(fit, terms = "c12hour")
 ggpredict(fit, terms = "c12hour", full.data = TRUE)
 ggpredict(fit, terms = c("c12hour", "c172code"))
 ggpredict(fit, terms = c("c12hour", "c172code", "c161sex"))
+
+# specified as formula
+ggpredict(fit, terms = ~ c12hour + c172code + c161sex)
 
 # only range of 40 to 60 for variable 'c12hour'
 ggpredict(fit, terms = "c12hour [40:60]")
@@ -330,4 +412,7 @@ fit <- glm(
 )
 ggeffect(fit, terms = "e17age")
 
+}
+\references{
+Brooks ME, Kristensen K, Benthem KJ van, Magnusson A, Berg CW, Nielsen A, et al. glmmTMB Balances Speed and Flexibility Among Packages for Zero-inflated Generalized Linear Mixed Modeling. The R Journal. 2017;9: 378–400.
 }

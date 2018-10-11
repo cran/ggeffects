@@ -50,6 +50,7 @@ get_predict_function <- function(model) {
     inherits(model, "lme") ~ "lme",
     inherits(model, "gls") ~ "gls",
     inherits(model, "clm") ~ "clm",
+    inherits(model, "clm2") ~ "clm2",
     inherits(model, "polr") ~ "polr",
     inherits(model, "gee") ~ "gee",
     inherits(model, "plm") ~ "plm",
@@ -65,7 +66,8 @@ get_predict_function <- function(model) {
     inherits(model, "coxph") ~ "coxph",
     inherits(model, "multinom") ~ "multinom",
     inherits(model, "Zelig-relogit") ~ "Zelig-relogit",
-    inherits(model, c("zeroinfl", "hurdle")) ~ "zeroinfl",
+    inherits(model, "zeroinfl") ~ "zeroinfl",
+    inherits(model, "hurdle") ~ "hurdle",
     TRUE ~ "generic"
   )
 }

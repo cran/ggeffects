@@ -1,21 +1,16 @@
-#' @importFrom tibble as_tibble
-#' @importFrom sjstats pred_vars typical_value var_names
+#' @importFrom sjstats pred_vars typical_value var_names resp_var
 #' @importFrom sjmisc to_factor is_empty
 #' @importFrom stats terms
 #' @importFrom purrr map map_lgl map_df modify_if
 #' @importFrom sjlabelled as_numeric
-#' @importFrom tidyselect ends_with
 # fac.typical indicates if factors should be held constant or not
 # need to be false for computing std.error for merMod objects
-get_expanded_data <- function(model, mf, terms, typ.fun, fac.typical = TRUE, type = "fe", pretty.message = TRUE, condition = NULL) {
+get_expanded_data <- function(model, mf, terms, typ.fun, fac.typical = TRUE, pretty.message = TRUE, condition = NULL) {
   # special handling for coxph
   if (inherits(model, "coxph")) mf <- dplyr::select(mf, -1)
 
   # make sure we don't have arrays as variables
-  mf <- suppressWarnings(purrr::modify_if(mf, is.array, as.vector))
-
-  # use tibble, no drop = FALSE
-  mf <- tibble::as_tibble(mf)
+  mf <- suppressWarnings(as.data.frame(purrr::modify_if(mf, is.array, as.vector)))
 
   # check for logical variables, might not work
   if (any(purrr::map_lgl(mf, is.logical))) {
@@ -49,7 +44,7 @@ get_expanded_data <- function(model, mf, terms, typ.fun, fac.typical = TRUE, typ
         log.terms <- grepl("^log\\(([^,)]*).*", x = attr(stats::terms(model), "term.labels", exact = TRUE))
         if (any(log.terms)) {
           clean.term <- sjstats::pred_vars(model)[which(log.terms)]
-          exp.term <- tidyselect::ends_with("[exp]", vars = terms)
+          exp.term <- string_ends_with(pattern = "[exp]", x = terms)
 
           if (sjmisc::is_empty(exp.term) || get_clear_vars(terms)[exp.term] != clean.term) {
             message(sprintf("Model has log-transformed predictors. Consider using `terms = \"%s [exp]\"` to back-transform scale.", clean.term))
@@ -73,6 +68,19 @@ get_expanded_data <- function(model, mf, terms, typ.fun, fac.typical = TRUE, typ
 
   # get names of all predictor variable
   alle <- sjstats::pred_vars(model)
+
+  # remove response, if necessary
+  resp <- tryCatch(
+    sjstats::resp_var(model),
+    error = function(x) { NULL },
+    warning = function(x) { NULL },
+    finally = function(x) { NULL }
+  )
+
+  if (!is.null(resp) && resp %in% alle) {
+    alle <- alle[-which(alle == resp)]
+  }
+
 
   # get count of terms, and number of columns
   term.cnt <- length(alle)
@@ -132,17 +140,17 @@ get_expanded_data <- function(model, mf, terms, typ.fun, fac.typical = TRUE, typ
   # level for factors and most common element for character vectors
 
   if (fac.typical) {
-    const.values <- lapply(mf[, alle], function(x) sjstats::typical_value(x, typ.fun, weight.by = w))
+    const.values <- lapply(mf[, alle, drop = FALSE], function(x) sjstats::typical_value(x, fun = typ.fun, weights = w))
   } else {
     # if factors should not be held constant (needed when computing
     # std.error for merMod objects), we need all factor levels,
     # and not just the typical value
     const.values <-
-      lapply(mf[, alle], function(x) {
+      lapply(mf[, alle, drop = FALSE], function(x) {
         if (is.factor(x))
           levels(x)
         else
-          sjstats::typical_value(x, typ.fun, w = w)
+          sjstats::typical_value(x, fun = typ.fun, weights = w)
       })
   }
 
@@ -150,7 +158,7 @@ get_expanded_data <- function(model, mf, terms, typ.fun, fac.typical = TRUE, typ
   first <- c(first, const.values)
 
   # create data frame with all unqiue combinations
-  dat <- tibble::as_tibble(expand.grid(first))
+  dat <- as.data.frame(expand.grid(first))
 
 
   # we have to check type consistency. If user specified certain value
@@ -175,19 +183,18 @@ get_expanded_data <- function(model, mf, terms, typ.fun, fac.typical = TRUE, typ
 
 
   # get list names. we need to remove patterns like "log()" etc.
-  # and give list elements names, so we can make a tibble
   names(datlist) <- names(first)
+  datlist <- as.data.frame(datlist)
 
   # save constant values as attribute
   attr(datlist, "constant.values") <- const.values
 
-  tibble::as_tibble(datlist)
+  datlist
 }
 
 
 #' @importFrom sjmisc is_empty
 #' @importFrom dplyr slice
-#' @importFrom tibble as_tibble
 #' @importFrom sjstats var_names
 get_sliced_data <- function(fitfram, terms) {
   # check if we have specific levels in square brackets
@@ -207,5 +214,5 @@ get_sliced_data <- function(fitfram, terms) {
   # clean variable names
   colnames(fitfram) <- sjstats::var_names(colnames(fitfram))
 
-  tibble::as_tibble(fitfram)
+  fitfram
 }

@@ -13,9 +13,9 @@
 #'   that supports common methods like \code{predict()}, \code{family()}
 #'   or \code{model.frame()} should work. For \code{ggeffect()}, any model
 #'   that is supported by the \CRANpkg{effects}-package should work.
-#' @param terms Character vector with the names of those terms from \code{model},
-#'   for which marginal effects should be displayed. At least one term
-#'   is required to calculate effects for certain terms, maximum length is
+#' @param terms Character vector (or a formula) with the names of those terms
+#'   from \code{model}, for which marginal effects should be displayed. At least
+#'   one term is required to calculate effects for certain terms, maximum length is
 #'   three terms, where the second and third term indicate the groups, i.e.
 #'   predictions of first term are grouped by the levels of the second (and third)
 #'   term. If \code{terms} is missing or \code{NULL}, marginal effects for each
@@ -28,11 +28,51 @@
 #' @param ci.lvl Numeric, the level of the confidence intervals. For \code{ggpredict()},
 #'   use \code{ci.lvl = NA}, if confidence intervals should not be calculated
 #'   (for instance, due to computation time).
-#' @param type Character, only applies for mixed effects models. Indicates
-#'   whether predicted values should be conditioned on random effects
-#'   (\code{type = "re"}) or fixed effects only (\code{type = "fe"},
-#'   the default). If \code{type = "re"}, prediction intervals also consider
-#'   the uncertainty in the variance parameters.
+#' @param type Character, only applies for mixed effects models and/or models
+#'   with zero-inflation.
+#'   \describe{
+#'     \item{\code{"fe"}}{
+#'     Predicted values are conditioned on the fixed effects or conditional
+#'     model only. For instance, for models fitted with \code{zeroinfl} from
+#'     \pkg{pscl}, this would return the predicted mean from the count component
+#'     (without zero-inflation). For models of class \code{glmmTMB}, this type
+#'     calls \code{predict(..., type = "link")}.
+#'     }
+#'     \item{\code{"re"}}{
+#'     Predicted values are conditioned on the random effects. This only applies
+#'     to mixed models, and \code{type = "re"} does not condition on the
+#'     zero-inflation component of the model. Prediction intervals also consider
+#'     the uncertainty in the variance parameters. For models of class \code{glmmTMB},
+#'     this type calls \code{predict(..., type = "link")}. \strong{Note:} For
+#'     models of class \code{glmmTMB}, the random effect variances only affect
+#'     the confidence intervals of predictions, not the predicted values
+#'     themselves (because this is currently not implemented in \pkg{glmmTMB}).
+#'     }
+#'     \item{\code{"fe.zi"}}{
+#'     Predicted values are conditioned on the fixed effects and the zero-inflation
+#'     component. For instance, for models fitted with \code{zeroinfl}
+#'     from \pkg{pscl}, this would return the predicted response and for \code{glmmTMB},
+#'     this would return the expected value \code{mu*(1-p)} \emph{without}
+#'     conditioning on random effects. For models of class \code{glmmTMB}, this type
+#'     calls \code{predict(..., type = "response")}.
+#'     }
+#'     \item{\code{"re.zi"}}{
+#'     Predicted values are conditioned on the random effects and the
+#'     zero-inflation component. For models fitted with \code{glmmTMB}, this
+#'     would return the expected value \code{mu*(1-p)}, conditioned on random
+#'     effects. Prediction intervals also consider the uncertainty in the
+#'     variance parameters. For models of class \code{glmmTMB}, this type
+#'     calls \code{simulate()}, because conditioning on random effects is
+#'     not yet implemented in \code{predict.glmmTMB()}.
+#'     }
+#'     \item{\code{"surv"} and \code{"cumhaz"}}{
+#'     Applies only to \code{coxph}-objects from the \pkg{survial}-package and
+#'     calculates the survival probability or the cumulative hazard of an event.
+#'     }
+#'     \item{\code{"debug"}}{
+#'     Only used internally.
+#'     }
+#'   }
 #' @param full.data Logical, if \code{TRUE}, the returned data frame contains
 #'   predictions for all observations. This data frame also has columns
 #'   for residuals and observed values, and can also be used to plot a
@@ -52,33 +92,56 @@
 #' @param x.as.factor Logical, if \code{TRUE}, preserves factor-class as
 #'   \code{x}-column in the returned data frame. By default, the \code{x}-column
 #'   is always numeric.
-#' @param pretty Deprecated.
 #' @param condition Named character vector, which indicates covariates that
 #'   should be held constant at specific values. Unlike \code{typical}, which
 #'   applies a function to the covariates to determine the value that is used
 #'   to hold these covariates constant, \code{condition} can be used to define
 #'   exact values, for instance \code{condition = c(covariate1 = 20, covariate2 = 5)}.
 #'   See 'Examples'.
-#' @param ... Further arguments passed down to \code{predict()} or
-#'   \code{\link[effects]{Effect}}.
+#' @param vcov.fun String, indicating the name of the \code{vcov*()}-function
+#'    from the \pkg{sandwich}-package, e.g. \code{vcov.fun = "vcovCL"},
+#'    which is used to compute robust standard errors for predictions.
+#'    If \code{NULL}, standard errors (and confidence intervals) for predictions
+#'    are based on the standard errors as returned by the \code{predict()}-function.
+#'    \strong{Note} that probably not all model objects that work with \code{ggpredict()}
+#'    are also supported by the \pkg{sandwich}-package.
+#' @param vcov.type Character vector, specifying the estimation type for the
+#'    robust covariance matrix estimation (see \code{\link[sandwich]{vcovHC}}
+#'    for details).
+#' @param vcov.args List of named vectors, used as additional arguments that
+#'    are passed down to \code{vcov.fun}.
+#' @param ... For \code{ggpredict()}, further arguments passed down to
+#'    \code{predict()}, and for \code{ggeffect()}, further arguments passed
+#'    down to \code{\link[effects]{Effect}}. If \code{model} is of class
+#'    \code{glmmTMB}, \code{...} may also be used to set the number of
+#'    simulation for bootstrapped confidence intervals, e.g. \code{nsim = 500}.
 #'
 #' @details
-#'   \strong{Supported Models} \cr \cr
-#'   Currently supported model-objects are: \code{lm, glm, glm.nb, lme, lmer,
-#'   glmer, glmer.nb, nlmer, glmmTMB, gam, vgam, gamm, gamm4, multinom,
-#'   betareg, gls, gee, plm, lrm, polr, clm, hurdle, zeroinfl, svyglm,
-#'   svyglm.nb, truncreg, coxph, stanreg, brmsfit, lmRob, glmRob, brglm, rlm}.
+#'   \strong{Supported Models}
+#'   \cr \cr
+#'   Currently supported model-objects are: \code{lm}, \code{glm}, \code{glm.nb},
+#'   \code{lme}, \code{lmer}, \code{glmer}, \code{glmer.nb}, \code{nlmer},
+#'   \code{glmmTMB}, \code{gam}, \code{vgam}, \code{gamm}, \code{gamm4},
+#'   \code{multinom}, \code{betareg}, \code{gls}, \code{gee}, \code{plm},
+#'   \code{lrm}, \code{polr}, \code{clm}, \code{hurdle}, \code{zeroinfl},
+#'   \code{svyglm}, \code{svyglm.nb}, \code{truncreg}, \code{coxph},
+#'   \code{stanreg}, \code{brmsfit}, \code{lmRob}, \code{glmRob}, \code{brglm}
+#'   and \code{rlm}.
 #'   Other models not listed here are passed to a generic predict-function
 #'   and might work as well, or maybe with \code{ggeffect()}, which
 #'   effectively does the same as \code{ggpredict()}. The main difference
 #'   is that \code{ggpredict()} calls \code{predict()}, while \code{ggeffect()}
 #'   calls \code{\link[effects]{Effect}} to compute marginal effects.
+#'   \cr \cr
+#'   \strong{Difference between \code{ggpredict()} and \code{ggeffect()}}
+#'   \cr \cr
 #'   \code{ggpredict()} and \code{ggeffect()} differ in how factors are
 #'   held constant: \code{ggpredict()} uses the reference level, while
 #'   \code{ggeffect()} computes a kind of "average" value, which represents
 #'   the proportions of each factor's category.
 #'   \cr \cr
-#'   \strong{Marginal Effects at Specific Values} \cr \cr
+#'   \strong{Marginal Effects at Specific Values}
+#'   \cr \cr
 #'   Specific values of model terms can be specified via the \code{terms}-argument.
 #'   Indicating levels in square brackets allows for selecting only
 #'   specific groups or values resp. value ranges. Term name and levels in
@@ -103,14 +166,17 @@
 #'   memory allocation problems for vectors with many unique values. If a numeric
 #'   vector is specified as second or third term (i.e. if this vector represents
 #'   a grouping structure), representative values (see \code{\link{rprs_values}})
-#'   are chosen. See also package vignettes.
+#'   are chosen. If all values for a numeric vector should be used to compute
+#'   predictions, you may use e.g. \code{terms = "age [all]"}. See also
+#'   package vignettes.
 #'   \cr \cr
-#'   \strong{Holding covariates at constant values} \cr \cr
+#'   \strong{Holding covariates at constant values}
+#'   \cr \cr
 #'   For \code{ggpredict()}, if \code{full.data = FALSE}, \code{expand.grid()}
 #'   is called on all unique combinations of \code{model.frame(model)[, terms]}
 #'   and used as \code{newdata}-argument for \code{predict()}. In this case,
 #'   all remaining covariates that are not specified in \code{terms} are
-#'   held constant. Numeric values are set to the mean (unless changed with
+#'   held constant: Numeric values are set to the mean (unless changed with
 #'   the \code{condition} or \code{typical}-argument), factors are set to their
 #'   reference level (may also be changed with \code{condition}) and character
 #'   vectors to their mode (most common element).
@@ -130,7 +196,8 @@
 #'   their mean value, while for factors, a kind of "average" value, which
 #'   represents the proportions of each factor's category, is used.
 #'   \cr \cr
-#'   \strong{Bayesian Regression Models} \cr \cr
+#'   \strong{Bayesian Regression Models}
+#'   \cr \cr
 #'   \code{ggpredict()} also works with \strong{Stan}-models from
 #'   the \CRANpkg{rstanarm} or \CRANpkg{brms}-package. The predicted
 #'   values are the median value of all drawn posterior samples. The
@@ -148,6 +215,19 @@
 #'   used in \code{posterior_predict()} must also contain the vector
 #'   with the number of trials. In this case, a dummy-vector is used,
 #'   where all values for the response are set to 1.
+#'   \cr \cr
+#'   \strong{Zero-Inflated Mixed Models with glmmTMB}
+#'   \cr \cr
+#'   If \code{model} is of class \code{glmmTMB}, bootstrapped confidence
+#'   intervals are calculated for predictions conditioned on the zero-inflated
+#'   part of the model, when the uncertainty in the random-effect paramters
+#'   is ignored (i.e. when \code{type = "fe.zi"}, see Brooks et al. 2017, pp.391-392
+#'   for details). \code{type = "fe.zi"} returns predicted values at population
+#'   \emph{mode}, not mean. If predictions are also conditioned on random
+#'   effects (i.e. \code{type = "re.zi"}), predicted values are based on
+#'   simulations (see Brooks et al. 2017, pp.392-393 for details).
+#'
+#' @references Brooks ME, Kristensen K, Benthem KJ van, Magnusson A, Berg CW, Nielsen A, et al. glmmTMB Balances Speed and Flexibility Among Packages for Zero-inflated Generalized Linear Mixed Modeling. The R Journal. 2017;9: 378–400.
 #'
 #' @note
 #'   Since data for \code{ggaverage()} comes from the model frame, not all
@@ -155,20 +235,17 @@
 #'   thus lines or confidence bands from \code{plot()} might not span over
 #'   the complete x-axis-range.
 #'   \cr \cr
-#'   There are some limitations for certain model objects. For example,
-#'   it is currently only possible to compute predicted risk scores for
-#'   \code{coxph}-models, but not expected number of events nor survival
-#'   probabilities.
-#'   \cr \cr
-#'   \code{polr}- or \code{clm}-models have an additional column
+#'   \code{polr}-, \code{clm}-models, or more generally speaking, models with
+#'   ordinal or multinominal outcomes, have an additional column
 #'   \code{response.level}, which indicates with which level of the response
 #'   variable the predicted values are associated.
 #'   \cr \cr
-#'   There is a \code{summary()}-method, which gives a cleaner output (especially
-#'   for predictions by groups), and which indicates at which values covariates
-#'   were held constant.
+#'   The \code{print()}-method gives a clean output (especially for predictions
+#'   by groups), and indicates at which values covariates were held constant.
+#'   Furthermore, the \code{print()}-method has the arguments \code{digits} and
+#'   \code{n}, to control number of decimals and lines to be printed.
 #'
-#' @return A tibble (with \code{ggeffects} class attribute) with consistent data columns:
+#' @return A data frame (with \code{ggeffects} class attribute) with consistent data columns:
 #'         \describe{
 #'           \item{\code{x}}{the values of the first term in \code{terms}, used as x-position in plots.}
 #'           \item{\code{predicted}}{the predicted values of the response, used as y-position in plots.}
@@ -192,6 +269,9 @@
 #' ggpredict(fit, terms = "c12hour", full.data = TRUE)
 #' ggpredict(fit, terms = c("c12hour", "c172code"))
 #' ggpredict(fit, terms = c("c12hour", "c172code", "c161sex"))
+#'
+#' # specified as formula
+#' ggpredict(fit, terms = ~ c12hour + c172code + c161sex)
 #'
 #' # only range of 40 to 60 for variable 'c12hour'
 #' ggpredict(fit, terms = "c12hour [40:60]")
@@ -306,15 +386,30 @@
 #' @importFrom stats predict predict.glm na.omit
 #' @importFrom dplyr select mutate case_when arrange n_distinct
 #' @importFrom sjmisc to_factor is_num_fac remove_empty_cols
-#' @importFrom tibble has_name as_tibble
 #' @importFrom purrr map
 #' @importFrom sjlabelled as_numeric
 #' @importFrom sjstats resp_var
 #' @export
-ggpredict <- function(model, terms, ci.lvl = .95, type = c("fe", "re"), full.data = FALSE, typical = "mean", ppd = FALSE, x.as.factor = FALSE, pretty = NULL, condition = NULL, ...) {
+ggpredict <- function(model,
+                      terms,
+                      ci.lvl = .95,
+                      type = c("fe", "re", "fe.zi", "re.zi", "surv", "cumhaz", "debug"),
+                      typical = "mean",
+                      condition = NULL,
+                      ppd = FALSE,
+                      x.as.factor = FALSE,
+                      full.data = FALSE,
+                      vcov.fun = NULL,
+                      vcov.type = NULL,
+                      vcov.args = NULL,
+                      ...) {
   # check arguments
   type <- match.arg(type)
 
+  # check if terms are a formula
+  if (!missing(terms) && !is.null(terms) && inherits(terms, "formula")) {
+    terms <- all.vars(terms)
+  }
 
   # for gamm4 objects, we have a list with two items, mer and gam
   # extract just the mer-part then
@@ -324,7 +419,21 @@ ggpredict <- function(model, terms, ci.lvl = .95, type = c("fe", "re"), full.dat
   }
 
   if (inherits(model, "list")) {
-    res <- purrr::map(model, ~ggpredict_helper(.x, terms, ci.lvl, type, full.data, typical, ppd, x.as.factor, condition = condition, ...))
+    res <- purrr::map(model, ~ggpredict_helper(
+      model = .x,
+      terms = terms,
+      ci.lvl = ci.lvl,
+      type = type,
+      full.data = full.data,
+      typical = typical,
+      ppd = ppd,
+      x.as.factor = x.as.factor,
+      condition = condition,
+      vcov.fun = vcov.fun,
+      vcov.type = vcov.type,
+      vcov.args = vcov.args,
+      ...
+    ))
     class(res) <- c("ggalleffects", class(res))
   } else {
     if (missing(terms) || is.null(terms)) {
@@ -332,7 +441,22 @@ ggpredict <- function(model, terms, ci.lvl = .95, type = c("fe", "re"), full.dat
       res <- purrr::map(
         predictors,
         function(.x) {
-          tmp <- ggpredict_helper(model, terms = .x, ci.lvl, type, full.data, typical, ppd, x.as.factor, condition = condition, ...)
+          tmp <- ggpredict_helper(
+            model = model,
+            terms = .x,
+            ci.lvl = ci.lvl,
+            type = type,
+            full.data = full.data,
+            typical = typical,
+            ppd = ppd,
+            x.as.factor = x.as.factor,
+            condition = condition,
+            vcov.fun = vcov.fun,
+            vcov.type = vcov.type,
+            vcov.args = vcov.args,
+            ...
+          )
+
           tmp$group <- .x
           tmp
         }
@@ -340,7 +464,21 @@ ggpredict <- function(model, terms, ci.lvl = .95, type = c("fe", "re"), full.dat
       names(res) <- predictors
       class(res) <- c("ggalleffects", class(res))
     } else {
-      res <- ggpredict_helper(model, terms, ci.lvl, type, full.data, typical, ppd, x.as.factor, condition = condition, ...)
+      res <- ggpredict_helper(
+        model = model,
+        terms = terms,
+        ci.lvl = ci.lvl,
+        type = type,
+        full.data = full.data,
+        typical = typical,
+        ppd = ppd,
+        x.as.factor = x.as.factor,
+        condition = condition,
+        vcov.fun = vcov.fun,
+        vcov.type = vcov.type,
+        vcov.args = vcov.args,
+        ...
+      )
     }
   }
 
@@ -351,7 +489,19 @@ ggpredict <- function(model, terms, ci.lvl = .95, type = c("fe", "re"), full.dat
 # workhorse that computes the predictions
 # and creates the tidy data frames
 #' @importFrom sjstats model_frame
-ggpredict_helper <- function(model, terms, ci.lvl, type, full.data, typical, ppd, x.as.factor, condition, ...) {
+ggpredict_helper <- function(model,
+                             terms,
+                             ci.lvl,
+                             type,
+                             full.data,
+                             typical,
+                             ppd,
+                             x.as.factor,
+                             condition,
+                             vcov.fun,
+                             vcov.type,
+                             vcov.args,
+                             ...) {
   # check class of fitted model
   fun <- get_predict_function(model)
 
@@ -360,6 +510,8 @@ ggpredict_helper <- function(model, terms, ci.lvl, type, full.data, typical, ppd
 
   # check model family, do we have count model?
   faminfo <- sjstats::model_family(model)
+
+  if (fun == "coxph" && type == "surv") faminfo$is_bin <- TRUE
 
   # create logical for family
   binom_fam <- faminfo$is_bin
@@ -375,7 +527,7 @@ ggpredict_helper <- function(model, terms, ci.lvl, type, full.data, typical, ppd
   } else {
     expanded_frame <- get_expanded_data(
       model = model, mf = fitfram, terms = terms, typ.fun = typical,
-      type = type, condition = condition
+      condition = condition
     )
   }
 
@@ -389,28 +541,46 @@ ggpredict_helper <- function(model, terms, ci.lvl, type, full.data, typical, ppd
 
   # compute predictions here -----
   fitfram <- select_prediction_method(
-    fun, model, expanded_frame, ci.lvl, type, faminfo, ppd, terms = ori.terms, typical,...
+    fun,
+    model,
+    expanded_frame,
+    ci.lvl,
+    type,
+    faminfo,
+    ppd,
+    terms = ori.terms,
+    typical,
+    vcov.fun,
+    vcov.type,
+    vcov.args,
+    ...
   )
 
 
   # init legend labels
   legend.labels <- NULL
 
+  # for survival probabilities or cumulative hazards, we need
+  # the "time" variable
+
+  if (fun == "coxph" && type %in% c("surv", "cumhaz"))
+    terms <- c("time", terms)
+
   # get axis titles and labels
   all.labels <- get_all_labels(
-    ori.mf,
-    terms,
-    get_model_function(model),
-    binom_fam,
-    poisson_fam,
-    FALSE
+    fitfram = ori.mf,
+    terms = terms,
+    fun = get_model_function(model),
+    binom_fam = binom_fam,
+    poisson_fam = poisson_fam,
+    no.transform = FALSE,
+    type = type
   )
 
   # check for correct terms specification
   if (!all(terms %in% colnames(fitfram))) {
     stop("At least one term specified in `terms` is no valid model term.", call. = FALSE)
   }
-
 
   # now select only relevant variables: the predictors on the x-axis,
   # the predictions and the originial response vector (needed for scatter plot)
@@ -480,7 +650,7 @@ ggpredict_helper <- function(model, terms, ci.lvl, type, full.data, typical, ppd
   if (is.numeric(mydf$group))
     mydf$group <- sjmisc::to_factor(mydf$group)
 
-  if (tibble::has_name(mydf, "facet") && is.numeric(mydf$facet))
+  if (obj_has_name(mydf, "facet") && is.numeric(mydf$facet))
     mydf$facet <- sjmisc::to_factor(mydf$facet)
 
 
@@ -491,9 +661,7 @@ ggpredict_helper <- function(model, terms, ci.lvl, type, full.data, typical, ppd
   # x needs to be numeric
   if (!x.as.factor) mydf$x <- sjlabelled::as_numeric(mydf$x)
 
-  # to tibble
   mydf <- mydf %>%
-    tibble::as_tibble() %>%
     dplyr::arrange(.data$x, .data$group) %>%
     sjmisc::remove_empty_cols()
 

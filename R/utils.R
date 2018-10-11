@@ -3,6 +3,13 @@
 magrittr::`%>%`
 
 
+data_frame <- function(...) {
+  x <- data.frame(..., stringsAsFactors = FALSE)
+  rownames(x) <- NULL
+  x
+}
+
+
 # get color palette
 #' @importFrom scales brewer_pal grey_pal
 get_colors <- function(geom.colors, collen) {
@@ -70,7 +77,6 @@ check_vars <- function(terms) {
 }
 
 
-#' @importFrom tibble tibble
 #' @importFrom sjstats resp_val resp_var
 #' @importFrom dplyr filter
 #' @importFrom stats complete.cases
@@ -109,10 +115,10 @@ get_raw_data <- function(model, mf, terms) {
     group <- sjmisc::to_factor(1)
   }
 
-  # return all as tibble
+  # return all as data.frame
   tryCatch(
     {
-      tibble::tibble(response = response, x = x, group = group)
+      data_frame(response = response, x = x, group = group)
     },
     error = function(x) { NULL },
     warning = function(x) { NULL },
@@ -123,6 +129,7 @@ get_raw_data <- function(model, mf, terms) {
 
 #' @importFrom purrr map
 #' @importFrom dplyr n_distinct
+#' @importFrom stats na.omit
 prettify_data <- function(xl.remain, fitfram, terms) {
   purrr::map(xl.remain, function(.x) {
     pr <- fitfram[[terms[.x]]]
@@ -130,12 +137,53 @@ prettify_data <- function(xl.remain, fitfram, terms) {
       if (.x > 1 && dplyr::n_distinct(pr, na.rm = TRUE) >= 10)
         rprs_values(pr)
       else if (dplyr::n_distinct(pr, na.rm = TRUE) < 9)
-        na.omit(unique(pr))
+        sort(stats::na.omit(unique(pr)))
       else
         pretty_range(pr)
     } else if (is.factor(pr))
       levels(pr)
     else
-      na.omit(unique(pr))
+      stats::na.omit(unique(pr))
   })
+}
+
+
+## Compute variance associated with a random-effects term
+## (Johnson 2014)
+#' @importFrom lme4 fixef VarCorr getME ranef
+#' @importFrom stats nobs
+getVarRand <- function(x) {
+  tryCatch(
+    {
+      vals <- list(
+        beta = lme4::fixef(x),
+        X = lme4::getME(x, "X"),
+        vc = lme4::VarCorr(x),
+        re = lme4::ranef(x)
+      )
+
+      vals <- lapply(vals, collapse_cond)
+
+      nr <- sapply(vals$re, nrow)
+      not.obs.terms <- names(nr[nr != stats::nobs(x)])
+
+      sum(sapply(
+        vals$vc[not.obs.terms],
+        function(Sigma) {
+          Z <- vals$X[, rownames(Sigma), drop = FALSE]
+          Z.m <- Z %*% Sigma
+          return(sum(diag(crossprod(Z.m, Z))) / stats::nobs(x))
+        }))
+    },
+    error = function(x) { 0 },
+    warning = function(x) { 0 },
+    finally = function(x) { 0 }
+  )
+}
+
+collapse_cond <- function(fit) {
+  if (is.list(fit) && "cond" %in% names(fit))
+    fit[["cond"]]
+  else
+    fit
 }
