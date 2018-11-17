@@ -31,22 +31,26 @@ data(efc)
 fit <- lm(barthtot ~ c12hour + neg_c_7 + c161sex + c172code, data = efc)
 
 ggpredict(fit, terms = "c12hour")
-
-#> # Predicted values for Total score BARTHEL INDEX 
+#> 
+#> # Predicted values of Total score BARTHEL INDEX 
 #> # x = average number of hours of care per week 
 #> 
-#>   x predicted conf.low conf.high group
-#>   0    75.444   73.257    77.630     1
-#>   5    74.177   72.098    76.256     1
-#>  10    72.911   70.931    74.890     1
-#>  15    71.644   69.753    73.535     1
-#>  20    70.378   68.564    72.191     1
-#>  25    69.111   67.361    70.861     1
-#>  30    67.845   66.144    69.545     1
-#>  35    66.578   64.911    68.245     1
-#>  40    65.312   63.661    66.962     1
-#>  45    64.045   62.393    65.697     1
-#>  ... and 25 more rows.
+#>    x predicted std.error conf.low conf.high
+#>    0    75.444     1.116   73.257    77.630
+#>   15    71.644     0.965   69.753    73.535
+#>   35    66.578     0.851   64.911    68.245
+#>   50    62.779     0.852   61.108    64.449
+#>   70    57.713     0.970   55.811    59.614
+#>   85    53.913     1.122   51.713    56.113
+#>  100    50.113     1.309   47.547    52.680
+#>  120    45.047     1.591   41.929    48.166
+#>  135    41.248     1.817   37.686    44.810
+#>  170    32.382     2.373   27.732    37.033
+#> 
+#> Adjusted for:
+#> *  neg_c_7 = 11.84
+#> *  c161sex =  1.76
+#> * c172code =  1.97
 ```
 
 A possible call to ggplot could look like this:
@@ -74,22 +78,60 @@ With three variables, predictions can be grouped and faceted.
 
 ```
 ggpredict(fit, terms = c("c12hour", "c172code", "c161sex"))
-
-#> # Predicted values for Total score BARTHEL INDEX 
+#> 
+#> # Predicted values of Total score BARTHEL INDEX 
 #> # x = average number of hours of care per week 
 #> 
-#>  x predicted conf.low conf.high                           group      facet
-#>  0    74.996   71.406    78.585          low level of education [2] Female
-#>  0    73.954   69.354    78.554          low level of education   [1] Male
-#>  0    75.714   73.313    78.115 intermediate level of education [2] Female
-#>  0    74.673   71.055    78.290 intermediate level of education   [1] Male
-#>  0    76.432   72.887    79.977         high level of education [2] Female
-#>  0    75.391   71.040    79.741         high level of education   [1] Male
-#>  5    73.729   70.219    77.239          low level of education [2] Female
-#>  5    72.688   68.143    77.233          low level of education   [1] Male
-#>  5    74.447   72.146    76.748 intermediate level of education [2] Female
-#>  5    73.406   69.846    76.966 intermediate level of education   [1] Male
-#>  ... and 200 more rows.
+#> # low level of education
+#> # [1] Male
+#>    x predicted std.error conf.low conf.high
+#>    0    73.954     2.347   69.354    78.554
+#>   45    62.556     2.208   58.228    66.883
+#>   85    52.424     2.310   47.896    56.951
+#>  170    30.893     3.085   24.847    36.939
+#> 
+#> # low level of education
+#> # [2] Female
+#>    x predicted std.error conf.low conf.high
+#>    0    74.996     1.831   71.406    78.585
+#>   45    63.597     1.603   60.456    66.738
+#>   85    53.465     1.702   50.130    56.800
+#>  170    31.934     2.606   26.827    37.042
+#> 
+#> # intermediate level of education
+#> # [1] Male
+#>    x predicted std.error conf.low conf.high
+#>    0    74.673     1.845   71.055    78.290
+#>   45    63.274     1.730   59.883    66.665
+#>   85    53.142     1.911   49.397    56.887
+#>  170    31.611     2.872   25.982    37.241
+#> 
+#> # intermediate level of education
+#> # [2] Female
+#>    x predicted std.error conf.low conf.high
+#>    0    75.714     1.225   73.313    78.115
+#>   45    64.315     0.968   62.418    66.213
+#>   85    54.183     1.209   51.815    56.552
+#>  170    32.653     2.403   27.943    37.362
+#> 
+#> # high level of education
+#> # [1] Male
+#>    x predicted std.error conf.low conf.high
+#>    0    75.391     2.220   71.040    79.741
+#>   45    63.992     2.176   59.727    68.258
+#>   85    53.860     2.364   49.226    58.494
+#>  170    32.330     3.257   25.946    38.713
+#> 
+#> # high level of education
+#> # [2] Female
+#>    x predicted std.error conf.low conf.high
+#>    0    76.432     1.809   72.887    79.977
+#>   45    65.034     1.712   61.679    68.388
+#>   85    54.902     1.910   51.158    58.646
+#>  170    33.371     2.895   27.697    39.045
+#> 
+#> Adjusted for:
+#> * neg_c_7 = 11.84
 
 mydf <- ggpredict(fit, terms = c("c12hour", "c172code", "c161sex"))
 ggplot(mydf, aes(x = x, y = predicted, colour = group)) +
@@ -118,8 +160,8 @@ Please follow [this guide](CONTRIBUTING.md) if you like to contribute to this pa
 To install the latest development snapshot (see latest changes below), type following commands into the R console:
 
 ```r
-library(devtools)
-devtools::install_github("strengejacke/ggeffects")
+library(githubinstall)
+githubinstall::githubinstall("ggeffects")
 ```
 
 Please note the package dependencies when installing from GitHub. The GitHub version of this package may depend on latest GitHub versions of my other packages, so you may need to install those first, if you encounter any problems. Here's the order for installing packages from GitHub:

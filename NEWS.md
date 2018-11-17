@@ -1,3 +1,24 @@
+# ggeffects 0.7.0
+
+## General
+
+* Support for monotonic predictors in **brms** models (`mo()`).
+* For generalized additive models, values for splines are no longer automatically prettified (which ensures smooth plots, without the need to use the `[all]` tag, i.e. `terms="... [all]"`).
+* If splines or plolynomial terms are used, a message is printed to indicate that using the `[all]` tag, i.e. `terms="... [all]"`, will produce smoother plots.
+* The package-vignette _Marginal Effects at Specific Values_ now has examples on how to get marginal effects for each group level of random effects in mixed models.
+* Revised `print()`-method, that - for larger data frames - only prints representative data rows. Use the `n`-argument inside the `print()`-method to force a specific number of rows to be printed.
+
+## Changes to functions
+
+* Added an `n`-tag for the `terms`-argument in `ggpredict()` and `ggeffect()`, to give more flexibility according to how many values are used for "prettifying" large value ranges.
+* Added a `sample`-tag for the `terms`-argument in `ggpredict()` and `ggeffect()`, to pick a random sample of values for plotting.
+* `ggpredict()` and `ggeffect()` now also return the standard error of predictions, if available.
+* The `jitter`-argument in `plot()` now also changes the amount of noise for plots of models with binary outcome (when `rawdata = TRUE`).
+
+## Bug fixes
+
+* Fix issue with proper calculation of random effect variances for **glmmTMB** models for `type="re"` and `type="re.zi"` in general, and also for models with `ar1` random effects structure.
+
 # ggeffects 0.6.0
 
 ## General

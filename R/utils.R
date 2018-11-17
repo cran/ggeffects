@@ -130,13 +130,13 @@ get_raw_data <- function(model, mf, terms) {
 #' @importFrom purrr map
 #' @importFrom dplyr n_distinct
 #' @importFrom stats na.omit
-prettify_data <- function(xl.remain, fitfram, terms) {
+prettify_data <- function(xl.remain, fitfram, terms, use.all = FALSE) {
   purrr::map(xl.remain, function(.x) {
     pr <- fitfram[[terms[.x]]]
     if (is.numeric(pr)) {
       if (.x > 1 && dplyr::n_distinct(pr, na.rm = TRUE) >= 10)
         rprs_values(pr)
-      else if (dplyr::n_distinct(pr, na.rm = TRUE) < 9)
+      else if (dplyr::n_distinct(pr, na.rm = TRUE) < 20 || isTRUE(use.all))
         sort(stats::na.omit(unique(pr)))
       else
         pretty_range(pr)
@@ -170,10 +170,21 @@ getVarRand <- function(x) {
       sum(sapply(
         vals$vc[not.obs.terms],
         function(Sigma) {
-          Z <- vals$X[, rownames(Sigma), drop = FALSE]
+          rn <- rownames(Sigma)
+
+          if (!is.null(rn)) {
+            valid <- rownames(Sigma) %in% colnames(vals$X)
+            if (!all(valid)) {
+              rn <- rn[valid]
+              Sigma <- Sigma[valid, valid]
+            }
+          }
+
+          Z <- vals$X[, rn, drop = FALSE]
           Z.m <- Z %*% Sigma
           return(sum(diag(crossprod(Z.m, Z))) / stats::nobs(x))
         }))
+
     },
     error = function(x) { 0 },
     warning = function(x) { 0 },
@@ -186,4 +197,48 @@ collapse_cond <- function(fit) {
     fit[["cond"]]
   else
     fit
+}
+
+
+has_splines <- function(model) {
+  form <- tryCatch(
+    {
+      deparse(stats::formula(model))
+    },
+    error = function(x) { NULL }
+  )
+
+  if (is.null(form)) return(FALSE)
+
+  grepl("s\\(([^,)]*)", form) | grepl("bs\\(([^,)]*)", form) |
+    grepl("ns\\(([^,)]*)", form) | grepl("pspline\\(([^,)]*)", form) |
+    grepl("poly\\(([^,)]*)", form)
+}
+
+
+has_poly <- function(model) {
+  form <- tryCatch(
+    {
+      deparse(stats::formula(model))
+    },
+    error = function(x) { NULL }
+  )
+
+  if (is.null(form)) return(FALSE)
+
+  grepl("I\\(.*?\\^.*?\\)", form) | grepl("poly\\(([^,)]*)", form)
+}
+
+
+uses_all_tag <- function(terms) {
+  tags <- unlist(regmatches(
+    terms,
+    gregexpr(
+      pattern = "\\[(.*)\\]",
+      text = terms,
+      perl = T
+    )
+  ))
+
+  "[all]" %in% tags
 }

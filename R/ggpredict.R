@@ -41,27 +41,33 @@
 #'     \item{\code{"re"}}{
 #'     Predicted values are conditioned on the random effects. This only applies
 #'     to mixed models, and \code{type = "re"} does not condition on the
-#'     zero-inflation component of the model. Prediction intervals also consider
-#'     the uncertainty in the variance parameters. For models of class \code{glmmTMB},
-#'     this type calls \code{predict(..., type = "link")}. \strong{Note:} For
-#'     models of class \code{glmmTMB}, the random effect variances only affect
-#'     the confidence intervals of predictions, not the predicted values
-#'     themselves (because this is currently not implemented in \pkg{glmmTMB}).
+#'     zero-inflation component of the model, nor on different group levels.
+#'     \code{type = "re"} uses the reference level in the random effects groups
+#'     (except for \pkg{glmmTMB} models, see below), and prediction intervals
+#'     also consider the uncertainty in the variance parameters. For models
+#'     from \pkg{glmmTMB}, this type calls \code{predict(..., type = "link")}.
+#'     \strong{Note:} For \pkg{glmmTMB} models, the random effect variances only
+#'     affect the confidence intervals of predictions, not the predicted values
+#'     themselves (because this is currently not implemented in \pkg{glmmTMB}),
+#'     i.e. predicted values are on population-level. To get predicted values
+#'     for each level of the random effects groups, add the name of the related
+#'     random effect term to the \code{terms}-argument (for more details,
+#'     see \href{../doc/effectsatvalues.html}{this vignette}).
 #'     }
 #'     \item{\code{"fe.zi"}}{
 #'     Predicted values are conditioned on the fixed effects and the zero-inflation
 #'     component. For instance, for models fitted with \code{zeroinfl}
-#'     from \pkg{pscl}, this would return the predicted response and for \code{glmmTMB},
+#'     from \pkg{pscl}, this would return the predicted response and for \pkg{glmmTMB},
 #'     this would return the expected value \code{mu*(1-p)} \emph{without}
 #'     conditioning on random effects. For models of class \code{glmmTMB}, this type
 #'     calls \code{predict(..., type = "response")}.
 #'     }
 #'     \item{\code{"re.zi"}}{
 #'     Predicted values are conditioned on the random effects and the
-#'     zero-inflation component. For models fitted with \code{glmmTMB}, this
+#'     zero-inflation component. For models fitted with \pkg{glmmTMB}, this
 #'     would return the expected value \code{mu*(1-p)}, conditioned on random
 #'     effects. Prediction intervals also consider the uncertainty in the
-#'     variance parameters. For models of class \code{glmmTMB}, this type
+#'     variance parameters. For models from \pkg{glmmTMB}, this type
 #'     calls \code{simulate()}, because conditioning on random effects is
 #'     not yet implemented in \code{predict.glmmTMB()}.
 #'     }
@@ -123,7 +129,7 @@
 #'   \code{lme}, \code{lmer}, \code{glmer}, \code{glmer.nb}, \code{nlmer},
 #'   \code{glmmTMB}, \code{gam}, \code{vgam}, \code{gamm}, \code{gamm4},
 #'   \code{multinom}, \code{betareg}, \code{gls}, \code{gee}, \code{plm},
-#'   \code{lrm}, \code{polr}, \code{clm}, \code{hurdle}, \code{zeroinfl},
+#'   \code{lrm}, \code{polr}, \code{clm}, \code{clm2}, \code{hurdle}, \code{zeroinfl},
 #'   \code{svyglm}, \code{svyglm.nb}, \code{truncreg}, \code{coxph},
 #'   \code{stanreg}, \code{brmsfit}, \code{lmRob}, \code{glmRob}, \code{brglm}
 #'   and \code{rlm}.
@@ -161,6 +167,13 @@
 #'   This is useful when model predictors were transformed for fitting the
 #'   model and should be back-transformed to the original scale for predictions.
 #'   \cr \cr
+#'   You can take a random sample of any size with \code{sample=n}, e.g
+#'   \code{terms = "income [sample=8]"}, which will sample eight values from
+#'   all possible values of the variable \code{income}. This option is especially
+#'   useful for plotting marginal effects at certain levels of random effects
+#'   group levels, where the group factor has many levels that can be completely
+#'   plotted. For more details, see \href{../doc/effectsatvalues.html}{this vignette}.
+#'   \cr \cr
 #'   Finally, numeric vectors for which no specific values are given, a
 #'   "pretty range" is calculated (see \code{\link{pretty_range}}), to avoid
 #'   memory allocation problems for vectors with many unique values. If a numeric
@@ -169,6 +182,11 @@
 #'   are chosen. If all values for a numeric vector should be used to compute
 #'   predictions, you may use e.g. \code{terms = "age [all]"}. See also
 #'   package vignettes.
+#'   \cr \cr
+#'   To create a pretty range that should be smaller or larger than the default
+#'   range (i.e. if no specific values would be given), use the \code{n}-tag,
+#'   e.g. \code{terms="age [n=5]"} or \code{terms="age [n=12]"}. Larger
+#'   values for \code{n} return a larger range of predicted values.
 #'   \cr \cr
 #'   \strong{Holding covariates at constant values}
 #'   \cr \cr
@@ -243,12 +261,13 @@
 #'   The \code{print()}-method gives a clean output (especially for predictions
 #'   by groups), and indicates at which values covariates were held constant.
 #'   Furthermore, the \code{print()}-method has the arguments \code{digits} and
-#'   \code{n}, to control number of decimals and lines to be printed.
+#'   \code{n} to control number of decimals and lines to be printed.
 #'
 #' @return A data frame (with \code{ggeffects} class attribute) with consistent data columns:
 #'         \describe{
 #'           \item{\code{x}}{the values of the first term in \code{terms}, used as x-position in plots.}
 #'           \item{\code{predicted}}{the predicted values of the response, used as y-position in plots.}
+#'           \item{\code{std.error}}{the standard error of the predictions.}
 #'           \item{\code{conf.low}}{the lower bound of the confidence interval for the predicted values.}
 #'           \item{\code{conf.high}}{the upper bound of the confidence interval for the predicted values.}
 #'           \item{\code{observed}}{if \code{full.data = TRUE}, this columns contains the observed values (the response vector).}
@@ -388,7 +407,7 @@
 #' @importFrom sjmisc to_factor is_num_fac remove_empty_cols
 #' @importFrom purrr map
 #' @importFrom sjlabelled as_numeric
-#' @importFrom sjstats resp_var
+#' @importFrom sjstats resp_var re_grp_var
 #' @export
 ggpredict <- function(model,
                       terms,
@@ -507,6 +526,14 @@ ggpredict_helper <- function(model,
 
   # check terms argument
   terms <- check_vars(terms)
+  cleaned.terms <- get_clear_vars(terms)
+
+  # check if predictions should be made for each group level in
+  # random effects models
+  if (fun %in% c("lmer", "glmer", "glmmTMB", "nlmer")) {
+    re.terms <- sjstats::re_grp_var(model)
+    if (!is.null(re.terms) && any(cleaned.terms %in% re.terms)) ci.lvl <- NA
+  }
 
   # check model family, do we have count model?
   faminfo <- sjstats::model_family(model)
@@ -536,7 +563,7 @@ ggpredict_helper <- function(model,
   ori.terms <- terms
 
   # clear argument from brackets
-  terms <- get_clear_vars(terms)
+  terms <- cleaned.terms
 
 
   # compute predictions here -----
@@ -621,14 +648,14 @@ ggpredict_helper <- function(model,
     if (length(terms) == 2) {
       # for some models, like MASS::polr, we have an additional
       # column for the response category. So maximun ncol is 8, not 7
-      max_value <- ifelse(fun %in% c("polr", "clm"), 8, 7)
+      max_value <- ifelse(fun %in% c("polr", "clm", "clm2", "multinom"), 8, 7)
       colnames(mydf)[1:2] <- c("x", "group")
       # reorder columns
       mydf <- mydf[, c(1, 3:max_value, 2)]
     } else {
       # for some models, like MASS::polr, we have an additional
       # column for the response category. So maximun ncol is 8, not 7
-      max_value <- ifelse(fun %in% c("polr", "clm"), 9, 8)
+      max_value <- ifelse(fun %in% c("polr", "clm", "clm2", "multinom"), 9, 8)
       colnames(mydf)[1:3] <- c("x", "group", "facet")
       # reorder columns
       mydf <- mydf[, c(1, 4:max_value, 2:3)]
@@ -661,6 +688,17 @@ ggpredict_helper <- function(model,
   # x needs to be numeric
   if (!x.as.factor) mydf$x <- sjlabelled::as_numeric(mydf$x)
 
+
+  # add standard errors
+  se <- attr(fitfram, "std.error", exact = TRUE)
+
+  if (is.null(se))
+    se <- NA
+
+  mydf <- sjmisc::add_variables(mydf, std.error = se, .after = "predicted")
+
+
+  # sort values
   mydf <- mydf %>%
     dplyr::arrange(.data$x, .data$group) %>%
     sjmisc::remove_empty_cols()
@@ -681,17 +719,20 @@ ggpredict_helper <- function(model,
   # add raw data as well
   attr(mydf, "rawdata") <- get_raw_data(model, ori.mf, terms)
 
+
   # set attributes with necessary information
-  set_attributes_and_class(data = mydf,
-                           model = model,
-                           t.title = all.labels$t.title,
-                           x.title = all.labels$x.title,
-                           y.title = all.labels$y.title,
-                           l.title = all.labels$l.title,
-                           legend.labels = legend.labels,
-                           x.axis.labels = all.labels$axis.labels,
-                           faminfo = faminfo,
-                           x.is.factor = x.is.factor,
-                           full.data = has.full.data,
-                           constant.values = attr(expanded_frame, "constant.values", exact = TRUE))
+  set_attributes_and_class(
+    data = mydf,
+    model = model,
+    t.title = all.labels$t.title,
+    x.title = all.labels$x.title,
+    y.title = all.labels$y.title,
+    l.title = all.labels$l.title,
+    legend.labels = legend.labels,
+    x.axis.labels = all.labels$axis.labels,
+    faminfo = faminfo,
+    x.is.factor = x.is.factor,
+    full.data = has.full.data,
+    constant.values = attr(expanded_frame, "constant.values", exact = TRUE)
+  )
 }

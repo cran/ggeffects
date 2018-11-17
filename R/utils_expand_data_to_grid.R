@@ -47,7 +47,7 @@ get_expanded_data <- function(model, mf, terms, typ.fun, fac.typical = TRUE, pre
           exp.term <- string_ends_with(pattern = "[exp]", x = terms)
 
           if (sjmisc::is_empty(exp.term) || get_clear_vars(terms)[exp.term] != clean.term) {
-            message(sprintf("Model has log-transformed predictors. Consider using `terms = \"%s [exp]\"` to back-transform scale.", clean.term))
+            message(sprintf("Model has log-transformed predictors. Consider using `terms=\"%s [exp]\"` to back-transform scale.", clean.term[1]))
           }
         }
       }
@@ -58,11 +58,34 @@ get_expanded_data <- function(model, mf, terms, typ.fun, fac.typical = TRUE, pre
   )
 
 
+  # Check if model has splines, and if so, tell user that he may use
+  # all values - except for gam and vgam models. "predict()" seems
+  # stable even for large data frame for gam/vgam. Especially for
+  # mixed models, computing SE and CI is very memory consuming, leading
+  # to memory allocation errors. That's why by default values for continuous
+  # variables are "prettified" to a smaller set of unique values.
+
+  use.all <- FALSE
+  if (has_splines(model) && !uses_all_tag(terms)) {
+    if (inherits(model, c("gam", "vgam", "glm", "lm")))
+      use.all <- TRUE
+    else
+      message(sprintf("Model contains splines or polynomial terms. Consider using `terms=\"%s [all]\"` to if you want smooth plots. See also package-vignette 'Marginal Effects at Specific Values'.", rest[1]))
+  }
+
+  if (has_poly(model) && !uses_all_tag(terms) && !use.all) {
+    if (inherits(model, c("gam", "vgam", "glm", "lm")))
+      use.all <- TRUE
+    else
+      message(sprintf("Model contains polynomial or cubic / quadratic terms. Consider using `terms=\"%s [all]\"` to if you want smooth plots. See also package-vignette 'Marginal Effects at Specific Values'.", rest[1]))
+  }
+
+
   # find terms for which no specific values are given
   xl.remain <- which(!(rest %in% names(first)))
 
   # prettify numeric vectors, get representative values
-  xl <- prettify_data(xl.remain, mf, rest)
+  xl <- prettify_data(xl.remain, mf, rest, use.all = use.all)
   names(xl) <- rest[xl.remain]
   first <- c(first, xl)
 
@@ -71,7 +94,9 @@ get_expanded_data <- function(model, mf, terms, typ.fun, fac.typical = TRUE, pre
 
   # remove response, if necessary
   resp <- tryCatch(
-    sjstats::resp_var(model),
+    {
+      sjstats::resp_var(model)
+    },
     error = function(x) { NULL },
     warning = function(x) { NULL },
     finally = function(x) { NULL }
@@ -185,6 +210,32 @@ get_expanded_data <- function(model, mf, terms, typ.fun, fac.typical = TRUE, pre
   # get list names. we need to remove patterns like "log()" etc.
   names(datlist) <- names(first)
   datlist <- as.data.frame(datlist)
+
+
+  # check if predictions should be conditioned on random effects,
+  # but not on each group level. If so, set random effect to NA
+  # which will return predictions on a population level.
+  # See ?glmmTMB::predict
+
+  if (inherits(model, "glmmTMB")) {
+    cleaned.terms <- get_clear_vars(terms)
+    re.terms <- sjstats::re_grp_var(model)
+    re.terms <- re.terms[!(re.terms %in% cleaned.terms)]
+
+    if (!sjmisc::is_empty(re.terms) && !sjmisc::is_empty(const.values)) {
+
+      # need to check if predictions are conditioned on specific
+      # value if random effect
+
+      for (i in re.terms) {
+        if (i %in% names(const.values)) {
+          datlist[[i]] <- NA
+          const.values[i] <- "NA (population-level)"
+        }
+      }
+    }
+  }
+
 
   # save constant values as attribute
   attr(datlist, "constant.values") <- const.values
