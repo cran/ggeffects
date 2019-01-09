@@ -16,9 +16,9 @@ Please visit [https://strengejacke.github.io/ggeffects/](https://strengejacke.gi
 
 ## ggeffects supports many different models and is easy to use
 
-Marginal effects can be calculated for many different models. Currently supported model-objects are: `lm`, `glm`, `glm.nb`, `lme`, `lmer`, `glmer`, `glmer.nb`, `nlmer`, `glmmTMB`, `gam` (package **mgcv**), `vgam`, `gamm`, `gamm4`, `multinom`, `betareg`, `truncreg`, `coxph`, `gls`, `gee`, `plm`, `lrm`, `polr`, `clm`, `clm2`, `zeroinfl`, `hurdle`, `stanreg`, `brmsfit`, `lmRob`, `glmRob`, `brglm`, `rlm`, `svyglm` and `svyglm.nb`. Other models not listed here are passed to a generic predict-function and might work as well, or maybe with `ggeffect()`, which effectively does the same as `ggpredict()`.
+Marginal effects can be calculated for many different models. Currently supported model-objects are: `betareg`, `brglm`, `brmsfit`, `clm`, `clm2`, `clmm`, `coxph`, `gam` (package **mgcv**), `Gam` (package **gam**), `gamm`, `gamm4`, `gee`, `glm`, `glm.nb`, `glmer`, `glmer.nb`, `glmmTMB`, `glmmPQL`, `glmRob`, `gls`, `hurdle`, `lm`, `lm_robust`, `lme`, `lmer`, `lmRob`, `lrm`, `multinom`, `nlmer`, `plm`, `polr`, `rlm`, `stanreg`, `svyglm`, `svyglm.nb`, `truncreg`, `vgam`, `zeroinfl` and `zerotrunc`. Other models not listed here are passed to a generic predict-function and might work as well, or maybe with `ggeffect()` or `ggemmeans()`, which effectively do the same as `ggpredict()`.
 
-Interaction terms, splines and polynomial terms are also supported. The two main functions are `ggpredict()` and `ggeffect()`. There is a generic `plot()`-method to plot the results using **ggplot2**.
+Interaction terms, splines and polynomial terms are also supported. The main functions are `ggpredict()`, `ggemmeans()` and `ggeffect()`. There is a generic `plot()`-method to plot the results using **ggplot2**.
 
 ## Examples
 
@@ -160,8 +160,8 @@ Please follow [this guide](CONTRIBUTING.md) if you like to contribute to this pa
 To install the latest development snapshot (see latest changes below), type following commands into the R console:
 
 ```r
-library(githubinstall)
-githubinstall::githubinstall("ggeffects")
+library(devtools)
+devtools::install_github("strengejacke/ggeffects")
 ```
 
 Please note the package dependencies when installing from GitHub. The GitHub version of this package may depend on latest GitHub versions of my other packages, so you may need to install those first, if you encounter any problems. Here's the order for installing packages from GitHub:

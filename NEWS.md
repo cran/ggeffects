@@ -1,3 +1,46 @@
+# ggeffects 0.8.0
+
+## General
+
+* Minor changes to meet forthcoming changes in purrr.
+* For consistency reasons, both `type = "fe"` and `type = "re"` return population-level predictions for mixed effects models (**lme4**, **glmmTMB**). The difference is that `type = "re"` also takes the random effect variances for prediction intervals into account. Predicted values at specific levels of random effect terms is described in the package-vignettes _Marginal Effects for Random Effects Models_ and _Marginal Effects at Specific Values_.
+* Revised docs and vignettes.
+* Give more informative warning for misspelled variable names in `terms`-argument.
+* Added custom (pre-defined) color-palettes, that can be used with `plot()`. Use `show_pals()` to show all available palettes.
+* Use more appropriate calculation for confidence intervals of predictions for model with zero-inflation component.
+
+## New supported models
+
+* `ggpredict()` and `ggeffect()` now support **brms**-models with additional response information (like `trial()`).
+* `ggpredict()` now supports **Gam**, **glmmPQL**, **clmm**, and **zerotrunc**-models.
+* All models supported by the **emmeans** should also work with the new `ggemmeans()`-function. Since this function is quite new, there still might be some bugs, though.
+
+## New functions
+
+* `ggemmeans()` to compute marginal effects by calling `emmeans::emmeans()`.
+* `theme_ggeffects()`, which can be used with `ggplot2::theme_set()` to set the **ggeffects**-theme as default plotting theme. This makes it easier to add further theme-modifications like `sjPlot::legend_style()` or `sjPlot::font_size()`.
+
+## Changes to functions
+
+* Added prediction-type based on simulations (`type = "sim"`) to `ggpredict()`, currently for models of class **glmmTMB** and **merMod**.
+* `x.cat` is a new alias for the argument `x.as.factor`.
+* The `plot()`-method gets a `ci.style`-argument, to define different styles for the confidence bands for numeric x-axis-terms.
+* The `print()`-method gets a `x.lab`-argument to print value labels instead of numeric values if `x` is categorical.
+* `emm()` now also supports all prediction-types, like `ggpredict()`.
+
+## Bug fixes
+
+* Fixed issue where confidence intervals could not be computed for variables with very small values, that differ only after the second decimal part.
+* Fixed issue with `ggeffect()`, which did not work if data had variables with more that 8 digits (fractional part longer than 8 numbers).
+* Fixed issue with multivariate response models fitted with **brms** or **rstanarm** when argument `ppd = TRUE`.
+* Fixed issue with glmmTMB-models for `type = "fe.zi"`, which could mess up the correct order of predicted values for `x`.
+* Fixed minor issue with glmmTMB-models for `type = "fe.zi"` or `type = "re.zi"`, when first terms had the `[all]`-tag.
+* Fixed minor issue in the `print()`-method for mixed effects models, when predictions were conditioned on all model terms and adjustment was only done for random effects (output-line "adjusted for").
+* Fixed issue for mixed models, where confidence intervals were not completely calculated, if `terms` included a factor and `contrasts` were set to other values than `contr.treatment`.
+* Fixed issue with messed up order of confidence intervals for `glm`-object and heteroskedasticity-consistent covariance matrix estimation.
+* Fixed issue for **glmmTMB**-models, when variables in dispersion or zero-inflation formula did not appear in the fixed effects formula.
+* The `condition`-argument was not always considered for some model types when calculating confidence intervals for predicted values.
+
 # ggeffects 0.7.0
 
 ## General

@@ -6,19 +6,22 @@
 #' @param x An object of class \code{ggeffects}, as returned by the functions
 #'   from this package.
 #' @param ci Logical, if \code{TRUE}, confidence bands (for continuous variables
-#'   at x-axis) resp. error bars (for factors at x-axis) are plotted. May
-#'   also be a character vector with either \code{ci = "dash"} or \code{ci = "dot"},
-#'   to plot dashed or dotted lines instead of a ribbon for confidence bands.
-#'   For \code{ggeffects}-objects from \code{ggpredict()} with argument
+#'   at x-axis) resp. error bars (for factors at x-axis) are plotted.For
+#'   \code{ggeffects}-objects from \code{ggpredict()} with argument
 #'   \code{full.data = TRUE}, \code{ci} is automatically set to \code{FALSE}.
-#' @param facets Logical, defaults to \code{TRUE}, if \code{x} has a column named
+#' @param ci.style Character vector, indicating the style of the confidence
+#'   bands. May be either \code{"ribbon"}, \code{"errorbar"}, \code{"dash"} or
+#'   \code{"dot"}, to plot a ribbon, error bars, or dashed or dotted lines as
+#'   confidence bands.
+#' @param facets,grid Logical, defaults to \code{TRUE}, if \code{x} has a column named
 #'   \code{facet}, and defaults to \code{FALSE}, if \code{x} has no such
 #'   column. Set \code{facets = TRUE} to wrap the plot into facets even
-#'   for grouping variables (see 'Examples').
+#'   for grouping variables (see 'Examples'). \code{grid} is an alias for
+#'   \code{facets}.
 #' @param rawdata Logical, if \code{TRUE}, a layer with raw data from response by
 #'   predictor on the x-axis, plotted as point-geoms, is added to the plot.
 #' @param colors Character vector with color values in hex-format, valid
-#'   color value names (see \code{demo("colors")} or a name of a
+#'   color value names (see \code{demo("colors")}) or a name of a
 #'   \href{http://colorbrewer2.org}{color brewer} palette.
 #'   Following options are valid for \code{colors}:
 #'   \itemize{
@@ -26,17 +29,19 @@
 #'     \item If \code{"gs"}, a greyscale will be used.
 #'     \item If \code{"bw"}, the plot is black/white and uses different line types to distinguish groups.
 #'     \item If \code{colors} is any valid color brewer palette name, the related palette will be used. Use \code{\link[RColorBrewer]{display.brewer.all}} to view all available palette names.
+#'     \item There are some pre-defined color-palettes in this package that can be used, e.g. \code{colors = "metro"}. See \code{show_pals()} to show all available palettes.
 #'     \item Else specify own color values or names as vector (e.g. \code{colors = c("#f00000", "#00ff00")}).
 #'   }
 #' @param alpha Alpha value for the confidence bands.
 #' @param line.size Numeric, size of the line geoms.
 #' @param dot.size Numeric, size of the point geoms.
 #' @param dodge Value for offsetting or shifting error bars, to avoid overlapping.
-#'   Only applies, if a factor is plotted at the x-axis; in such cases,
-#'   the confidence bands are replaced by error bars.
+#'   Only applies, if a factor is plotted at the x-axis (in such cases, the
+#'   confidence bands are replaced by error bars automatically), or if
+#'   \code{ci.style = "errorbars"}.
 #' @param use.theme Logical, if \code{TRUE}, a slightly tweaked version of ggplot's
-#'   minimal-theme is applied to the plot. If \code{FALSE}, no theme-modifications
-#'   are applied.
+#'   minimal-theme, \code{theme_ggeffects()}, is applied to the plot. If
+#'   \code{FALSE}, no theme-modifications are applied.
 #' @param dot.alpha Alpha value for data points, when \code{rawdata = TRUE}.
 #' @param jitter Numeric, between 0 and 1. If not \code{NULL} and
 #'   \code{rawdata = TRUE}, adds a small amount of random variation to
@@ -51,12 +56,22 @@
 #' @param show.title Logical, shows or hides the plot title-
 #' @param show.x.title Logical, shows or hides the plot title for the x-axis.
 #' @param show.y.title Logical, shows or hides the plot title for the y-axis.
+#' @param base_size Base font size.
+#' @param base_family Base font family.
 #' @param ... Further arguments passed down to \code{ggplot::scale_y*()}, to
 #'    control the appearance of the y-axis.
 #'
 #' @inheritParams get_title
 #'
 #' @return A ggplot2-object.
+#'
+#' @note Load \code{library(ggplot2)} and use \code{theme_set(theme_ggeffects())}
+#'   to set the \pkg{ggeffects}-theme as default plotting theme. You can then use
+#'   further plot-modifiers from \pkg{sjPlot}, like \code{legend_style()} or
+#'   \code{font_size()} without losing the theme-modifications.
+#'   \cr \cr
+#'   There are pre-defined colour palettes in this package. Use
+#'   \code{show_pals()} to show all available colour palettes.
 #'
 #' @details \code{ggpredict()} with argument \code{full.data = FALSE} computes
 #'          marginal effects at the mean, where covariates are held constant. In
@@ -105,9 +120,9 @@
 #' plot(dat)
 #' plot(dat, ci = "dash")
 #'
-#' # facet by group
+#' # facet by group, use pre-defined color palette
 #' dat <- ggpredict(fit, terms = c("c12hour", "c172code"))
-#' plot(dat, facet = TRUE)
+#' plot(dat, facet = TRUE, colors = "hero")
 #'
 #' # don't use facets, b/w figure, w/o confidence bands
 #' dat <- ggaverage(fit, terms = c("c12hour", "c172code"))
@@ -131,6 +146,7 @@
 #' @export
 plot.ggeffects <- function(x,
                            ci = TRUE,
+                           ci.style = c("ribbon", "errorbar", "dash", "dot"),
                            facets,
                            rawdata = FALSE,
                            colors = "Set1",
@@ -147,6 +163,7 @@ plot.ggeffects <- function(x,
                            show.y.title = TRUE,
                            dot.size = NULL,
                            line.size = NULL,
+                           grid,
                            ...) {
 
   # set some defaults
@@ -164,13 +181,8 @@ plot.ggeffects <- function(x,
   if (is.null(dot.size)) dot.size <- 2.5
   if (is.null(line.size)) line.size <- .7
 
-  ci.type <- "ribbon"
-
-  if (!is.logical(ci) && !is.null(ci) && ci %in% c("dash", "dot")) {
-    ci.type <- ci
-    ci <- TRUE
-  }
-
+  if (!missing(grid)) facets <- grid
+  ci.style <- match.arg(ci.style)
 
   add.args <- lapply(match.call(expand.dots = F)$`...`, function(x) x)
   if (!("breaks" %in% names(add.args)) && isTRUE(log.y)) {
@@ -235,8 +247,12 @@ plot.ggeffects <- function(x,
 
 
   # base plot, set mappings
-  if (has_groups && !facets_grp && colors[1] == "bw")
+  if (has_groups && !facets_grp && colors[1] == "bw" && x_is_factor)
+    p <- ggplot2::ggplot(x, ggplot2::aes_string(x = "x", y = "predicted", colour = "group", fill = "group", shape = "group"))
+  else if (has_groups && !facets_grp && colors[1] == "bw" && !x_is_factor)
     p <- ggplot2::ggplot(x, ggplot2::aes_string(x = "x", y = "predicted", colour = "group", fill = "group", linetype = "group"))
+  else if (has_groups && !facets_grp && colors[1] == "gs" && x_is_factor)
+    p <- ggplot2::ggplot(x, ggplot2::aes_string(x = "x", y = "predicted", colour = "group", fill = "group", shape = "group"))
   else if (has_groups && colors[1] != "bw")
     p <- ggplot2::ggplot(x, ggplot2::aes_string(x = "x", y = "predicted", colour = "group", fill = "group"))
   else
@@ -294,16 +310,27 @@ plot.ggeffects <- function(x,
 
     } else {
 
-      if (ci.type == "ribbon") {
-        # for continuous x, use ribbons
+      if (ci.style == "ribbon") {
+        # for continuous x, use ribbons by default
         p <- p + ggplot2::geom_ribbon(
-          ggplot2::aes_string(ymin = "conf.low", ymax = "conf.high", colour = NULL, linetype = NULL),
+          ggplot2::aes_string(ymin = "conf.low", ymax = "conf.high", colour = NULL, linetype = NULL, shape = NULL),
           alpha = alpha
         )
+      } else if (ci.style == "errorbar") {
+        p <- p + ggplot2::geom_point(
+            position = ggplot2::position_dodge(width = dodge),
+            size = dot.size
+          ) +
+          ggplot2::geom_errorbar(
+            ggplot2::aes_string(ymin = "conf.low", ymax = "conf.high", shape = NULL),
+            position = ggplot2::position_dodge(width = dodge),
+            size = line.size,
+            width = 0
+          )
       } else {
 
         lt <- switch(
-          ci.type,
+          ci.style,
           dash = 2,
           dot = 3,
           2
@@ -336,7 +363,7 @@ plot.ggeffects <- function(x,
     # facet groups
     p <- p + ggplot2::facet_wrap(~group, scales = "free_x")
     # remove legends
-    p <- p + ggplot2::guides(colour = "none", linetype = "none")
+    p <- p + ggplot2::guides(colour = "none", linetype = "none", shape = "none")
   } else if (facet_polr) {
     p <- p + ggplot2::facet_wrap(~response.level, scales = "free_x")
   } else if (facets) {
@@ -413,22 +440,24 @@ plot.ggeffects <- function(x,
 
   # show/hide titles
   if (!show.title) attr(x, "title") <- NULL
+  if (!show.title) attr(x, "n.trials") <- NULL
   if (!show.x.title) attr(x, "x.title") <- NULL
   if (!show.y.title) attr(x, "y.title") <- NULL
-
 
   # set axis titles
   p <- p + ggplot2::labs(
     title = get_title(x, case),
     x = get_x_title(x, case),
     y = get_y_title(x, case),
-    fill = NULL
+    fill = NULL,
+    subtitle = get_sub_title(x)
   )
 
   if (has_groups && show.legend)
     p <- p + ggplot2::labs(
       colour = get_legend_title(x, case),
-      linetype = get_legend_title(x, case)
+      linetype = get_legend_title(x, case),
+      shape = get_legend_title(x, case)
     )
 
   # no legend for fill-aes
@@ -439,14 +468,15 @@ plot.ggeffects <- function(x,
   if (!show.legend) {
     p <- p + ggplot2::labs(
       colour = NULL,
-      linetype = NULL
-    ) + ggplot2::guides(colour = "none", linetype = "none")
+      linetype = NULL,
+      shape = NULL
+    ) + ggplot2::guides(colour = "none", linetype = "none", shape = "none")
   }
 
 
   # for binomial family, fix coord
 
-  if (attr(x, "logistic", exact = TRUE) == "1") {
+  if (attr(x, "logistic", exact = TRUE) == "1" && attr(x, "is.trial", exact = TRUE) == "0") {
     if (log.y) {
       if (is.null(y.breaks))
         p <- p + ggplot2::scale_y_log10(labels = scales::percent, ...)
@@ -466,19 +496,8 @@ plot.ggeffects <- function(x,
 
   # tweak theme
 
-  if (use.theme) {
-    p <- p + ggplot2::theme_minimal() +
-      ggplot2::theme(
-        axis.line.x      = ggplot2::element_line(colour = "grey80"),
-        axis.line.y      = ggplot2::element_line(colour = "grey80"),
-        axis.text        = ggplot2::element_text(colour = "grey50"),
-        axis.title       = ggplot2::element_text(colour = "grey30"),
-        strip.background = ggplot2::element_rect(colour = "grey70", fill = "grey90"),
-        strip.text       = ggplot2::element_text(colour = "grey30"),
-        legend.title     = ggplot2::element_text(colour = "grey30"),
-        legend.text      = ggplot2::element_text(colour = "grey30")
-      )
-  }
+  if (use.theme)
+    p <- p + theme_ggeffects()
 
   p
 }

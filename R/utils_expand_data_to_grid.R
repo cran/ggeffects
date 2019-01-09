@@ -1,16 +1,16 @@
-#' @importFrom sjstats pred_vars typical_value var_names resp_var
-#' @importFrom sjmisc to_factor is_empty
-#' @importFrom stats terms
-#' @importFrom purrr map map_lgl map_df modify_if
+#' @importFrom sjstats pred_vars typical_value var_names resp_var re_grp_var
+#' @importFrom sjmisc to_factor is_empty to_character
+#' @importFrom stats terms median
+#' @importFrom purrr map map_lgl map_df modify_if compact
 #' @importFrom sjlabelled as_numeric
 # fac.typical indicates if factors should be held constant or not
 # need to be false for computing std.error for merMod objects
-get_expanded_data <- function(model, mf, terms, typ.fun, fac.typical = TRUE, pretty.message = TRUE, condition = NULL) {
+get_expanded_data <- function(model, mf, terms, typ.fun, fac.typical = TRUE, pretty.message = TRUE, condition = NULL, emmeans.only = FALSE) {
   # special handling for coxph
   if (inherits(model, "coxph")) mf <- dplyr::select(mf, -1)
 
   # make sure we don't have arrays as variables
-  mf <- suppressWarnings(as.data.frame(purrr::modify_if(mf, is.array, as.vector)))
+  mf <- purrr::modify_if(mf, is.array, as.data.frame)
 
   # check for logical variables, might not work
   if (any(purrr::map_lgl(mf, is.logical))) {
@@ -67,17 +67,21 @@ get_expanded_data <- function(model, mf, terms, typ.fun, fac.typical = TRUE, pre
 
   use.all <- FALSE
   if (has_splines(model) && !uses_all_tag(terms)) {
-    if (inherits(model, c("gam", "vgam", "glm", "lm")))
+    if (inherits(model, c("Gam", "gam", "vgam", "glm", "lm")))
       use.all <- TRUE
-    else
+    else if (pretty.message) {
       message(sprintf("Model contains splines or polynomial terms. Consider using `terms=\"%s [all]\"` to if you want smooth plots. See also package-vignette 'Marginal Effects at Specific Values'.", rest[1]))
+      pretty.message <- FALSE
+    }
   }
 
   if (has_poly(model) && !uses_all_tag(terms) && !use.all) {
-    if (inherits(model, c("gam", "vgam", "glm", "lm")))
+    if (inherits(model, c("Gam", "gam", "vgam", "glm", "lm")))
       use.all <- TRUE
-    else
+    else if (pretty.message) {
       message(sprintf("Model contains polynomial or cubic / quadratic terms. Consider using `terms=\"%s [all]\"` to if you want smooth plots. See also package-vignette 'Marginal Effects at Specific Values'.", rest[1]))
+      pretty.message <- FALSE
+    }
   }
 
 
@@ -91,6 +95,17 @@ get_expanded_data <- function(model, mf, terms, typ.fun, fac.typical = TRUE, pre
 
   # get names of all predictor variable
   alle <- sjstats::pred_vars(model)
+
+  # add dispersion and zero-inflation terms
+  if (inherits(model, "glmmTMB")) {
+    disp <- get_dispersion_terms(model)
+    if (!is.null(disp))
+      alle <- unique(c(alle, disp))
+
+    zi <- get_zi_terms(model)
+    if (!is.null(zi))
+      alle <- unique(c(alle, zi))
+  }
 
   # remove response, if necessary
   resp <- tryCatch(
@@ -115,7 +130,7 @@ get_expanded_data <- function(model, mf, terms, typ.fun, fac.typical = TRUE, pre
   # with missing values. this causes an error with predict()
 
   if (any(purrr::map_lgl(first, ~ anyNA(.x)))) {
-    first <- purrr::map(first, ~ as.vector(na.omit(.x)))
+    first <- purrr::map(first, ~ as.vector(stats::na.omit(.x)))
   }
 
 
@@ -164,23 +179,92 @@ get_expanded_data <- function(model, mf, terms, typ.fun, fac.typical = TRUE, pre
   # use "typical" values - mean/median for numeric values, reference
   # level for factors and most common element for character vectors
 
-  if (fac.typical) {
+  if (isTRUE(emmeans.only)) {
+    const.values <-
+      lapply(alle, function(.x) {
+        x <- mf[[.x]]
+        if (!is.factor(x))
+          sjstats::typical_value(x, fun = typ.fun, weights = w)
+      })
+    names(const.values) <- alle
+    const.values <- purrr::compact(const.values)
+  } else if (fac.typical) {
     const.values <- lapply(mf[, alle, drop = FALSE], function(x) sjstats::typical_value(x, fun = typ.fun, weights = w))
   } else {
+    re.grp <- sjstats::re_grp_var(model)
     # if factors should not be held constant (needed when computing
     # std.error for merMod objects), we need all factor levels,
     # and not just the typical value
     const.values <-
-      lapply(mf[, alle, drop = FALSE], function(x) {
-        if (is.factor(x))
-          levels(x)
+      lapply(alle, function(.x) {
+        # get group factors from random effects
+        is.re.grp <- !is.null(re.grp) && .x %in% re.grp
+        x <- mf[[.x]]
+        # only get levels if not random effect
+        if (is.factor(x) && !is.re.grp)
+          levels(droplevels(x))
         else
           sjstats::typical_value(x, fun = typ.fun, weights = w)
       })
+    names(const.values) <- alle
   }
+
+  # for brms-models with additional response information, we need
+  # also the number of trials to calculate predictions
+
+  fam.info <- sjstats::model_family(model)
+  n.trials <- NULL
+
+  if (!is.null(fam.info) && fam.info$is_trial && inherits(model, "brmsfit")) {
+    tryCatch(
+      {
+        rv <- sjstats::resp_var(model, combine = FALSE)
+        n.trials <- as.integer(stats::median(mf[[rv[2]]]))
+        if (!sjmisc::is_empty(n.trials)) {
+          const.values <- c(const.values, list(n.trials))
+          names(const.values)[length(const.values)] <- rv[2]
+        }
+      },
+      error = function(x) { NULL }
+    )
+  }
+
 
   # add constant values.
   first <- c(first, const.values)
+
+
+  # stop here for emmeans-objects
+
+  if (isTRUE(emmeans.only)) {
+
+    # save names
+    fn <- names(first)
+
+    # restore original type
+    first <- purrr::map(fn, function(x) {
+      # check for consistent vector type: numeric
+      if (is.numeric(mf[[x]]) && !is.numeric(first[[x]]))
+        return(sjlabelled::as_numeric(first[[x]]))
+
+      # check for consistent vector type: factor
+      if (is.factor(mf[[x]]) && !is.factor(first[[x]]))
+        return(sjmisc::to_character(first[[x]]))
+
+      # else return original vector
+      return(first[[x]])
+    })
+
+    # add back names
+    names(first) <- fn
+
+    # save constant values as attribute
+    attr(first, "constant.values") <- const.values
+    attr(first, "n.trials") <- n.trials
+
+    return(first)
+  }
+
 
   # create data frame with all unqiue combinations
   dat <- as.data.frame(expand.grid(first))
@@ -217,7 +301,7 @@ get_expanded_data <- function(model, mf, terms, typ.fun, fac.typical = TRUE, pre
   # which will return predictions on a population level.
   # See ?glmmTMB::predict
 
-  if (inherits(model, "glmmTMB")) {
+  if (inherits(model, c("glmmTMB", "merMod", "brmsfit"))) {
     cleaned.terms <- get_clear_vars(terms)
     re.terms <- sjstats::re_grp_var(model)
     re.terms <- re.terms[!(re.terms %in% cleaned.terms)]
@@ -227,10 +311,19 @@ get_expanded_data <- function(model, mf, terms, typ.fun, fac.typical = TRUE, pre
       # need to check if predictions are conditioned on specific
       # value if random effect
 
-      for (i in re.terms) {
-        if (i %in% names(const.values)) {
-          datlist[[i]] <- NA
-          const.values[i] <- "NA (population-level)"
+      if (inherits(model, c("glmmTMB", "brmsfit"))) {
+        for (i in re.terms) {
+          if (i %in% names(const.values)) {
+            datlist[[i]] <- NA
+            const.values[i] <- "NA (population-level)"
+          }
+        }
+      } else if (inherits(model, "merMod")) {
+        for (i in re.terms) {
+          if (i %in% names(const.values)) {
+            datlist[[i]] <- 0
+            const.values[i] <- "0 (population-level)"
+          }
         }
       }
     }
@@ -239,6 +332,7 @@ get_expanded_data <- function(model, mf, terms, typ.fun, fac.typical = TRUE, pre
 
   # save constant values as attribute
   attr(datlist, "constant.values") <- const.values
+  attr(datlist, "n.trials") <- n.trials
 
   datlist
 }
@@ -266,4 +360,19 @@ get_sliced_data <- function(fitfram, terms) {
   colnames(fitfram) <- sjstats::var_names(colnames(fitfram))
 
   fitfram
+}
+
+
+get_dispersion_terms <- function(x) {
+  tryCatch(
+    {all.vars(x$modelInfo$allForm$dispformula[[2L]])},
+    error = function(x) { NULL}
+  )
+}
+
+get_zi_terms <- function(x) {
+  tryCatch(
+    {all.vars(x$modelInfo$allForm$ziformula[[2L]])},
+    error = function(x) { NULL}
+  )
 }

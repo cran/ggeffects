@@ -22,6 +22,12 @@ if (suppressWarnings(
     ggpredict(fit, c("c12hour", "c161sex", "c172code"), type = "re")
   })
 
+  test_that("ggpredict, lmer-simulate", {
+    ggpredict(fit, "c12hour", type = "sim")
+    ggpredict(fit, c("c12hour", "c161sex"), type = "sim")
+    ggpredict(fit, c("c12hour", "c161sex", "c172code"), type = "sim")
+  })
+
   test_that("ggaverage, lmer", {
     ggaverage(fit, "c12hour")
     ggaverage(fit, c("c12hour", "c161sex"))
@@ -41,9 +47,27 @@ if (suppressWarnings(
 
   m <- lmer(
     neg_c_7 ~ c160age_z * e42dep_z + c161sex + (1 | cluster),
-    data = efc)
+    data = efc
+  )
 
   test_that("ggeffect, lmer", {
     ggpredict(m, terms = c("c160age_z", "e42dep_z [-1.17,2.03]"))
+    ggemmeans(m, terms = c("c160age_z", "e42dep_z [-1.17,2.03]"))
+  })
+
+
+  data(efc)
+  efc$cluster <- as.factor(efc$e15relat)
+  efc <- as_label(efc, e42dep, c172code, c161sex)
+  efc$c172code[efc$c172code == "intermediate level of education"] <- NA
+
+  m <- lmer(
+    neg_c_7 ~ c172code + e42dep + c161sex + (1 | cluster),
+    data = efc
+  )
+
+  test_that("ggeffect, lmer", {
+    ggpredict(m, terms = "e42dep")
+    ggemmeans(m, terms = "e42dep")
   })
 }

@@ -1,12 +1,17 @@
 #' @importFrom purrr map flatten_df
 #' @importFrom dplyr select group_by pull n_distinct case_when
-#' @importFrom sjmisc round_num is_empty add_variables seq_row
+#' @importFrom sjmisc round_num is_empty add_variables seq_row is_num_fac
 #' @importFrom crayon blue italic red
 #' @importFrom tidyr nest
 #' @importFrom stats quantile
 #' @importFrom rlang .data
+#' @importFrom sjlabelled as_label
 #' @export
-print.ggeffects <- function(x, n = 10, digits = 3, ...) {
+print.ggeffects <- function(x, n = 10, digits = 3, x.lab = FALSE, ...) {
+
+  # convert to factor
+  if (isTRUE(x.lab))
+    x$x <- format(sjlabelled::as_label(x$x, prefix = TRUE), justify = "left")
 
   # do we have groups and facets?
   has_groups <- obj_has_name(x, "group") && length(unique(x$group)) > 1
@@ -22,13 +27,35 @@ print.ggeffects <- function(x, n = 10, digits = 3, ...) {
   if (!is.null(lab)) cat(crayon::blue(sprintf("# x = %s", lab)), "\n")
 
   consv <- attr(x, "constant.values")
+  terms <- attr(x, "terms")
+
+  # fix terms for survival models
+  a1 <- attr(x, "fitfun", exact = TRUE)
+  a2 <- attr(x, "y.title", exact = TRUE)
+
+  if (!is.null(a1) && !is.null(a2) && a1 == "coxph" && !(a2 == "Risk Score"))
+    terms <- c("time", terms)
 
   x <- sjmisc::round_num(x, digits = digits)
 
   # if we have groups, show n rows per group
+
   .n <- 1
-  if (has_groups) .n <- dplyr::n_distinct(x$group, na.rm = T)
-  if (has_facets) .n <- .n * dplyr::n_distinct(x$facet, na.rm = T)
+
+  if (has_groups) {
+    .n <- dplyr::n_distinct(x$group, na.rm = T)
+    if (!is.null(terms) && length(terms) >= 2) {
+      x$group <- sprintf("%s = %s", terms[2], as.character(x$group))
+    }
+  }
+
+  if (has_facets) {
+    .n <- .n * dplyr::n_distinct(x$facet, na.rm = T)
+    if (!is.null(terms) && length(terms) >= 2) {
+      x$facet <- sprintf("%s = %s", terms[3], as.character(x$facet))
+    }
+  }
+
 
   # make sure that by default not too many rows are printed
   if (missing(n)) {
@@ -80,13 +107,16 @@ print.ggeffects <- function(x, n = 10, digits = 3, ...) {
     cv.space <- max(nchar(cv.names))
 
     # ignore this string when determing maximum length
-    poplev <- which(cv == "NA (population-level)")
+    poplev <- which(cv %in% c("NA (population-level)", "0 (population-level)"))
     if (!sjmisc::is_empty(poplev))
       mcv <- cv[-poplev]
     else
       mcv <- cv
 
-    cv.space2 <- max(nchar(mcv))
+    if (!sjmisc::is_empty(mcv))
+      cv.space2 <- max(nchar(mcv))
+    else
+      cv.space2 <- 0
 
     cat(crayon::blue(paste0(
       "\nAdjusted for:\n",

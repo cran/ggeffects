@@ -20,6 +20,8 @@ get_colors <- function(geom.colors, collen) {
       geom.colors <- "black"
     } else if (is.brewer.pal(geom.colors[1])) {
       geom.colors <- scales::brewer_pal(palette = geom.colors[1])(collen)
+    } else if (geom.colors[1] %in% names(ggeffects_colors)) {
+      geom.colors <- ggeffects_pal(palette = geom.colors[1], n = collen)
     } else if (geom.colors[1] == "gs") {
       geom.colors <- scales::grey_pal()(collen)
       # do we have correct amount of colours?
@@ -62,7 +64,9 @@ is.brewer.pal <- function(pal) {
 }
 
 
-check_vars <- function(terms) {
+#' @importFrom crayon red
+#' @importFrom sjstats pred_vars
+check_vars <- function(terms, model) {
   if (missing(terms) || is.null(terms)) {
     stop("`terms` needs to be a character vector with at least one predictor names: one term used for the x-axis, more optional terms as grouping factors.", call. = F)
   }
@@ -71,6 +75,22 @@ check_vars <- function(terms) {
   if (length(terms) > 3) {
     message("`terms` must have not more than three values. Using first three values now.")
     terms <- terms[1:3]
+  }
+
+  if (!is.null(model)) {
+    tryCatch(
+      {
+        pv <- sjstats::pred_vars(model, fe.only = FALSE)
+        clean.terms <- get_clear_vars(terms)
+        for (i in clean.terms) {
+          if (!(i %in% pv)) {
+            cat(crayon::red(sprintf("`%s` was not found in model terms. Maybe misspelled?\n", i)))
+          }
+
+        }
+      },
+      error = function(x) { NULL }
+    )
   }
 
   terms
@@ -150,53 +170,20 @@ prettify_data <- function(xl.remain, fitfram, terms, use.all = FALSE) {
 
 ## Compute variance associated with a random-effects term
 ## (Johnson 2014)
-#' @importFrom lme4 fixef VarCorr getME ranef
-#' @importFrom stats nobs
+#' @importFrom sjstats re_var
 getVarRand <- function(x) {
   tryCatch(
     {
-      vals <- list(
-        beta = lme4::fixef(x),
-        X = lme4::getME(x, "X"),
-        vc = lme4::VarCorr(x),
-        re = lme4::ranef(x)
-      )
-
-      vals <- lapply(vals, collapse_cond)
-
-      nr <- sapply(vals$re, nrow)
-      not.obs.terms <- names(nr[nr != stats::nobs(x)])
-
-      sum(sapply(
-        vals$vc[not.obs.terms],
-        function(Sigma) {
-          rn <- rownames(Sigma)
-
-          if (!is.null(rn)) {
-            valid <- rownames(Sigma) %in% colnames(vals$X)
-            if (!all(valid)) {
-              rn <- rn[valid]
-              Sigma <- Sigma[valid, valid]
-            }
-          }
-
-          Z <- vals$X[, rn, drop = FALSE]
-          Z.m <- Z %*% Sigma
-          return(sum(diag(crossprod(Z.m, Z))) / stats::nobs(x))
-        }))
-
+      if (inherits(x, c("merMod", "lmerMod", "glmerMod", "glmmTMB"))) {
+        rv <- suppressMessages(suppressWarnings(sjstats::re_var(x, adjusted = TRUE)))
+        re.var <- rv$var.ranef
+      } else if (inherits(x, c("lme", "nlme"))) {
+        re.var <- x$sigma^2
+      }
+      re.var
     },
-    error = function(x) { 0 },
-    warning = function(x) { 0 },
-    finally = function(x) { 0 }
+    error = function(x) { 0 }
   )
-}
-
-collapse_cond <- function(fit) {
-  if (is.list(fit) && "cond" %in% names(fit))
-    fit[["cond"]]
-  else
-    fit
 }
 
 
@@ -210,9 +197,11 @@ has_splines <- function(model) {
 
   if (is.null(form)) return(FALSE)
 
-  grepl("s\\(([^,)]*)", form) | grepl("bs\\(([^,)]*)", form) |
-    grepl("ns\\(([^,)]*)", form) | grepl("pspline\\(([^,)]*)", form) |
-    grepl("poly\\(([^,)]*)", form)
+  any(
+    grepl("s\\(([^,)]*)", form) | grepl("bs\\(([^,)]*)", form) |
+      grepl("ns\\(([^,)]*)", form) | grepl("pspline\\(([^,)]*)", form) |
+      grepl("poly\\(([^,)]*)", form)
+  )
 }
 
 
@@ -226,7 +215,7 @@ has_poly <- function(model) {
 
   if (is.null(form)) return(FALSE)
 
-  grepl("I\\(.*?\\^.*?\\)", form) | grepl("poly\\(([^,)]*)", form)
+  any(grepl("I\\(.*?\\^.*?\\)", form) | grepl("poly\\(([^,)]*)", form))
 }
 
 
@@ -241,4 +230,17 @@ uses_all_tag <- function(terms) {
   ))
 
   "[all]" %in% tags
+}
+
+
+frac_length <- function(x) {
+  if (is.numeric(x)) {
+    max(nchar(gsub(pattern = "(.\\.)(.*)", "\\2", sprintf("%f", abs(x) %% 1))))
+  } else
+    0
+}
+
+
+is.whole <- function(x) {
+  (is.numeric(x) && all(floor(x) == x, na.rm = T)) || is.character(x) || is.factor(x)
 }

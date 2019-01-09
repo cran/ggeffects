@@ -6,6 +6,7 @@ library(ggeffects)
 
 library(glmmTMB)
 data(Owls)
+data(Salamanders)
 
 m1 <- glmmTMB(SiblingNegotiation ~ SexParent + ArrivalTime + (1 | Nest), data = Owls, family = nbinom1)
 m2 <- glmmTMB(SiblingNegotiation ~ SexParent + ArrivalTime + (1 | Nest), data = Owls, family = nbinom2)
@@ -24,22 +25,61 @@ m3 <- glmmTMB(count ~ spp + mined + (1 | site), ziformula = ~ spp + mined, famil
 m4 <- glmmTMB(count ~ spp + mined + (1 | site), ziformula = ~ spp + mined + (1 | site), family = truncated_poisson, data = Salamanders)
 
 test_that("ggpredict, glmmTMB", {
-  ggpredict(m3, "mined", type = "fe")
-  ggpredict(m3, "mined", type = "fe.zi")
-  ggpredict(m3, "mined", type = "re")
-  ggpredict(m3, "mined", type = "re.zi")
+  p1 <- ggpredict(m3, "mined", type = "fe")
+  p2 <- ggpredict(m3, "mined", type = "fe.zi")
+  p3 <- ggpredict(m3, "mined", type = "re")
+  p4 <- ggpredict(m3, "mined", type = "re.zi")
+  expect_gt(p3$conf.high[1], p1$conf.high[1])
+  expect_gt(p4$conf.high[1], p2$conf.high[1])
 })
 
 test_that("ggpredict, glmmTMB", {
-  ggpredict(m4, "mined", type = "fe")
-  ggpredict(m4, "mined", type = "fe.zi")
-  ggpredict(m4, "mined", type = "re")
-  ggpredict(m4, "mined", type = "re.zi")
+  p1 <- ggpredict(m4, "mined", type = "fe")
+  p2 <- ggpredict(m4, "mined", type = "fe.zi")
+  p3 <- ggpredict(m4, "mined", type = "re")
+  p4 <- ggpredict(m4, "mined", type = "re.zi")
+  expect_gt(p3$conf.high[1], p1$conf.high[1])
+  expect_gt(p4$conf.high[1], p2$conf.high[1])
 
-  ggpredict(m4, c("spp", "mined"), type = "fe")
-  ggpredict(m4, c("spp", "mined"), type = "fe.zi")
-  ggpredict(m4, c("spp", "mined"), type = "re")
-  ggpredict(m4, c("spp", "mined"), type = "re.zi")
+  p1 <- ggpredict(m4, c("spp", "mined"), type = "fe")
+  p2 <- ggpredict(m4, c("spp", "mined"), type = "fe.zi")
+  p3 <- ggpredict(m4, c("spp", "mined"), type = "re")
+  p4 <- ggpredict(m4, c("spp", "mined"), type = "re.zi")
+  expect_gt(p3$conf.high[1], p1$conf.high[1])
+  expect_gt(p4$conf.high[1], p2$conf.high[1])
+})
+
+test_that("ggpredict, glmmTMB", {
+  p <- ggpredict(m3, "spp", type = "fe.zi")
+  expect_true(all(p$conf.low > 0))
+  set.seed(100)
+  p <- ggpredict(m3, "spp", type = "fe.zi")
+  expect_true(all(p$conf.low > 0))
+})
+
+
+test_that("ggpredict, glmmTMB-simulate", {
+  p <- ggpredict(m3, "mined", type = "sim")
+  p <- ggpredict(m3, c("spp", "mined"), type = "sim")
+  p <- ggpredict(m4, "mined", type = "sim")
+  p <- ggpredict(m4, c("spp", "mined"), type = "sim")
+})
+
+md <- glmmTMB(
+  count ~ spp + mined + (1 | site),
+  ziformula = ~ spp + mined,
+  dispformula = ~ DOY,
+  family = truncated_poisson,
+  data = Salamanders
+)
+
+test_that("ggpredict, glmmTMB", {
+  p1 <- ggpredict(md, c("spp", "mined"), type = "fe")
+  p2 <- ggpredict(md, c("spp", "mined"), type = "fe.zi")
+  p3 <- ggpredict(md, c("spp", "mined"), type = "re")
+  p4 <- ggpredict(md, c("spp", "mined"), type = "re.zi")
+  expect_gt(p3$conf.high[1], p1$conf.high[1])
+  expect_gt(p4$conf.high[1], p2$conf.high[1])
 })
 
 data(efc_test)
@@ -69,4 +109,64 @@ m6 <- glmmTMB(
 test_that("ggpredict, glmmTMB", {
   ggpredict(m6, "c161sex", type = "fe")
   ggpredict(m6, "c161sex", type = "re")
+})
+
+
+data(efc_test)
+
+efc_test$tot_sc_e <- as.numeric(efc_test$tot_sc_e)
+efc_test$c172code <- as.factor(efc_test$c172code)
+
+m7 <- glmmTMB(
+  tot_sc_e ~ neg_c_7 * c172code + c161sex + (1 | grp),
+  data = efc_test, ziformula = ~ c172code,
+  family = nbinom1
+)
+
+test_that("ggpredict, glmmTMB", {
+  ggpredict(m7, "neg_c_7")
+  ggpredict(m7, "neg_c_7 [all]")
+  ggpredict(m7, "neg_c_7", type = "fe.zi")
+  ggpredict(m7, "neg_c_7 [all]", type = "fe.zi")
+
+  ggpredict(m7, c("neg_c_7", "c172code"))
+  ggpredict(m7, c("neg_c_7 [all]", "c172code"))
+  ggpredict(m7, c("neg_c_7", "c172code"), type = "fe.zi")
+  ggpredict(m7, c("neg_c_7 [all]", "c172code"), type = "fe.zi")
+})
+
+
+m8 <- glmmTMB(
+  tot_sc_e ~ neg_c_7 * c172code + (1 | grp),
+  data = efc_test, ziformula = ~ c172code,
+  family = nbinom1
+)
+
+test_that("ggpredict, glmmTMB", {
+  ggpredict(m8, "neg_c_7")
+  ggpredict(m8, "neg_c_7 [all]")
+  ggpredict(m8, "neg_c_7", type = "fe.zi")
+  ggpredict(m8, "neg_c_7 [all]", type = "fe.zi")
+
+  ggpredict(m8, c("neg_c_7", "c172code"))
+  ggpredict(m8, c("neg_c_7 [all]", "c172code"))
+  ggpredict(m8, c("neg_c_7", "c172code"), type = "fe.zi")
+  ggpredict(m8, c("neg_c_7 [all]", "c172code"), type = "fe.zi")
+})
+
+
+data(Salamanders)
+m9 <- glmmTMB(
+  count ~ spp + cover + mined + (1 | site),
+  ziformula =  ~ DOY,
+  dispformula = ~ spp,
+  data = Salamanders,
+  family = nbinom2
+)
+
+test_that("ggpredict, glmmTMB", {
+  ggpredict(m9, c("cover", "mined", "spp"), type = "fe")
+  ggpredict(m9, c("cover", "mined", "spp"), type = "fe.zi")
+  ggpredict(m9, c("cover", "mined", "spp"), type = "re")
+  ggpredict(m9, c("cover", "mined", "spp"), type = "re.zi")
 })

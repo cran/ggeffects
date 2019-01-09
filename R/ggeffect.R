@@ -48,7 +48,8 @@ ggeffect <- function(model, terms, ci.lvl = .95, x.as.factor = FALSE, ...) {
 ggeffect_helper <- function(model, terms, ci.lvl, x.as.factor, ...) {
 
   # check terms argument
-  terms <- check_vars(terms)
+  terms <- check_vars(terms, model)
+  cleaned.terms <- get_clear_vars(terms)
 
   # get model frame
   fitfram <- sjstats::model_frame(model)
@@ -59,6 +60,7 @@ ggeffect_helper <- function(model, terms, ci.lvl, x.as.factor, ...) {
   # create logical for family
   poisson_fam <- faminfo$is_pois
   binom_fam <- faminfo$is_bin
+  is_trial <- faminfo$is_trial && inherits(model, "brmsfit")
 
 
   # check whether we have an argument "transformation" for effects()-function
@@ -183,13 +185,20 @@ ggeffect_helper <- function(model, terms, ci.lvl, x.as.factor, ...) {
     binom_fam,
     poisson_fam,
     no.transform,
-    type = NULL
+    type = NULL,
+    is_trial
   )
 
 
   # slice data, only select observations that have specified
   # levels for the grouping variables
-  filter.keep <- tmp$x %in% x.levels[[1]]
+
+  # for numeric values with many decimal places, we need to round
+  if (frac_length(tmp$x) > 5)
+    filter.keep <- round(tmp$x, 5) %in% round(x.levels[[1]], 5)
+  else
+    filter.keep <- tmp$x %in% x.levels[[1]]
+
   tmp <- tmp[filter.keep, , drop = FALSE]
 
   # slice data, only select observations that have specified
@@ -247,7 +256,8 @@ ggeffect_helper <- function(model, terms, ci.lvl, x.as.factor, ...) {
       x.axis.labels = all.labels$axis.labels,
       faminfo = faminfo,
       x.is.factor = xif,
-      full.data = "0"
+      full.data = "0",
+      terms = cleaned.terms
     )
 
   # make x numeric

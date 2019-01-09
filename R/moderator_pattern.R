@@ -67,7 +67,20 @@ rprs_values <- function(x, values = "meansd") {
     xl <- as.vector(stats::quantile(x, na.rm = T))[2:4]
   }
 
-  round(xl, 2)
+  if (is.whole(x)) {
+    rv <- round(xl, 1)
+    if (length(unique(rv)) < length(rv))
+      rv <- unique(round(xl, 2))
+  } else
+    rv <- round(xl, 2)
+
+  if (length(unique(rv)) < length(rv)) {
+    rv <- unique(round(xl, 3))
+    if (length(unique(rv)) < length(rv))
+      rv <- unique(round(xl, 4))
+  }
+
+  rv
 }
 
 
@@ -77,7 +90,7 @@ check_rv <- function(values, x) {
 
   if (values %in% c("quart", "quart2") && mvc < 3) {
     # tell user that quart won't work
-    message("Could not compute quartiles, too small range of moderator variable. Defaulting `.values` to `minmax`.")
+    message("Could not compute quartiles, too small range of variable. Defaulting `values` to `minmax`.")
     values <- "minmax"
   }
 
