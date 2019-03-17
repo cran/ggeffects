@@ -1,17 +1,32 @@
 #' @importFrom purrr map flatten_df
-#' @importFrom dplyr select group_by pull n_distinct case_when
+#' @importFrom dplyr select group_by n_distinct case_when
 #' @importFrom sjmisc round_num is_empty add_variables seq_row is_num_fac
-#' @importFrom crayon blue italic red
-#' @importFrom tidyr nest
 #' @importFrom stats quantile
 #' @importFrom rlang .data
-#' @importFrom sjlabelled as_label
+#' @importFrom sjlabelled as_label get_labels
 #' @export
 print.ggeffects <- function(x, n = 10, digits = 3, x.lab = FALSE, ...) {
 
   # convert to factor
-  if (isTRUE(x.lab))
-    x$x <- format(sjlabelled::as_label(x$x, prefix = TRUE), justify = "left")
+  if (isTRUE(x.lab)) {
+    labs <- sjlabelled::get_labels(
+      x$x,
+      attr.only = TRUE,
+      values = "n",
+      non.labelled = FALSE,
+      drop.na = TRUE
+    )
+
+    vals <- x$x
+    x$x <- format(sjlabelled::as_label(x$x), justify = "right")
+
+    if (!is.null(labs) && !is.null(names(labs))) {
+      labs <- labs[match(vals, names(labs))]
+      labs <- format(sprintf("[%s]", names(labs)), justify = "left")
+      x$x <- paste(labs, x$x, sep = " ")
+    }
+  }
+
 
   # do we have groups and facets?
   has_groups <- obj_has_name(x, "group") && length(unique(x$group)) > 1
@@ -21,10 +36,10 @@ print.ggeffects <- function(x, n = 10, digits = 3, x.lab = FALSE, ...) {
   cat("\n")
 
   lab <- attr(x, "title", exact = TRUE)
-  if (!is.null(lab)) cat(crayon::blue(sprintf("# %s", lab)), "\n")
+  if (!is.null(lab)) cat(.colour("blue", sprintf("# %s", lab)), "\n")
 
   lab <- attr(x, "x.title", exact = TRUE)
-  if (!is.null(lab)) cat(crayon::blue(sprintf("# x = %s", lab)), "\n")
+  if (!is.null(lab)) cat(.colour("blue", sprintf("# x = %s", lab)), "\n")
 
   consv <- attr(x, "constant.values")
   terms <- attr(x, "terms")
@@ -69,25 +84,26 @@ print.ggeffects <- function(x, n = 10, digits = 3, x.lab = FALSE, ...) {
 
   if (!has_groups) {
     cat("\n")
-    x <- dplyr::select(x, -.data$group)
+    if (obj_has_name(x, "group"))
+      x <- dplyr::select(x, -.data$group)
     print.data.frame(x[get_sample_rows(x, n), ], ..., row.names = FALSE, quote = FALSE)
   } else if (has_groups && !has_facets) {
     xx <- x %>%
       dplyr::group_by(.data$group) %>%
-      tidyr::nest()
+      .nest()
 
     for (i in 1:nrow(xx)) {
-      cat(crayon::red(sprintf("\n# %s\n", dplyr::pull(xx[i, 1]))))
+      cat(.colour("red", sprintf("\n# %s\n", xx[i, 1])))
       tmp <- purrr::flatten_df(xx[i, 2])
       print.data.frame(tmp[get_sample_rows(tmp, n), ], ..., row.names = FALSE, quote = FALSE)
     }
   } else {
     xx <- x %>%
       dplyr::group_by(.data$group, .data$facet) %>%
-      tidyr::nest()
+      .nest()
 
     for (i in 1:nrow(xx)) {
-      cat(crayon::red(sprintf("\n# %s\n# %s\n", dplyr::pull(xx[i, 1]), dplyr::pull(xx[i, 2]))))
+      cat(.colour("red", sprintf("\n# %s\n# %s\n", xx[i, 1], xx[i, 2])))
       tmp <- purrr::flatten_df(xx[i, 3])
       print.data.frame(tmp[get_sample_rows(tmp, n), ], ..., row.names = FALSE, quote = FALSE)
     }
@@ -118,7 +134,7 @@ print.ggeffects <- function(x, n = 10, digits = 3, x.lab = FALSE, ...) {
     else
       cv.space2 <- 0
 
-    cat(crayon::blue(paste0(
+    cat(.colour("blue", paste0(
       "\nAdjusted for:\n",
       paste0(sprintf("* %*s = %*s", cv.space, cv.names, cv.space2, cv), collapse = "\n")
     )))

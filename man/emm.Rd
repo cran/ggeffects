@@ -20,7 +20,9 @@ use \code{ci.lvl = NA}, if confidence intervals should not be calculated
 \item{type}{Character, only applies for survival models, mixed effects models
 and/or models with zero-inflation. \strong{Note:} For \code{brmsfit}-models
 with zero-inflation component, there is no \code{type = "fe.zi"} nor
-\code{type = "re.zi"} (see 'Details').
+\code{type = "re.zi"}; predicted values for \code{MixMod}-models from
+\pkg{GLMMadaptive} with zero-inflation component \emph{always} condition on
+the zero-inflation part of the model (see 'Details').
 \describe{
   \item{\code{"fe"}}{
   Predicted values are conditioned on the fixed effects or conditional
@@ -28,17 +30,20 @@ with zero-inflation component, there is no \code{type = "fe.zi"} nor
   For instance, for models fitted with \code{zeroinfl} from \pkg{pscl},
   this would return the predicted mean from the count component (without
   zero-inflation). For models with zero-inflation component, this type calls
-  \code{predict(..., type = "link")}.
+  \code{predict(..., type = "link")} (however, predicted values are
+  back-transformed to the response scale).
   }
   \item{\code{"re"}}{
   This only applies to mixed models, and \code{type = "re"} does not
   condition on the zero-inflation component of the model. \code{type = "re"}
   still returns population-level predictions, however, unlike \code{type = "fe"},
   prediction intervals also consider the uncertainty in the variance parameters
-  (the mean random effect variance, see \code{\link[sjstats]{re_var}} and
-  \cite{Johnson et al. 2014} for details). For models with zero-inflation component,
-  this type calls \code{predict(..., type = "link")}. \cr \cr To get
-  predicted values for each level of the random effects groups, add the
+  (the mean random effect variance, see \cite{Johnson et al. 2014} for details).
+  For models with zero-inflation component, this type calls
+  \code{predict(..., type = "link")} (however, predicted values are
+  back-transformed to the response scale).
+  \cr \cr
+  To get predicted values for each level of the random effects groups, add the
   name of the related random effect term to the \code{terms}-argument
   (for more details, see \href{../doc/effectsatvalues.html}{this vignette}).
   }
@@ -78,7 +83,7 @@ with zero-inflation component, there is no \code{type = "fe.zi"} nor
 
 \item{typical}{Character vector, naming the function to be applied to the
 covariates over which the effect is "averaged". The default is "mean".
-See \code{\link[sjstats]{typical_value}} for options.}
+See \code{\link[sjmisc]{typical_value}} for options.}
 
 \item{condition}{Named character vector, which indicates covariates that
 should be held constant at specific values. Unlike \code{typical}, which
@@ -104,7 +109,7 @@ A data frame with the marginal effect of the response (\code{predicted}),
 \code{emm()} is a convenient shortcut to compute the estimated
              marginal mean, resp. the marginal effect of the model's response
              variable, with all independent variables held constant (at
-             their \code{\link[sjstats]{typical_value}}).
+             their \code{\link[sjmisc]{typical_value}}).
 }
 \details{
 For linear models, the predicted value is the estimated marginal

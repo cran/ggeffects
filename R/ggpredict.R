@@ -33,7 +33,9 @@
 #' @param type Character, only applies for survival models, mixed effects models
 #'   and/or models with zero-inflation. \strong{Note:} For \code{brmsfit}-models
 #'   with zero-inflation component, there is no \code{type = "fe.zi"} nor
-#'   \code{type = "re.zi"} (see 'Details').
+#'   \code{type = "re.zi"}; predicted values for \code{MixMod}-models from
+#'   \pkg{GLMMadaptive} with zero-inflation component \emph{always} condition on
+#'   the zero-inflation part of the model (see 'Details').
 #'   \describe{
 #'     \item{\code{"fe"}}{
 #'     Predicted values are conditioned on the fixed effects or conditional
@@ -41,17 +43,20 @@
 #'     For instance, for models fitted with \code{zeroinfl} from \pkg{pscl},
 #'     this would return the predicted mean from the count component (without
 #'     zero-inflation). For models with zero-inflation component, this type calls
-#'     \code{predict(..., type = "link")}.
+#'     \code{predict(..., type = "link")} (however, predicted values are
+#'     back-transformed to the response scale).
 #'     }
 #'     \item{\code{"re"}}{
 #'     This only applies to mixed models, and \code{type = "re"} does not
 #'     condition on the zero-inflation component of the model. \code{type = "re"}
 #'     still returns population-level predictions, however, unlike \code{type = "fe"},
 #'     prediction intervals also consider the uncertainty in the variance parameters
-#'     (the mean random effect variance, see \code{\link[sjstats]{re_var}} and
-#'     \cite{Johnson et al. 2014} for details). For models with zero-inflation component,
-#'     this type calls \code{predict(..., type = "link")}. \cr \cr To get
-#'     predicted values for each level of the random effects groups, add the
+#'     (the mean random effect variance, see \cite{Johnson et al. 2014} for details).
+#'     For models with zero-inflation component, this type calls
+#'     \code{predict(..., type = "link")} (however, predicted values are
+#'     back-transformed to the response scale).
+#'     \cr \cr
+#'     To get predicted values for each level of the random effects groups, add the
 #'     name of the related random effect term to the \code{terms}-argument
 #'     (for more details, see \href{../doc/effectsatvalues.html}{this vignette}).
 #'     }
@@ -98,7 +103,7 @@
 #'   Usually, this argument is only used internally by \code{ggaverage()}.
 #' @param typical Character vector, naming the function to be applied to the
 #'   covariates over which the effect is "averaged". The default is "mean".
-#'   See \code{\link[sjstats]{typical_value}} for options.
+#'   See \code{\link[sjmisc]{typical_value}} for options.
 #' @param ppd Logical, if \code{TRUE}, predictions for Stan-models are
 #'   based on the posterior predictive distribution
 #'   (\code{\link[rstantools]{posterior_predict}}). If \code{FALSE} (the
@@ -147,9 +152,10 @@
 #'   \code{coxph}, \code{gam} (package \pkg{mgcv}), \code{Gam} (package \pkg{gam}),
 #'   \code{gamm}, \code{gamm4}, \code{gee}, \code{glm}, \code{glm.nb}, \code{glmer},
 #'   \code{glmer.nb}, \code{glmmTMB}, \code{glmmPQL}, \code{glmRob}, \code{gls},
-#'   \code{hurdle}, \code{lm}, \code{lm_robust}, \code{lme}, \code{lmer}, \code{lmRob},
-#'   \code{lrm}, \code{multinom}, \code{nlmer}, \code{plm}, \code{polr},
-#'   \code{rlm}, \code{stanreg}, \code{svyglm}, \code{svyglm.nb}, \code{truncreg},
+#'   \code{hurdle}, \code{ivreg}, \code{lm}, \code{lm_robust}, \code{lme},
+#'   \code{lmer}, \code{lmRob}, \code{lrm}, \code{MixMod}, \code{MCMCglmm},
+#'   \code{multinom}, \code{nlmer}, \code{plm}, \code{polr}, \code{rlm},
+#'   \code{stanreg}, \code{svyglm}, \code{svyglm.nb}, \code{truncreg},
 #'   \code{vgam}, \code{zeroinfl} and \code{zerotrunc}.
 #'   Other models not listed here are passed to a generic predict-function
 #'   and might work as well, or maybe with \code{ggeffect()} or \code{ggemmeans()},
@@ -245,16 +251,12 @@
 #'   \code{ggpredict()} also works with \strong{Stan}-models from
 #'   the \CRANpkg{rstanarm} or \CRANpkg{brms}-package. The predicted
 #'   values are the median value of all drawn posterior samples. The
-#'   confidence intervals for Stan-models are actually high density
-#'   intervals, computed by \code{\link[sjstats]{hdi}}, unless \code{ppd = TRUE}.
-#'   If \code{ppd = TRUE}, predictions are based on draws of the posterior
-#'   predictive  distribution and the uncertainty interval is computed
-#'   using  \code{\link[rstantools]{predictive_interval}}. By default (i.e.
-#'   \code{ppd = FALSE}), the predictions are based on
+#'   confidence intervals for Stan-models are Bayesian predictive intervals.
+#'   By default (i.e. \code{ppd = FALSE}), the predictions are based on
 #'   \code{\link[rstantools]{posterior_linpred}} and hence have some
 #'   limitations: the uncertainty of the error term is not taken into
 #'   account. The recommendation is to use the posterior predictive
-#'   distribution (\code{\link[rstantools]{posterior_predict}}).#'
+#'   distribution (\code{\link[rstantools]{posterior_predict}}).
 #'   \cr \cr
 #'   \strong{Zero-Inflated and Zero-Inflated Mixed Models with brms}
 #'   \cr \cr
@@ -278,9 +280,20 @@
 #'   uncertainties into account are simulations based on \code{simulate()}, which
 #'   is used when \code{type = "sim"} (see Brooks et al. 2017, pp.392-393 for
 #'   details).
+#'   \cr \cr
+#'   \strong{MixMod-models from GLMMadaptive}
+#'   \cr \cr
+#'   Predicted values for the fixed effects component (\code{type = "fe"} or
+#'   \code{type = "fe.zi"}) are based on \code{predict(..., type = "mean_subject")},
+#'   while predicted values for random effects components (\code{type = "re"} or
+#'   \code{type = "re.zi"}) are calculated with \code{predict(..., type = "subject_specific")}
+#'   (see \code{?GLMMadaptive::predict.MixMod} for details). The latter option
+#'   requires the response variable to be defined in the \code{newdata}-argument
+#'   of \code{predict()}, which will be set to its typical value (see
+#'   \code{\link[sjmisc]{typical_value}}).
 #'
 #' @references \itemize{
-#'    \item Brooks ME, Kristensen K, Benthem KJ van, Magnusson A, Berg CW, Nielsen A, et al. glmmTMB Balances Speed and Flexibility Among Packages for Zero-inflated Generalized Linear Mixed Modeling. The R Journal. 2017;9: 378–400.
+#'    \item Brooks ME, Kristensen K, Benthem KJ van, Magnusson A, Berg CW, Nielsen A, et al. glmmTMB Balances Speed and Flexibility Among Packages for Zero-inflated Generalized Linear Mixed Modeling. The R Journal. 2017;9: 378-400.
 #'    \item Johnson PC, O'Hara RB. 2014. Extension of Nakagawa & Schielzeth's R2GLMM to random slopes models. Methods Ecol Evol, 5: 944-946. (\doi{10.1111/2041-210X.12225})
 #'  }
 #'
@@ -301,8 +314,13 @@
 #'   \code{n} to control number of decimals and lines to be printed, and an
 #'   argument \code{x.lab} to print factor-levels instead of numeric values
 #'   if \code{x} is a factor.
+#'   \cr \cr
+#'   The support for some models, for example from package \pkg{MCMCglmm}, is
+#'   rather experimental and may fail for certain models. If you encounter
+#'   any errors, please file an issue at \url{https://github.com/strengejacke/ggeffects/issues}.
 #'
-#' @return A data frame (with \code{ggeffects} class attribute) with consistent data columns:
+#' @return A data frame (with \code{ggeffects} class attribute) with consistent
+#'   data columns:
 #'         \describe{
 #'           \item{\code{x}}{the values of the first term in \code{terms}, used as x-position in plots.}
 #'           \item{\code{predicted}}{the predicted values of the response, used as y-position in plots.}
@@ -314,10 +332,15 @@
 #'           \item{\code{group}}{the grouping level from the second term in \code{terms}, used as grouping-aesthetics in plots.}
 #'           \item{\code{facet}}{the grouping level from the third term in \code{terms}, used to indicate facets in plots.}
 #'         }
+#'         The predicted values are always on the response scale! \cr \cr
 #'         For proportional odds logistic regression (see \code{\link[MASS]{polr}})
 #'         resp. cumulative link models (e.g., see \code{\link[ordinal]{clm}}),
 #'         an additional column \code{response.level} is returned, which indicates
 #'         the grouping of predictions based on the level of the model's response.
+#'         \cr \cr Note that for convenience reasons, the columns for the intervals
+#'         are always named \code{conf.low} and \code{conf.high}, even though
+#'         for Bayesian models credible or highest posterior density intervals
+#'         are returned.
 #'
 #' @examples
 #' data(efc)
@@ -446,7 +469,7 @@
 #' @importFrom sjmisc to_factor is_num_fac remove_empty_cols
 #' @importFrom purrr map
 #' @importFrom sjlabelled as_numeric
-#' @importFrom sjstats resp_var re_grp_var
+#' @importFrom insight find_random find_predictors model_info find_formula find_variables
 #' @export
 ggpredict <- function(model,
                       terms,
@@ -464,6 +487,7 @@ ggpredict <- function(model,
                       ...) {
   # check arguments
   type <- match.arg(type)
+  model.name <- deparse(substitute(model))
 
   if (!missing(x.cat)) x.as.factor <- x.cat
 
@@ -476,6 +500,7 @@ ggpredict <- function(model,
   # extract just the mer-part then
   is.gamm <- inherits(model, c("list", "gamm")) && all(names(model %in% c("lme", "gam")))
   is.gamm4 <- inherits(model, "list") && all(names(model %in% c("mer", "gam")))
+
   if (is.gamm || is.gamm4) model <- model$gam
 
   if (inherits(model, "list")) {
@@ -497,7 +522,7 @@ ggpredict <- function(model,
     class(res) <- c("ggalleffects", class(res))
   } else {
     if (missing(terms) || is.null(terms)) {
-      predictors <- sjstats::pred_vars(model)
+      predictors <- insight::find_predictors(model, effects = "fixed", component = "conditional", flatten = TRUE)
       res <- purrr::map(
         predictors,
         function(.x) {
@@ -542,13 +567,13 @@ ggpredict <- function(model,
     }
   }
 
+  attr(res, "model.name") <- model.name
   res
 }
 
 
 # workhorse that computes the predictions
 # and creates the tidy data frames
-#' @importFrom sjstats model_frame
 ggpredict_helper <- function(model,
                              terms,
                              ci.lvl,
@@ -572,22 +597,17 @@ ggpredict_helper <- function(model,
   # check if predictions should be made for each group level in
   # random effects models
   if (fun %in% c("lmer", "glmer", "glmmTMB", "nlmer")) {
-    re.terms <- sjstats::re_grp_var(model)
+    re.terms <- insight::find_random(model, split_nested = TRUE, flatten = TRUE)
     if (!is.null(re.terms) && any(cleaned.terms %in% re.terms)) ci.lvl <- NA
   }
 
   # check model family, do we have count model?
-  faminfo <- sjstats::model_family(model)
+  faminfo <- get_model_info(model)
 
-  if (fun == "coxph" && type == "surv") faminfo$is_bin <- TRUE
-
-  # create logical for family
-  binom_fam <- faminfo$is_bin
-  poisson_fam <- faminfo$is_pois
-  is_trial <- faminfo$is_trial && inherits(model, "brmsfit")
+  if (fun == "coxph" && type == "surv") faminfo$is_binomial <- TRUE
 
   # get model frame
-  fitfram <- sjstats::model_frame(model, fe.only = FALSE)
+  fitfram <- insight::get_data(model)
 
   # expand model frame to grid of unique combinations, if
   # user not requested full data
@@ -632,20 +652,18 @@ ggpredict_helper <- function(model,
 
   # for survival probabilities or cumulative hazards, we need
   # the "time" variable
-
-  if (fun == "coxph" && type %in% c("surv", "cumhaz"))
+  if (fun == "coxph" && type %in% c("surv", "cumhaz")) {
     terms <- c("time", terms)
+  }
 
   # get axis titles and labels
   all.labels <- get_all_labels(
     fitfram = ori.mf,
     terms = terms,
     fun = get_model_function(model),
-    binom_fam = binom_fam,
-    poisson_fam = poisson_fam,
+    faminfo = faminfo,
     no.transform = FALSE,
-    type = type,
-    is_trial = is_trial
+    type = type
   )
 
   # check for correct terms specification
@@ -732,7 +750,6 @@ ggpredict_helper <- function(model,
   # x needs to be numeric
   if (!x.as.factor) mydf$x <- sjlabelled::as_numeric(mydf$x)
 
-
   # add standard errors
   se <- attr(fitfram, "std.error", exact = TRUE)
 
@@ -751,19 +768,23 @@ ggpredict_helper <- function(model,
   # check if outcome is log-transformed, and if so,
   # back-transform predicted values to response scale
 
-  rv <- sjstats::resp_var(model)
+  rv <- insight::find_variables(model)[["response"]]
 
   if (any(grepl("log\\((.*)\\)", rv))) {
 
     # do we have log-log models?
     if (grepl("log\\(log\\((.*)\\)\\)", rv)) {
       mydf$predicted <- exp(exp(mydf$predicted))
-      mydf$conf.low <- exp(exp(mydf$conf.low))
-      mydf$conf.high <- exp(exp(mydf$conf.high))
+      if (obj_has_name(mydf, "conf.low") && obj_has_name(mydf, "conf.high")) {
+        mydf$conf.low <- exp(exp(mydf$conf.low))
+        mydf$conf.high <- exp(exp(mydf$conf.high))
+      }
     } else {
       mydf$predicted <- exp(mydf$predicted)
-      mydf$conf.low <- exp(mydf$conf.low)
-      mydf$conf.high <- exp(mydf$conf.high)
+      if (obj_has_name(mydf, "conf.low") && obj_has_name(mydf, "conf.high")) {
+        mydf$conf.low <- exp(mydf$conf.low)
+        mydf$conf.high <- exp(mydf$conf.high)
+      }
     }
 
     message("Model has log-transformed response. Back-transforming predictions to original response scale. Standard errors are still on the log-scale.")
@@ -789,6 +810,11 @@ ggpredict_helper <- function(model,
     full.data = has.full.data,
     constant.values = attr(expanded_frame, "constant.values", exact = TRUE),
     terms = cleaned.terms,
+    ori.terms = ori.terms,
+    at.list = get_expanded_data(
+      model = model, mf = ori.mf, terms = ori.terms, typ.fun = typical,
+      condition = condition, pretty.message = FALSE, emmeans.only = TRUE
+    ),
     n.trials = attr(expanded_frame, "n.trials", exact = TRUE)
   )
 }

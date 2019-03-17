@@ -48,6 +48,15 @@ if (suppressWarnings(
     ggemmeans(fit, c("Infl [Low,High]", "Type [Tower]"), x.as.factor = TRUE, condition = c(Cont = "Low"))
   })
 
+  test_that("ggemmeans, polr", {
+    p1 <- ggemmeans(fit, "Infl", condition = c(Type = "Tower", Cont = "Low"))
+    p2 <- ggpredict(fit, "Infl")
+    expect_equal(
+      p1$predicted[p1$x == 1 & p1$response.level == "Low"],
+      p2$predicted[p2$x == 1 & p2$response.level == "Low"],
+      tolerance = 1e-3
+    )
+  })
 
   test_that("ggeffect, polr", {
     ggeffect(fit, "Infl")
@@ -59,5 +68,15 @@ if (suppressWarnings(
     ggeffect(fit, "Infl [Low,High]")
     ggeffect(fit, c("Infl [Low,High]", "Type [Tower]"))
     ggeffect(fit, c("Infl [Medium,Low]", "Type [Terrace]", "Cont [Low]"))
+  })
+
+  test_that("emm, polr", {
+    emm(fit)
+    expect_equal(emm(fit), data.frame(
+      predicted = c(0.378, 0.288, 0.334),
+      response.level = c("Low", "Medium", "High"),
+      stringsAsFactors = FALSE
+    )
+    , tolerance = 1e-3)
   })
 }

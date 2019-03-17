@@ -1,12 +1,12 @@
 #' @rdname ggpredict
 #'
 #' @importFrom purrr map map2
-#' @importFrom sjstats pred_vars resp_var model_family model_frame link_inverse
 #' @importFrom dplyr if_else case_when bind_rows mutate
 #' @importFrom sjmisc is_empty str_contains
 #' @importFrom stats na.omit
 #' @importFrom sjlabelled as_numeric
 #' @importFrom rlang .data
+#' @importFrom insight find_predictors link_inverse
 #' @export
 ggeffect <- function(model, terms, ci.lvl = .95, x.as.factor = FALSE, ...) {
 
@@ -24,7 +24,7 @@ ggeffect <- function(model, terms, ci.lvl = .95, x.as.factor = FALSE, ...) {
     res <- purrr::map(model, ~ggeffect_helper(.x, terms, ci.lvl, x.as.factor, ...))
   else {
     if (missing(terms) || is.null(terms)) {
-      predictors <- sjstats::pred_vars(model)
+      predictors <- insight::find_predictors(model, effects = "fixed", component = "conditional", flatten = TRUE)
       res <- purrr::map(
         predictors,
         function(.x) {
@@ -44,7 +44,6 @@ ggeffect <- function(model, terms, ci.lvl = .95, x.as.factor = FALSE, ...) {
 }
 
 
-#' @importFrom sjstats model_frame
 ggeffect_helper <- function(model, terms, ci.lvl, x.as.factor, ...) {
 
   # check terms argument
@@ -52,16 +51,10 @@ ggeffect_helper <- function(model, terms, ci.lvl, x.as.factor, ...) {
   cleaned.terms <- get_clear_vars(terms)
 
   # get model frame
-  fitfram <- sjstats::model_frame(model)
+  fitfram <- insight::get_data(model)
 
   # get model family
-  faminfo <- sjstats::model_family(model)
-
-  # create logical for family
-  poisson_fam <- faminfo$is_pois
-  binom_fam <- faminfo$is_bin
-  is_trial <- faminfo$is_trial && inherits(model, "brmsfit")
-
+  faminfo <- get_model_info(model)
 
   # check whether we have an argument "transformation" for effects()-function
   # in this case, we need another default title, since we have
@@ -103,7 +96,7 @@ ggeffect_helper <- function(model, terms, ci.lvl, x.as.factor, ...) {
   # build data frame, with raw values
   # predicted response and lower/upper ci
 
-  if (inherits(model, c("polr", "clm", "clm2", "multinom"))) {
+  if (inherits(model, c("polr", "clm", "clm2", "clmm", "multinom"))) {
 
     # for categorical outcomes, we need to gather the data
     # from effects to get a single data frame
@@ -111,7 +104,9 @@ ggeffect_helper <- function(model, terms, ci.lvl, x.as.factor, ...) {
     eff.logits <- as.data.frame(eff$logit, stringsAsFactors = FALSE)
     tmp <- cbind(eff$x, eff.logits)
     ft <- (ncol(tmp) - ncol(eff.logits) + 1):ncol(tmp)
-    tmp <- tidyr::gather(tmp, key = "response.level", value = "predicted", !! ft)
+    tmp <- .gather(tmp, "response.level", "predicted", colnames(tmp)[ft])
+
+    fx.term <- eff$term
 
     colnames(tmp)[1] <- "x"
     if (length(terms) > 1) colnames(tmp)[2] <- "group"
@@ -126,7 +121,7 @@ ggeffect_helper <- function(model, terms, ci.lvl, x.as.factor, ...) {
     # compute CI manually and then also fix column names.
 
     eff.se.logits <- as.data.frame(eff$se.logit)
-    tmp2 <- tidyr::gather(eff.se.logits, key = "response.level", value = "se")
+    tmp2 <- .gather(eff.se.logits, "response.level", "se", colnames(eff.se.logits))
     tmp2$conf.low <- tmp$predicted - stats::qnorm(ci) * tmp2$se
     tmp2$conf.high <- tmp$predicted + stats::qnorm(ci) * tmp2$se
     tmp2$std.error <- tmp2$se
@@ -134,40 +129,52 @@ ggeffect_helper <- function(model, terms, ci.lvl, x.as.factor, ...) {
     tmp <- dplyr::bind_cols(tmp, tmp2[, c("std.error", "conf.low", "conf.high")])
     tmp$response.level <- substr(tmp$response.level, 7, max(nchar(tmp$response.level)))
   } else {
-    tmp <-
-      data.frame(
-        x = eff$x[[terms[1]]],
-        predicted = eff$fit,
-        std.error = eff$se,
-        conf.low = eff$lower,
-        conf.high = eff$upper,
-        stringsAsFactors = FALSE
-      )
 
-    # with or w/o grouping factor?
-    if (length(terms) == 1) {
-      # convert to factor for proper legend
-      tmp$group <- sjmisc::to_factor(1)
-    } else if (length(terms) == 2) {
-      tmp <- dplyr::mutate(tmp, group = sjmisc::to_factor(eff$x[[terms[2]]]))
+    # check for multi response
+
+    .ne <- names(eff)
+    .mv <- insight::find_response(model, combine = FALSE)
+
+    if (length(.ne) == length(.mv) && all.equal(.ne, .mv)) {
+      l <- lapply(names(eff), function(.x) {
+        tmpl <- data.frame(
+          x = eff[[.x]]$x[[terms[1]]],
+          predicted = eff[[.x]]$fit,
+          std.error = eff[[.x]]$se,
+          conf.low = eff[[.x]]$lower,
+          conf.high = eff[[.x]]$upper,
+          response.level = .x,
+          stringsAsFactors = FALSE
+        )
+        create_eff_group(tmpl, terms, eff, sub = .x)
+      })
+      tmp <- do.call(rbind, l)
+      fx.term <- eff[[1]]$term
     } else {
-      tmp <- dplyr::mutate(
-        tmp,
-        group = sjmisc::to_factor(eff$x[[terms[2]]]),
-        facet = sjmisc::to_factor(eff$x[[terms[3]]])
-      )
+      tmp <-
+        data.frame(
+          x = eff$x[[terms[1]]],
+          predicted = eff$fit,
+          std.error = eff$se,
+          conf.low = eff$lower,
+          conf.high = eff$upper,
+          stringsAsFactors = FALSE
+        )
+
+      tmp <- create_eff_group(tmp, terms, eff, sub = NULL)
+
+      # effects-package keeps the order of numeric value as they are
+      # returned by "unique()", so we want to sort the data frame
+      # in the order of ascending values
+
+      if (is.numeric(eff$data[[terms[1]]])) tmp <- tmp[order(tmp$x), ]
+      fx.term <- eff$term
     }
-
-    # effects-package keeps the order of numeric value as they are
-    # returned by "unique()", so we want to sort the data frame
-    # in the order of ascending values
-
-    if (is.numeric(eff$data[[terms[1]]])) tmp <- tmp[order(tmp$x), ]
   }
 
 
   if (!no.transform) {
-    linv <- sjstats::link_inverse(model)
+    linv <- insight::link_inverse(model)
     tmp$predicted <- linv(tmp$predicted)
     tmp$conf.low <- linv(tmp$conf.low)
     tmp$conf.high <- linv(tmp$conf.high)
@@ -182,11 +189,9 @@ ggeffect_helper <- function(model, terms, ci.lvl, x.as.factor, ...) {
     fitfram,
     terms,
     get_model_function(model),
-    binom_fam,
-    poisson_fam,
+    faminfo = faminfo,
     no.transform,
-    type = NULL,
-    is_trial
+    type = NULL
   )
 
 
@@ -237,7 +242,7 @@ ggeffect_helper <- function(model, terms, ci.lvl, x.as.factor, ...) {
   attr(mydf, "rawdata") <- get_raw_data(model, fitfram, terms)
 
 
-  x_v <- fitfram[[eff$term]]
+  x_v <- fitfram[[fx.term]]
   if (is.null(x_v))
     xif <- ifelse(is.factor(tmp$x), "1", "0")
   else
@@ -264,4 +269,30 @@ ggeffect_helper <- function(model, terms, ci.lvl, x.as.factor, ...) {
   if (!x.as.factor) mydf$x <- sjlabelled::as_numeric(mydf$x, keep.labels = FALSE)
 
   mydf
+}
+
+
+create_eff_group <- function(tmp, terms, eff, sub) {
+
+  if (!is.null(sub)) {
+    fx <- eff[[sub]]
+  } else {
+    fx <- eff
+  }
+
+  # with or w/o grouping factor?
+  if (length(terms) == 1) {
+    # convert to factor for proper legend
+    tmp$group <- sjmisc::to_factor(1)
+  } else if (length(terms) == 2) {
+    tmp <- dplyr::mutate(tmp, group = sjmisc::to_factor(fx$x[[terms[2]]]))
+  } else {
+    tmp <- dplyr::mutate(
+      tmp,
+      group = sjmisc::to_factor(fx$x[[terms[2]]]),
+      facet = sjmisc::to_factor(fx$x[[terms[3]]])
+    )
+  }
+
+  tmp
 }

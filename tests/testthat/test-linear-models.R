@@ -14,7 +14,18 @@ if (suppressWarnings(
   test_that("ggpredict, lm", {
     ggpredict(fit, "c12hour")
     ggpredict(fit, c("c12hour", "c161sex"))
-    ggpredict(fit, c("c12hour", "c161sex", "c172code"))
+    x <- ggpredict(fit, c("c12hour", "c161sex", "c172code"))
+    print(x)
+    x <- ggpredict(fit, c("c12hour", "c161sex", "neg_c_7"))
+    print(x)
+  })
+
+  test_that("ggpredict, lm-vcov", {
+    ggpredict(fit, c("c12hour", "c161sex"), vcov.fun = "vcovHC", vcov.type = "HC1")
+  })
+
+  test_that("ggpredict, lm-noci", {
+    ggpredict(fit, c("c12hour", "c161sex"), ci.lvl = NA)
   })
 
   test_that("ggpredict, lm, ci.lvl", {
@@ -222,17 +233,17 @@ if (suppressWarnings(
     p1 <- ggemmeans(fit, "neg_c_7")
     p2 <- ggeffect(fit, "neg_c_7")
     p3 <- ggpredict(fit, "neg_c_7")
-    expect_equal(p1$predicted[1], 78.2641, tolerance = 1e-5)
-    expect_equal(p2$predicted[1], 78.2641, tolerance = 1e-5)
-    expect_equal(p3$predicted[1], 78.2641, tolerance = 1e-5)
+    expect_equal(p1$predicted[1], 78.2641, tolerance = 1e-3)
+    expect_equal(p2$predicted[1], 78.2641, tolerance = 1e-3)
+    expect_equal(p3$predicted[1], 78.2641, tolerance = 1e-3)
   })
 
   test_that("ggemmeans, lm", {
     p1 <- ggemmeans(fit, "neg_c_7 [5,10]")
     p2 <- ggeffect(fit, "neg_c_7 [5,10]")
     p3 <- ggpredict(fit, "neg_c_7 [5,10]")
-    expect_equal(p1$predicted[1], 80.58504, tolerance = 1e-5)
-    expect_equal(p2$predicted[1], 80.58504, tolerance = 1e-5)
-    expect_equal(p3$predicted[1], 80.58504, tolerance = 1e-5)
+    expect_equal(p1$predicted[1], 80.58504, tolerance = 1e-3)
+    expect_equal(p2$predicted[1], 80.58504, tolerance = 1e-3)
+    expect_equal(p3$predicted[1], 80.58504, tolerance = 1e-3)
   })
 }

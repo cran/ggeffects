@@ -14,9 +14,9 @@ ggaverage(model, terms, ci.lvl = 0.95, type = c("fe", "re", "fe.zi",
 
 ggeffect(model, terms, ci.lvl = 0.95, x.as.factor = FALSE, ...)
 
-ggemmeans(model, terms, ci.lvl = 0.95, type = c("fe", "re", "fe.zi",
-  "re.zi"), typical = "mean", condition = NULL, x.as.factor = FALSE,
-  x.cat, ...)
+ggemmeans(model, terms, ci.lvl = 0.95, type = c("fe", "fe.zi"),
+  typical = "mean", condition = NULL, x.as.factor = FALSE, x.cat,
+  ...)
 
 ggpredict(model, terms, ci.lvl = 0.95, type = c("fe", "re", "fe.zi",
   "re.zi", "sim", "surv", "cumhaz", "debug"), typical = "mean",
@@ -50,7 +50,9 @@ use \code{ci.lvl = NA}, if confidence intervals should not be calculated
 \item{type}{Character, only applies for survival models, mixed effects models
 and/or models with zero-inflation. \strong{Note:} For \code{brmsfit}-models
 with zero-inflation component, there is no \code{type = "fe.zi"} nor
-\code{type = "re.zi"} (see 'Details').
+\code{type = "re.zi"}; predicted values for \code{MixMod}-models from
+\pkg{GLMMadaptive} with zero-inflation component \emph{always} condition on
+the zero-inflation part of the model (see 'Details').
 \describe{
   \item{\code{"fe"}}{
   Predicted values are conditioned on the fixed effects or conditional
@@ -58,17 +60,20 @@ with zero-inflation component, there is no \code{type = "fe.zi"} nor
   For instance, for models fitted with \code{zeroinfl} from \pkg{pscl},
   this would return the predicted mean from the count component (without
   zero-inflation). For models with zero-inflation component, this type calls
-  \code{predict(..., type = "link")}.
+  \code{predict(..., type = "link")} (however, predicted values are
+  back-transformed to the response scale).
   }
   \item{\code{"re"}}{
   This only applies to mixed models, and \code{type = "re"} does not
   condition on the zero-inflation component of the model. \code{type = "re"}
   still returns population-level predictions, however, unlike \code{type = "fe"},
   prediction intervals also consider the uncertainty in the variance parameters
-  (the mean random effect variance, see \code{\link[sjstats]{re_var}} and
-  \cite{Johnson et al. 2014} for details). For models with zero-inflation component,
-  this type calls \code{predict(..., type = "link")}. \cr \cr To get
-  predicted values for each level of the random effects groups, add the
+  (the mean random effect variance, see \cite{Johnson et al. 2014} for details).
+  For models with zero-inflation component, this type calls
+  \code{predict(..., type = "link")} (however, predicted values are
+  back-transformed to the response scale).
+  \cr \cr
+  To get predicted values for each level of the random effects groups, add the
   name of the related random effect term to the \code{terms}-argument
   (for more details, see \href{../doc/effectsatvalues.html}{this vignette}).
   }
@@ -108,7 +113,7 @@ with zero-inflation component, there is no \code{type = "fe.zi"} nor
 
 \item{typical}{Character vector, naming the function to be applied to the
 covariates over which the effect is "averaged". The default is "mean".
-See \code{\link[sjstats]{typical_value}} for options.}
+See \code{\link[sjmisc]{typical_value}} for options.}
 
 \item{ppd}{Logical, if \code{TRUE}, predictions for Stan-models are
 based on the posterior predictive distribution
@@ -166,7 +171,8 @@ for details).}
 are passed down to \code{vcov.fun}.}
 }
 \value{
-A data frame (with \code{ggeffects} class attribute) with consistent data columns:
+A data frame (with \code{ggeffects} class attribute) with consistent
+  data columns:
         \describe{
           \item{\code{x}}{the values of the first term in \code{terms}, used as x-position in plots.}
           \item{\code{predicted}}{the predicted values of the response, used as y-position in plots.}
@@ -178,10 +184,15 @@ A data frame (with \code{ggeffects} class attribute) with consistent data column
           \item{\code{group}}{the grouping level from the second term in \code{terms}, used as grouping-aesthetics in plots.}
           \item{\code{facet}}{the grouping level from the third term in \code{terms}, used to indicate facets in plots.}
         }
+        The predicted values are always on the response scale! \cr \cr
         For proportional odds logistic regression (see \code{\link[MASS]{polr}})
         resp. cumulative link models (e.g., see \code{\link[ordinal]{clm}}),
         an additional column \code{response.level} is returned, which indicates
         the grouping of predictions based on the level of the model's response.
+        \cr \cr Note that for convenience reasons, the columns for the intervals
+        are always named \code{conf.low} and \code{conf.high}, even though
+        for Bayesian models credible or highest posterior density intervals
+        are returned.
 }
 \description{
 \code{ggpredict()} computes predicted (fitted) values for the
@@ -201,9 +212,10 @@ A data frame (with \code{ggeffects} class attribute) with consistent data column
   \code{coxph}, \code{gam} (package \pkg{mgcv}), \code{Gam} (package \pkg{gam}),
   \code{gamm}, \code{gamm4}, \code{gee}, \code{glm}, \code{glm.nb}, \code{glmer},
   \code{glmer.nb}, \code{glmmTMB}, \code{glmmPQL}, \code{glmRob}, \code{gls},
-  \code{hurdle}, \code{lm}, \code{lm_robust}, \code{lme}, \code{lmer}, \code{lmRob},
-  \code{lrm}, \code{multinom}, \code{nlmer}, \code{plm}, \code{polr},
-  \code{rlm}, \code{stanreg}, \code{svyglm}, \code{svyglm.nb}, \code{truncreg},
+  \code{hurdle}, \code{ivreg}, \code{lm}, \code{lm_robust}, \code{lme},
+  \code{lmer}, \code{lmRob}, \code{lrm}, \code{MixMod}, \code{MCMCglmm},
+  \code{multinom}, \code{nlmer}, \code{plm}, \code{polr}, \code{rlm},
+  \code{stanreg}, \code{svyglm}, \code{svyglm.nb}, \code{truncreg},
   \code{vgam}, \code{zeroinfl} and \code{zerotrunc}.
   Other models not listed here are passed to a generic predict-function
   and might work as well, or maybe with \code{ggeffect()} or \code{ggemmeans()},
@@ -299,16 +311,12 @@ A data frame (with \code{ggeffects} class attribute) with consistent data column
   \code{ggpredict()} also works with \strong{Stan}-models from
   the \CRANpkg{rstanarm} or \CRANpkg{brms}-package. The predicted
   values are the median value of all drawn posterior samples. The
-  confidence intervals for Stan-models are actually high density
-  intervals, computed by \code{\link[sjstats]{hdi}}, unless \code{ppd = TRUE}.
-  If \code{ppd = TRUE}, predictions are based on draws of the posterior
-  predictive  distribution and the uncertainty interval is computed
-  using  \code{\link[rstantools]{predictive_interval}}. By default (i.e.
-  \code{ppd = FALSE}), the predictions are based on
+  confidence intervals for Stan-models are Bayesian predictive intervals.
+  By default (i.e. \code{ppd = FALSE}), the predictions are based on
   \code{\link[rstantools]{posterior_linpred}} and hence have some
   limitations: the uncertainty of the error term is not taken into
   account. The recommendation is to use the posterior predictive
-  distribution (\code{\link[rstantools]{posterior_predict}}).#'
+  distribution (\code{\link[rstantools]{posterior_predict}}).
   \cr \cr
   \strong{Zero-Inflated and Zero-Inflated Mixed Models with brms}
   \cr \cr
@@ -332,6 +340,17 @@ A data frame (with \code{ggeffects} class attribute) with consistent data column
   uncertainties into account are simulations based on \code{simulate()}, which
   is used when \code{type = "sim"} (see Brooks et al. 2017, pp.392-393 for
   details).
+  \cr \cr
+  \strong{MixMod-models from GLMMadaptive}
+  \cr \cr
+  Predicted values for the fixed effects component (\code{type = "fe"} or
+  \code{type = "fe.zi"}) are based on \code{predict(..., type = "mean_subject")},
+  while predicted values for random effects components (\code{type = "re"} or
+  \code{type = "re.zi"}) are calculated with \code{predict(..., type = "subject_specific")}
+  (see \code{?GLMMadaptive::predict.MixMod} for details). The latter option
+  requires the response variable to be defined in the \code{newdata}-argument
+  of \code{predict()}, which will be set to its typical value (see
+  \code{\link[sjmisc]{typical_value}}).
 }
 \note{
 Since data for \code{ggaverage()} comes from the model frame, not all
@@ -350,6 +369,10 @@ Since data for \code{ggaverage()} comes from the model frame, not all
   \code{n} to control number of decimals and lines to be printed, and an
   argument \code{x.lab} to print factor-levels instead of numeric values
   if \code{x} is a factor.
+  \cr \cr
+  The support for some models, for example from package \pkg{MCMCglmm}, is
+  rather experimental and may fail for certain models. If you encounter
+  any errors, please file an issue at \url{https://github.com/strengejacke/ggeffects/issues}.
 }
 \examples{
 data(efc)
@@ -476,7 +499,7 @@ ggeffect(fit, terms = "e17age")
 }
 \references{
 \itemize{
-   \item Brooks ME, Kristensen K, Benthem KJ van, Magnusson A, Berg CW, Nielsen A, et al. glmmTMB Balances Speed and Flexibility Among Packages for Zero-inflated Generalized Linear Mixed Modeling. The R Journal. 2017;9: 378–400.
+   \item Brooks ME, Kristensen K, Benthem KJ van, Magnusson A, Berg CW, Nielsen A, et al. glmmTMB Balances Speed and Flexibility Among Packages for Zero-inflated Generalized Linear Mixed Modeling. The R Journal. 2017;9: 378-400.
    \item Johnson PC, O'Hara RB. 2014. Extension of Nakagawa & Schielzeth's R2GLMM to random slopes models. Methods Ecol Evol, 5: 944-946. (\doi{10.1111/2041-210X.12225})
  }
 }

@@ -56,6 +56,9 @@
 #' @param show.title Logical, shows or hides the plot title-
 #' @param show.x.title Logical, shows or hides the plot title for the x-axis.
 #' @param show.y.title Logical, shows or hides the plot title for the y-axis.
+#' @param connect.lines Logical, if \code{TRUE} and plot has point-geoms with
+#'   error bars (this is usually the case when the x-axis is discrete), points
+#'   of same groups will be connected with a line.
 #' @param base_size Base font size.
 #' @param base_family Base font family.
 #' @param ... Further arguments passed down to \code{ggplot::scale_y*()}, to
@@ -137,9 +140,8 @@
 #' plot(dat)
 #'
 #'
-#' @importFrom ggplot2 ggplot aes_string geom_smooth facet_wrap labs guides geom_point geom_ribbon geom_errorbar scale_x_continuous position_dodge theme_minimal position_jitter scale_color_manual scale_fill_manual geom_line geom_jitter scale_y_continuous element_text theme element_line element_rect scale_y_log10
 #' @importFrom stats binomial poisson gaussian Gamma inverse.gaussian quasi quasibinomial quasipoisson
-#' @importFrom sjmisc empty_cols zap_inf
+#' @importFrom sjmisc empty_cols zap_inf is_num_fac
 #' @importFrom sjlabelled as_numeric
 #' @importFrom scales percent
 #' @importFrom dplyr n_distinct
@@ -151,7 +153,7 @@ plot.ggeffects <- function(x,
                            rawdata = FALSE,
                            colors = "Set1",
                            alpha = .15,
-                           dodge = .1,
+                           dodge = .25,
                            use.theme = TRUE,
                            dot.alpha = .5,
                            jitter = .2,
@@ -163,8 +165,13 @@ plot.ggeffects <- function(x,
                            show.y.title = TRUE,
                            dot.size = NULL,
                            line.size = NULL,
+                           connect.lines = FALSE,
                            grid,
                            ...) {
+
+  if (!requireNamespace("ggplot2", quietly = FALSE)) {
+    stop("Package `ggplot2` needed to produce marginal effects plots. Please install it by typing `install.packages(\"ggplot2\", dependencies = TRUE)` into the console.", call. = FALSE)
+  }
 
   # set some defaults
 
@@ -178,7 +185,7 @@ plot.ggeffects <- function(x,
   y.breaks <- NULL
   y.limits <- NULL
 
-  if (is.null(dot.size)) dot.size <- 2.5
+  if (is.null(dot.size)) dot.size <- 2
   if (is.null(line.size)) line.size <- .7
 
   if (!missing(grid)) facets <- grid
@@ -205,8 +212,16 @@ plot.ggeffects <- function(x,
   has_groups <- obj_has_name(x, "group") && length(unique(x$group)) > 1
   has_facets <- obj_has_name(x, "facet") && length(unique(x$facet)) > 1
 
+  # is x a factor?
+  xif <- attr(x, "x.is.factor", exact = TRUE)
+  x_is_factor <- !is.null(xif) && xif == "1"
+
   # convert x back to numeric
-  if (!is.numeric(x$x)) x$x <- sjlabelled::as_numeric(x$x)
+  if (!is.numeric(x$x)) {
+    if (x_is_factor && sjmisc::is_num_fac(x$x))
+      levels(x$x) <- seq_len(nlevels(x$x))
+    x$x <- sjlabelled::as_numeric(x$x)
+  }
 
   # special solution for polr
   facet_polr <- FALSE
@@ -214,6 +229,9 @@ plot.ggeffects <- function(x,
     has_facets <- TRUE
     facet_polr <- TRUE
   }
+
+  # remember if we have a b/w plot
+  is_black_white <- colors[1] == "bw"
 
   # do we have full data (average effects), or expanded grid?
   has_full_data <- attr(x, "full.data", exact = TRUE) == "1"
@@ -230,15 +248,9 @@ plot.ggeffects <- function(x,
   else if (missing(facets) || is.null(facets))
     facets <- has_facets
 
-
   # facets, but only groups? here the user wants to
   # plot facets for the grouping variable
   facets_grp <- facets && !has_facets
-
-  # is x a factor?
-  xif <- attr(x, "x.is.factor", exact = TRUE)
-  x_is_factor <- !is.null(xif) && xif == "1"
-
 
   # set CI to false if we don't have SE and CI, or if we have full data
   if ("conf.low" %in% names(sjmisc::empty_cols(x)) ||
@@ -247,9 +259,9 @@ plot.ggeffects <- function(x,
 
 
   # base plot, set mappings
-  if (has_groups && !facets_grp && colors[1] == "bw" && x_is_factor)
+  if (has_groups && !facets_grp && is_black_white && x_is_factor)
     p <- ggplot2::ggplot(x, ggplot2::aes_string(x = "x", y = "predicted", colour = "group", fill = "group", shape = "group"))
-  else if (has_groups && !facets_grp && colors[1] == "bw" && !x_is_factor)
+  else if (has_groups && !facets_grp && is_black_white && !x_is_factor)
     p <- ggplot2::ggplot(x, ggplot2::aes_string(x = "x", y = "predicted", colour = "group", fill = "group", linetype = "group"))
   else if (has_groups && !facets_grp && colors[1] == "gs" && x_is_factor)
     p <- ggplot2::ggplot(x, ggplot2::aes_string(x = "x", y = "predicted", colour = "group", fill = "group", shape = "group"))
@@ -292,6 +304,14 @@ plot.ggeffects <- function(x,
   } else {
     # classical line
     p <- p + ggplot2::geom_line(size = line.size)
+  }
+
+  # connect dots with lines...
+  if (x_is_factor && connect.lines) {
+    p <- p + ggplot2::geom_line(
+      size = line.size,
+      position = ggplot2::position_dodge(width = dodge)
+    )
   }
 
 
@@ -462,6 +482,12 @@ plot.ggeffects <- function(x,
 
   # no legend for fill-aes
   p <- p + ggplot2::guides(fill = "none")
+
+  if (is_black_white) {
+    p <- p +
+      ggplot2::guides(colour = "none") +
+      ggplot2::labs(colour = NULL)
+  }
 
 
   # show or hide legend?

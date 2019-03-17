@@ -1,5 +1,4 @@
-#' @importFrom sjstats pred_vars typical_value var_names resp_var re_grp_var
-#' @importFrom sjmisc to_factor is_empty to_character
+#' @importFrom sjmisc to_factor typical_value is_empty to_character
 #' @importFrom stats terms median
 #' @importFrom purrr map map_lgl map_df modify_if compact
 #' @importFrom sjlabelled as_numeric
@@ -7,7 +6,12 @@
 # need to be false for computing std.error for merMod objects
 get_expanded_data <- function(model, mf, terms, typ.fun, fac.typical = TRUE, pretty.message = TRUE, condition = NULL, emmeans.only = FALSE) {
   # special handling for coxph
-  if (inherits(model, "coxph")) mf <- dplyr::select(mf, -1)
+  if (inherits(model, c("coxph", "coxme"))) {
+    surv.var <- which(colnames(mf) == insight::find_response(model))
+    mf <- dplyr::select(mf, !! -surv.var)
+  }
+
+  fam.info <- get_model_info(model)
 
   # make sure we don't have arrays as variables
   mf <- purrr::modify_if(mf, is.array, as.data.frame)
@@ -17,16 +21,12 @@ get_expanded_data <- function(model, mf, terms, typ.fun, fac.typical = TRUE, pre
     stop("Variables of type 'logical' do not work, please coerce to factor and fit the model again.", call. = FALSE)
   }
 
-  # # make sure we don't have arrays as variables
-  # mf[, 2:ncol(mf)] <- purrr::modify_if(mf[, 2:ncol(mf)], is.array, as.vector)
-  # mf <- as.data.frame(mf)
-
   # any weights?
   w <- get_model_weights(model)
   if (all(w == 1)) w <- NULL
 
   # clean variable names
-  colnames(mf) <- sjstats::var_names(colnames(mf))
+  colnames(mf) <- insight::clean_names(colnames(mf))
 
   # get specific levels
   first <- get_xlevels_vector(terms, mf)
@@ -41,12 +41,12 @@ get_expanded_data <- function(model, mf, terms, typ.fun, fac.typical = TRUE, pre
   tryCatch(
     {
       if (!inherits(model, "brmsfit") && pretty.message) {
-        log.terms <- grepl("^log\\(([^,)]*).*", x = attr(stats::terms(model), "term.labels", exact = TRUE))
-        if (any(log.terms)) {
-          clean.term <- sjstats::pred_vars(model)[which(log.terms)]
+        if (.has_log(model)) {
+          clean.term <- insight::find_predictors(model, effects = "all", component = "all", flatten = FALSE)
+          clean.term <- unlist(clean.term[c("conditional", "random", "instruments")])[.get_log_terms(model)]
           exp.term <- string_ends_with(pattern = "[exp]", x = terms)
 
-          if (sjmisc::is_empty(exp.term) || get_clear_vars(terms)[exp.term] != clean.term) {
+          if (any(sjmisc::is_empty(exp.term)) || any(get_clear_vars(terms)[exp.term] != clean.term)) {
             message(sprintf("Model has log-transformed predictors. Consider using `terms=\"%s [exp]\"` to back-transform scale.", clean.term[1]))
           }
         }
@@ -66,20 +66,20 @@ get_expanded_data <- function(model, mf, terms, typ.fun, fac.typical = TRUE, pre
   # variables are "prettified" to a smaller set of unique values.
 
   use.all <- FALSE
-  if (has_splines(model) && !uses_all_tag(terms)) {
+  if (.has_splines(model) && !.uses_all_tag(terms)) {
     if (inherits(model, c("Gam", "gam", "vgam", "glm", "lm")))
       use.all <- TRUE
     else if (pretty.message) {
-      message(sprintf("Model contains splines or polynomial terms. Consider using `terms=\"%s [all]\"` to if you want smooth plots. See also package-vignette 'Marginal Effects at Specific Values'.", rest[1]))
+      message(sprintf("Model contains splines or polynomial terms. Consider using `terms=\"%s [all]\"` to get smooth plots. See also package-vignette 'Marginal Effects at Specific Values'.", rest[1]))
       pretty.message <- FALSE
     }
   }
 
-  if (has_poly(model) && !uses_all_tag(terms) && !use.all) {
+  if (.has_poly(model) && !.uses_all_tag(terms) && !use.all) {
     if (inherits(model, c("Gam", "gam", "vgam", "glm", "lm")))
       use.all <- TRUE
     else if (pretty.message) {
-      message(sprintf("Model contains polynomial or cubic / quadratic terms. Consider using `terms=\"%s [all]\"` to if you want smooth plots. See also package-vignette 'Marginal Effects at Specific Values'.", rest[1]))
+      message(sprintf("Model contains polynomial or cubic / quadratic terms. Consider using `terms=\"%s [all]\"` to get smooth plots. See also package-vignette 'Marginal Effects at Specific Values'.", rest[1]))
       pretty.message <- FALSE
     }
   }
@@ -94,33 +94,7 @@ get_expanded_data <- function(model, mf, terms, typ.fun, fac.typical = TRUE, pre
   first <- c(first, xl)
 
   # get names of all predictor variable
-  alle <- sjstats::pred_vars(model)
-
-  # add dispersion and zero-inflation terms
-  if (inherits(model, "glmmTMB")) {
-    disp <- get_dispersion_terms(model)
-    if (!is.null(disp))
-      alle <- unique(c(alle, disp))
-
-    zi <- get_zi_terms(model)
-    if (!is.null(zi))
-      alle <- unique(c(alle, zi))
-  }
-
-  # remove response, if necessary
-  resp <- tryCatch(
-    {
-      sjstats::resp_var(model)
-    },
-    error = function(x) { NULL },
-    warning = function(x) { NULL },
-    finally = function(x) { NULL }
-  )
-
-  if (!is.null(resp) && resp %in% alle) {
-    alle <- alle[-which(alle == resp)]
-  }
-
+  alle <- insight::find_predictors(model, effects = "all", component = "all", flatten = TRUE)
 
   # get count of terms, and number of columns
   term.cnt <- length(alle)
@@ -133,6 +107,8 @@ get_expanded_data <- function(model, mf, terms, typ.fun, fac.typical = TRUE, pre
     first <- purrr::map(first, ~ as.vector(stats::na.omit(.x)))
   }
 
+
+  ## TODO check
 
   # names of predictor variables may vary, e.g. if log(x)
   # or poly(x) etc. is used. so check if we have correct
@@ -184,14 +160,19 @@ get_expanded_data <- function(model, mf, terms, typ.fun, fac.typical = TRUE, pre
       lapply(alle, function(.x) {
         x <- mf[[.x]]
         if (!is.factor(x))
-          sjstats::typical_value(x, fun = typ.fun, weights = w)
+          sjmisc::typical_value(x, fun = typ.fun, weights = w)
       })
     names(const.values) <- alle
     const.values <- purrr::compact(const.values)
   } else if (fac.typical) {
-    const.values <- lapply(mf[, alle, drop = FALSE], function(x) sjstats::typical_value(x, fun = typ.fun, weights = w))
+    const.values <- lapply(
+      mf[, alle, drop = FALSE],
+      function(x) {
+        if (is.factor(x)) x <- droplevels(x)
+        sjmisc::typical_value(x, fun = typ.fun, weights = w)
+      })
   } else {
-    re.grp <- sjstats::re_grp_var(model)
+    re.grp <- insight::find_random(model, split_nested = TRUE, flatten = TRUE)
     # if factors should not be held constant (needed when computing
     # std.error for merMod objects), we need all factor levels,
     # and not just the typical value
@@ -201,10 +182,12 @@ get_expanded_data <- function(model, mf, terms, typ.fun, fac.typical = TRUE, pre
         is.re.grp <- !is.null(re.grp) && .x %in% re.grp
         x <- mf[[.x]]
         # only get levels if not random effect
-        if (is.factor(x) && !is.re.grp)
+        if (is.factor(x) && !is.re.grp) {
           levels(droplevels(x))
-        else
-          sjstats::typical_value(x, fun = typ.fun, weights = w)
+        } else {
+          if (is.factor(x)) x <- droplevels(x)
+          sjmisc::typical_value(x, fun = typ.fun, weights = w)
+        }
       })
     names(const.values) <- alle
   }
@@ -212,13 +195,12 @@ get_expanded_data <- function(model, mf, terms, typ.fun, fac.typical = TRUE, pre
   # for brms-models with additional response information, we need
   # also the number of trials to calculate predictions
 
-  fam.info <- sjstats::model_family(model)
   n.trials <- NULL
 
   if (!is.null(fam.info) && fam.info$is_trial && inherits(model, "brmsfit")) {
     tryCatch(
       {
-        rv <- sjstats::resp_var(model, combine = FALSE)
+        rv <- insight::find_response(model, combine = FALSE)
         n.trials <- as.integer(stats::median(mf[[rv[2]]]))
         if (!sjmisc::is_empty(n.trials)) {
           const.values <- c(const.values, list(n.trials))
@@ -229,6 +211,11 @@ get_expanded_data <- function(model, mf, terms, typ.fun, fac.typical = TRUE, pre
     )
   }
 
+  # for MixMod, we need mean value of response as well...
+  if (inherits(model, c("MixMod", "MCMCglmm"))) {
+    const.values <- c(const.values, sjmisc::typical_value(insight::get_response(model)))
+    names(const.values)[length(const.values)] <- insight::find_response(model, combine = FALSE)
+  }
 
   # add constant values.
   first <- c(first, const.values)
@@ -237,6 +224,14 @@ get_expanded_data <- function(model, mf, terms, typ.fun, fac.typical = TRUE, pre
   # stop here for emmeans-objects
 
   if (isTRUE(emmeans.only)) {
+
+    # remove grouping factor of RE from constant values
+    # only applicable for MixMod objects
+    re.terms <- insight::find_random(model, split_nested = TRUE, flatten = TRUE)
+
+    if (inherits(model, "MixMod") && !is.null(re.terms) && !sjmisc::is_empty(const.values) && any(re.terms %in% names(const.values))) {
+      const.values <- const.values[!(names(const.values) %in% re.terms)]
+    }
 
     # save names
     fn <- names(first)
@@ -301,9 +296,9 @@ get_expanded_data <- function(model, mf, terms, typ.fun, fac.typical = TRUE, pre
   # which will return predictions on a population level.
   # See ?glmmTMB::predict
 
-  if (inherits(model, c("glmmTMB", "merMod", "brmsfit"))) {
+  if (inherits(model, c("glmmTMB", "merMod", "MixMod", "brmsfit"))) {
     cleaned.terms <- get_clear_vars(terms)
-    re.terms <- sjstats::re_grp_var(model)
+    re.terms <- insight::find_random(model, split_nested = TRUE, flatten = TRUE)
     re.terms <- re.terms[!(re.terms %in% cleaned.terms)]
 
     if (!sjmisc::is_empty(re.terms) && !sjmisc::is_empty(const.values)) {
@@ -311,7 +306,7 @@ get_expanded_data <- function(model, mf, terms, typ.fun, fac.typical = TRUE, pre
       # need to check if predictions are conditioned on specific
       # value if random effect
 
-      if (inherits(model, c("glmmTMB", "brmsfit"))) {
+      if (inherits(model, c("glmmTMB", "brmsfit", "MixMod"))) {
         for (i in re.terms) {
           if (i %in% names(const.values)) {
             datlist[[i]] <- NA
@@ -340,7 +335,7 @@ get_expanded_data <- function(model, mf, terms, typ.fun, fac.typical = TRUE, pre
 
 #' @importFrom sjmisc is_empty
 #' @importFrom dplyr slice
-#' @importFrom sjstats var_names
+#' @importFrom insight clean_names
 get_sliced_data <- function(fitfram, terms) {
   # check if we have specific levels in square brackets
   x.levels <- get_xlevels_vector(terms)
@@ -357,22 +352,7 @@ get_sliced_data <- function(fitfram, terms) {
   }
 
   # clean variable names
-  colnames(fitfram) <- sjstats::var_names(colnames(fitfram))
+  colnames(fitfram) <- insight::clean_names(colnames(fitfram))
 
   fitfram
-}
-
-
-get_dispersion_terms <- function(x) {
-  tryCatch(
-    {all.vars(x$modelInfo$allForm$dispformula[[2L]])},
-    error = function(x) { NULL}
-  )
-}
-
-get_zi_terms <- function(x) {
-  tryCatch(
-    {all.vars(x$modelInfo$allForm$ziformula[[2L]])},
-    error = function(x) { NULL}
-  )
 }

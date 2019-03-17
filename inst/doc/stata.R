@@ -89,7 +89,7 @@ prdat <-
     se.fit = TRUE
   )
 
-linv <- sjstats::link_inverse(m)
+linv <- insight::link_inverse(m)
 
 # more precise approach, matches the output from ggpredict()
 pr <- as.vector(prdat)

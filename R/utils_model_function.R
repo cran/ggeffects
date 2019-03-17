@@ -9,6 +9,8 @@ get_model_function <- function(model) {
     inherits(model, "svyglm") ~ "glm",
     inherits(model, "clmm") ~ "glm",
     inherits(model, "glmmTMB") ~ "glm",
+    inherits(model, "MCMCglmm") ~ "glm",
+    inherits(model, "MixMod") ~ "glm",
     inherits(model, "negbin") ~ "glm",
     inherits(model, "gam") ~ "glm",
     inherits(model, "Gam") ~ "glm",
@@ -17,6 +19,7 @@ get_model_function <- function(model) {
     inherits(model, "vglm") ~ "glm",
     inherits(model, c("logistf", "glm")) ~ "glm",
     inherits(model, "gls") ~ "lm",
+    inherits(model, "ivreg") ~ "lm",
     inherits(model, "gee") ~ "lm",
     inherits(model, "plm") ~ "lm",
     inherits(model, "lm") ~ "lm",
@@ -47,11 +50,13 @@ get_predict_function <- function(model) {
     inherits(model, "brmsfit") ~ "brmsfit",
     inherits(model, "gam") ~ "gam",
     inherits(model, "Gam") ~ "Gam",
+    inherits(model, "MCMCglmm") ~ "MCMCglmm",
     inherits(model, "glmerMod") ~ "glmer",
     inherits(model, "glmmTMB") ~ "glmmTMB",
     inherits(model, "nlmerMod") ~ "nlmer",
     inherits(model, c("lmerMod", "merModLmerTest")) ~ "lmer",
     inherits(model, "lme") ~ "lme",
+    inherits(model, "ivreg") ~ "ivreg",
     inherits(model, "gls") ~ "gls",
     inherits(model, "clmm") ~ "clmm",
     inherits(model, "clm") ~ "clm",
@@ -75,6 +80,7 @@ get_predict_function <- function(model) {
     inherits(model, "zerotrunc") ~ "zerotrunc",
     inherits(model, "zeroinfl") ~ "zeroinfl",
     inherits(model, "hurdle") ~ "hurdle",
+    inherits(model, "MixMod") ~ "MixMod",
     TRUE ~ "generic"
   )
 }

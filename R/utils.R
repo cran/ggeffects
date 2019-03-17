@@ -3,6 +3,7 @@
 magrittr::`%>%`
 
 
+#' @keywords internal
 data_frame <- function(...) {
   x <- data.frame(..., stringsAsFactors = FALSE)
   rownames(x) <- NULL
@@ -11,6 +12,7 @@ data_frame <- function(...) {
 
 
 # get color palette
+#' @keywords internal
 #' @importFrom scales brewer_pal grey_pal
 get_colors <- function(geom.colors, collen) {
   # check for corrct color argument
@@ -47,6 +49,7 @@ get_colors <- function(geom.colors, collen) {
 
 # check whether a color value is indicating
 # a color brewer palette
+#' @keywords internal
 is.brewer.pal <- function(pal) {
   bp.seq <- c("BuGn", "BuPu", "GnBu", "OrRd", "PuBu", "PuBuGn", "PuRd", "RdPu",
               "YlGn", "YlGnBu", "YlOrBr", "YlOrRd", "Blues", "Greens", "Greys",
@@ -64,8 +67,7 @@ is.brewer.pal <- function(pal) {
 }
 
 
-#' @importFrom crayon red
-#' @importFrom sjstats pred_vars
+#' @keywords internal
 check_vars <- function(terms, model) {
   if (missing(terms) || is.null(terms)) {
     stop("`terms` needs to be a character vector with at least one predictor names: one term used for the x-axis, more optional terms as grouping factors.", call. = F)
@@ -80,11 +82,11 @@ check_vars <- function(terms, model) {
   if (!is.null(model)) {
     tryCatch(
       {
-        pv <- sjstats::pred_vars(model, fe.only = FALSE)
+        pv <- insight::find_predictors(model, effects = "all", component = "all", flatten = TRUE)
         clean.terms <- get_clear_vars(terms)
         for (i in clean.terms) {
           if (!(i %in% pv)) {
-            cat(crayon::red(sprintf("`%s` was not found in model terms. Maybe misspelled?\n", i)))
+            cat(.colour("red", sprintf("`%s` was not found in model terms. Maybe misspelled?\n", i)))
           }
 
         }
@@ -97,29 +99,27 @@ check_vars <- function(terms, model) {
 }
 
 
-#' @importFrom sjstats resp_val resp_var
 #' @importFrom dplyr filter
 #' @importFrom stats complete.cases
 #' @importFrom sjlabelled as_label as_numeric
 get_raw_data <- function(model, mf, terms) {
   # for matrix variables, don't return raw data
-  if (any(purrr::map_lgl(mf, is.matrix)))
+  if (any(purrr::map_lgl(mf, is.matrix)) && !inherits(model, c("coxph", "coxme")))
     return(NULL)
 
   # remove missings from model frame
   mf <- dplyr::filter(mf, stats::complete.cases(mf))
 
-  if (!all(sjstats::resp_var(model) %in% colnames(mf)))
+  if (!all(insight::find_response(model, combine = FALSE) %in% colnames(mf)))
     return(NULL)
 
   # get response and x-value
-  response <- sjstats::resp_val(model)
+  response <- insight::get_response(model)
   x <- sjlabelled::as_numeric(mf[[terms[1]]])
 
   # for cox-models, modify response
   if (inherits(model, "coxph")) {
-    lr <- length(response)
-    response <- response[((lr / 2) + 1):lr]
+    response <- response[[2]]
   }
 
   # add optional grouping variable
@@ -161,7 +161,7 @@ prettify_data <- function(xl.remain, fitfram, terms, use.all = FALSE) {
       else
         pretty_range(pr)
     } else if (is.factor(pr))
-      levels(pr)
+      levels(droplevels(pr))
     else
       stats::na.omit(unique(pr))
   })
@@ -170,13 +170,12 @@ prettify_data <- function(xl.remain, fitfram, terms, use.all = FALSE) {
 
 ## Compute variance associated with a random-effects term
 ## (Johnson 2014)
-#' @importFrom sjstats re_var
+#' @keywords internal
 getVarRand <- function(x) {
   tryCatch(
     {
-      if (inherits(x, c("merMod", "lmerMod", "glmerMod", "glmmTMB"))) {
-        rv <- suppressMessages(suppressWarnings(sjstats::re_var(x, adjusted = TRUE)))
-        re.var <- rv$var.ranef
+      if (inherits(x, c("merMod", "lmerMod", "glmerMod", "glmmTMB", "stanreg"))) {
+        re.var <- .get_ranef_variance(x)
       } else if (inherits(x, c("lme", "nlme"))) {
         re.var <- x$sigma^2
       }
@@ -187,14 +186,9 @@ getVarRand <- function(x) {
 }
 
 
-has_splines <- function(model) {
-  form <- tryCatch(
-    {
-      deparse(stats::formula(model))
-    },
-    error = function(x) { NULL }
-  )
-
+#' @keywords internal
+.has_splines <- function(model) {
+  form <- .get_pasted_formula(model)
   if (is.null(form)) return(FALSE)
 
   any(
@@ -205,21 +199,48 @@ has_splines <- function(model) {
 }
 
 
-has_poly <- function(model) {
-  form <- tryCatch(
-    {
-      deparse(stats::formula(model))
-    },
-    error = function(x) { NULL }
-  )
-
+#' @keywords internal
+.has_poly <- function(model) {
+  form <- .get_pasted_formula(model)
   if (is.null(form)) return(FALSE)
-
   any(grepl("I\\(.*?\\^.*?\\)", form) | grepl("poly\\(([^,)]*)", form))
 }
 
 
-uses_all_tag <- function(terms) {
+#' @keywords internal
+.has_log <- function(model) {
+  any(.get_log_terms(model))
+}
+
+
+#' @keywords internal
+.get_log_terms <- function(model) {
+  form <- .get_pasted_formula(model)
+  if (is.null(form)) return(FALSE)
+  grepl("log\\(([^,)]*).*", form)
+}
+
+
+#' @importFrom insight find_variables
+#' @keywords internal
+.get_pasted_formula <- function(model) {
+  tryCatch(
+    {
+      unlist(compact_list(insight::find_variables(model)[c("conditional", "random", "instruments")]))
+    },
+    error = function(x) { NULL }
+  )
+}
+
+
+#' @keywords internal
+.has_poly_term <- function(x) {
+  any(grepl("poly\\(([^,)]*)", x))
+}
+
+
+#' @keywords internal
+.uses_all_tag <- function(terms) {
   tags <- unlist(regmatches(
     terms,
     gregexpr(
@@ -233,6 +254,7 @@ uses_all_tag <- function(terms) {
 }
 
 
+#' @keywords internal
 frac_length <- function(x) {
   if (is.numeric(x)) {
     max(nchar(gsub(pattern = "(.\\.)(.*)", "\\2", sprintf("%f", abs(x) %% 1))))
@@ -244,3 +266,52 @@ frac_length <- function(x) {
 is.whole <- function(x) {
   (is.numeric(x) && all(floor(x) == x, na.rm = T)) || is.character(x) || is.factor(x)
 }
+
+
+#' @keywords internal
+.get_poly_term <- function(x) {
+  p <- "(.*)poly\\(([^,]*)[^)]*\\)(.*)"
+  sub(p, "\\2", x)
+}
+
+
+#' @keywords internal
+.get_poly_degree <- function(x) {
+  p <- "(.*)poly\\(([^,]*)([^)])*\\)(.*)"
+  tryCatch(
+    {
+      as.numeric(sub(p, "\\3", x))
+    },
+    error = function(x) { 1 }
+  )
+}
+
+
+#' @importFrom stats formula
+is_brms_trial <- function(model) {
+  is.trial <- FALSE
+
+  if (inherits(model, "brmsfit") && is.null(stats::formula(model)$responses)) {
+    is.trial <- tryCatch({
+      rv <- deparse(stats::formula(model)$formula[[2L]], width.cutoff = 500L)
+      sjmisc::trim(sub("(.*)\\|(.*)\\(([^,)]*).*", "\\2", rv)) %in% c("trials", "resp_trials")
+    },
+    error = function(x) {
+      FALSE
+    }
+    )
+  }
+
+  is.trial
+}
+
+
+get_model_info <- function(model) {
+  faminfo <- insight::model_info(model)
+  if (insight::is_multivariate(model)) faminfo <- faminfo[[1]]
+  faminfo$is_brms_trial <- is_brms_trial(model)
+  faminfo
+}
+
+
+compact_list <- function(x) x[!sapply(x, function(i) length(i) == 0 || is.null(i) || any(i == "NULL"))]
