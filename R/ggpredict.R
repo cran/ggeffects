@@ -39,10 +39,11 @@
 #'   \describe{
 #'     \item{\code{"fe"}}{
 #'     Predicted values are conditioned on the fixed effects or conditional
-#'     model only (for mixed models: predicted values are on the population-level).
-#'     For instance, for models fitted with \code{zeroinfl} from \pkg{pscl},
-#'     this would return the predicted mean from the count component (without
-#'     zero-inflation). For models with zero-inflation component, this type calls
+#'     model only (for mixed models: predicted values are on the population-level
+#'     and _confidence intervals_ are returned). For instance, for models
+#'     fitted with \code{zeroinfl} from \pkg{pscl}, this would return the
+#'     predicted mean from the count component (without zero-inflation).
+#'     For models with zero-inflation component, this type calls
 #'     \code{predict(..., type = "link")} (however, predicted values are
 #'     back-transformed to the response scale).
 #'     }
@@ -50,9 +51,10 @@
 #'     This only applies to mixed models, and \code{type = "re"} does not
 #'     condition on the zero-inflation component of the model. \code{type = "re"}
 #'     still returns population-level predictions, however, unlike \code{type = "fe"},
-#'     prediction intervals also consider the uncertainty in the variance parameters
-#'     (the mean random effect variance, see \cite{Johnson et al. 2014} for details).
-#'     For models with zero-inflation component, this type calls
+#'     intervals also consider the uncertainty in the variance parameters (the
+#'     mean random effect variance, see \cite{Johnson et al. 2014} for details)
+#'     and hence can be considered as _prediction intervals_. For models
+#'     with zero-inflation component, this type calls
 #'     \code{predict(..., type = "link")} (however, predicted values are
 #'     back-transformed to the response scale).
 #'     \cr \cr
@@ -125,6 +127,12 @@
 #'   to hold these covariates constant, \code{condition} can be used to define
 #'   exact values, for instance \code{condition = c(covariate1 = 20, covariate2 = 5)}.
 #'   See 'Examples'.
+#' @param interval Type of interval calculation. Can be abbreviated. Unlike
+#'   \emph{confidence intervals}, \emph{prediction intervals} include the
+#'   residual variance (sigma^2). This argument is ignored for mixed models,
+#'   as \code{interval = "prediction"} is equivalent to \code{type = "re"}
+#'   (and \code{interval = "confidence"} is equivalent to \code{type = "fe"}).
+#'   Note that not all prediction intervals are not available for all models.
 #' @param vcov.fun String, indicating the name of the \code{vcov*()}-function
 #'    from the \pkg{sandwich}-package, e.g. \code{vcov.fun = "vcovCL"},
 #'    which is used to compute robust standard errors for predictions.
@@ -148,15 +156,17 @@
 #'   \strong{Supported Models}
 #'   \cr \cr
 #'   Currently supported model-objects are (in alphabetical order):
-#'   \code{betareg}, \code{brglm}, \code{brmsfit}, \code{clm}, \code{clm2}, \code{clmm},
-#'   \code{coxph}, \code{gam} (package \pkg{mgcv}), \code{Gam} (package \pkg{gam}),
-#'   \code{gamm}, \code{gamm4}, \code{gee}, \code{glm}, \code{glm.nb}, \code{glmer},
-#'   \code{glmer.nb}, \code{glmmTMB}, \code{glmmPQL}, \code{glmRob}, \code{gls},
-#'   \code{hurdle}, \code{ivreg}, \code{lm}, \code{lm_robust}, \code{lme},
-#'   \code{lmer}, \code{lmRob}, \code{lrm}, \code{MixMod}, \code{MCMCglmm},
-#'   \code{multinom}, \code{nlmer}, \code{plm}, \code{polr}, \code{rlm},
-#'   \code{stanreg}, \code{svyglm}, \code{svyglm.nb}, \code{truncreg},
-#'   \code{vgam}, \code{zeroinfl} and \code{zerotrunc}.
+#'   \code{betareg}, \code{bglmer}, \code{blmer}, \code{brglm}, \code{brmsfit},
+#'   \code{clm}, \code{clm2}, \code{clmm}, \code{coxph}, \code{gam} (package \pkg{mgcv}),
+#'   \code{Gam} (package \pkg{gam}), \code{gamlss}, \code{gamm}, \code{gamm4},
+#'   \code{gee}, \code{geeglm}, \code{glm}, \code{glm.nb}, \code{glmer},
+#'   \code{glmer.nb}, \code{glmmTMB}, \code{glmmPQL}, \code{glmrob}, \code{glmRob},
+#'   \code{gls}, \code{hurdle}, \code{ivreg}, \code{lm}, \code{lm_robust}, \code{lme},
+#'   \code{lmer}, \code{lmrob}, \code{lmRob}, \code{logistf}, \code{lrm},
+#'   \code{MixMod}, \code{MCMCglmm}, \code{multinom}, \code{nlmer}, \code{ols}, \code{plm},
+#'   \code{polr}, \code{rlm}, \code{rlmer}, \code{rq}, \code{rqss},
+#'   \code{stanreg}, \code{survreg}, \code{svyglm}, \code{svyglm.nb},
+#'   \code{tobit}, \code{truncreg}, \code{vgam}, \code{zeroinfl} and \code{zerotrunc}.
 #'   Other models not listed here are passed to a generic predict-function
 #'   and might work as well, or maybe with \code{ggeffect()} or \code{ggemmeans()},
 #'   which effectively do the same as \code{ggpredict()}. The main difference
@@ -483,10 +493,12 @@ ggpredict <- function(model,
                       vcov.fun = NULL,
                       vcov.type = NULL,
                       vcov.args = NULL,
+                      interval = c("confidence", "prediction"),
                       x.cat,
                       ...) {
   # check arguments
   type <- match.arg(type)
+  interval <- match.arg(interval)
   model.name <- deparse(substitute(model))
 
   if (!missing(x.cat)) x.as.factor <- x.cat
@@ -517,6 +529,7 @@ ggpredict <- function(model,
       vcov.fun = vcov.fun,
       vcov.type = vcov.type,
       vcov.args = vcov.args,
+      interval = interval,
       ...
     ))
     class(res) <- c("ggalleffects", class(res))
@@ -539,6 +552,7 @@ ggpredict <- function(model,
             vcov.fun = vcov.fun,
             vcov.type = vcov.type,
             vcov.args = vcov.args,
+            interval = interval,
             ...
           )
 
@@ -562,6 +576,7 @@ ggpredict <- function(model,
         vcov.fun = vcov.fun,
         vcov.type = vcov.type,
         vcov.args = vcov.args,
+        interval = interval,
         ...
       )
     }
@@ -586,6 +601,7 @@ ggpredict_helper <- function(model,
                              vcov.fun,
                              vcov.type,
                              vcov.args,
+                             interval,
                              ...) {
   # check class of fitted model
   fun <- get_predict_function(model)
@@ -643,6 +659,7 @@ ggpredict_helper <- function(model,
     vcov.type,
     vcov.args,
     condition = condition,
+    interval = interval,
     ...
   )
 
@@ -815,6 +832,7 @@ ggpredict_helper <- function(model,
       model = model, mf = ori.mf, terms = ori.terms, typ.fun = typical,
       condition = condition, pretty.message = FALSE, emmeans.only = TRUE
     ),
-    n.trials = attr(expanded_frame, "n.trials", exact = TRUE)
+    n.trials = attr(expanded_frame, "n.trials", exact = TRUE),
+    prediction.interval = attr(fitfram, "prediction.interval", exact = TRUE)
   )
 }

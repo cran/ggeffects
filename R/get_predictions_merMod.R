@@ -31,14 +31,14 @@ get_predictions_merMod <- function(model, fitfram, ci.lvl, linv, type, terms, ty
   } else {
 
 
-    fitfram$predicted <- stats::predict(
+    fitfram$predicted <- suppressWarnings(stats::predict(
       model,
       newdata = fitfram,
       type = "response",
       re.form = ref,
       allow.new.levels = TRUE,
       ...
-    )
+    ))
 
     if (se) {
       # get standard errors from variance-covariance matrix
@@ -72,7 +72,7 @@ get_predictions_merMod <- function(model, fitfram, ci.lvl, linv, type, terms, ty
 
         # copy standard errors
         attr(fitfram, "std.error") <- se.fit
-
+        attr(fitfram, "prediction.interval") <- attr(se.pred, "prediction_interval")
       } else {
         fitfram$conf.low <- NA
         fitfram$conf.high <- NA

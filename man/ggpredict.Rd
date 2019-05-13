@@ -9,8 +9,10 @@
 \title{Get marginal effects from model terms}
 \usage{
 ggaverage(model, terms, ci.lvl = 0.95, type = c("fe", "re", "fe.zi",
-  "re.zi"), typical = "mean", ppd = FALSE, x.as.factor = FALSE,
-  condition = NULL, ...)
+  "re.zi"), typical = "mean", condition = NULL, ppd = FALSE,
+  x.as.factor = FALSE, vcov.fun = NULL, vcov.type = NULL,
+  vcov.args = NULL, interval = c("confidence", "prediction"), x.cat,
+  ...)
 
 ggeffect(model, terms, ci.lvl = 0.95, x.as.factor = FALSE, ...)
 
@@ -22,7 +24,8 @@ ggpredict(model, terms, ci.lvl = 0.95, type = c("fe", "re", "fe.zi",
   "re.zi", "sim", "surv", "cumhaz", "debug"), typical = "mean",
   condition = NULL, ppd = FALSE, x.as.factor = FALSE,
   full.data = FALSE, vcov.fun = NULL, vcov.type = NULL,
-  vcov.args = NULL, x.cat, ...)
+  vcov.args = NULL, interval = c("confidence", "prediction"), x.cat,
+  ...)
 }
 \arguments{
 \item{model}{A fitted model object, or a list of model objects. Any model
@@ -56,10 +59,11 @@ the zero-inflation part of the model (see 'Details').
 \describe{
   \item{\code{"fe"}}{
   Predicted values are conditioned on the fixed effects or conditional
-  model only (for mixed models: predicted values are on the population-level).
-  For instance, for models fitted with \code{zeroinfl} from \pkg{pscl},
-  this would return the predicted mean from the count component (without
-  zero-inflation). For models with zero-inflation component, this type calls
+  model only (for mixed models: predicted values are on the population-level
+  and _confidence intervals_ are returned). For instance, for models
+  fitted with \code{zeroinfl} from \pkg{pscl}, this would return the
+  predicted mean from the count component (without zero-inflation).
+  For models with zero-inflation component, this type calls
   \code{predict(..., type = "link")} (however, predicted values are
   back-transformed to the response scale).
   }
@@ -67,9 +71,10 @@ the zero-inflation part of the model (see 'Details').
   This only applies to mixed models, and \code{type = "re"} does not
   condition on the zero-inflation component of the model. \code{type = "re"}
   still returns population-level predictions, however, unlike \code{type = "fe"},
-  prediction intervals also consider the uncertainty in the variance parameters
-  (the mean random effect variance, see \cite{Johnson et al. 2014} for details).
-  For models with zero-inflation component, this type calls
+  intervals also consider the uncertainty in the variance parameters (the
+  mean random effect variance, see \cite{Johnson et al. 2014} for details)
+  and hence can be considered as _prediction intervals_. For models
+  with zero-inflation component, this type calls
   \code{predict(..., type = "link")} (however, predicted values are
   back-transformed to the response scale).
   \cr \cr
@@ -115,6 +120,13 @@ the zero-inflation part of the model (see 'Details').
 covariates over which the effect is "averaged". The default is "mean".
 See \code{\link[sjmisc]{typical_value}} for options.}
 
+\item{condition}{Named character vector, which indicates covariates that
+should be held constant at specific values. Unlike \code{typical}, which
+applies a function to the covariates to determine the value that is used
+to hold these covariates constant, \code{condition} can be used to define
+exact values, for instance \code{condition = c(covariate1 = 20, covariate2 = 5)}.
+See 'Examples'.}
+
 \item{ppd}{Logical, if \code{TRUE}, predictions for Stan-models are
 based on the posterior predictive distribution
 (\code{\link[rstantools]{posterior_predict}}). If \code{FALSE} (the
@@ -132,12 +144,27 @@ x-scales, depending on the variable-type. For more details, see
 \href{../doc/marginaleffects.html}{the vignette on package-basics}.
 \code{x.cat} is an alias for \code{x.as.factor}.}
 
-\item{condition}{Named character vector, which indicates covariates that
-should be held constant at specific values. Unlike \code{typical}, which
-applies a function to the covariates to determine the value that is used
-to hold these covariates constant, \code{condition} can be used to define
-exact values, for instance \code{condition = c(covariate1 = 20, covariate2 = 5)}.
-See 'Examples'.}
+\item{vcov.fun}{String, indicating the name of the \code{vcov*()}-function
+from the \pkg{sandwich}-package, e.g. \code{vcov.fun = "vcovCL"},
+which is used to compute robust standard errors for predictions.
+If \code{NULL}, standard errors (and confidence intervals) for predictions
+are based on the standard errors as returned by the \code{predict()}-function.
+\strong{Note} that probably not all model objects that work with \code{ggpredict()}
+are also supported by the \pkg{sandwich}-package.}
+
+\item{vcov.type}{Character vector, specifying the estimation type for the
+robust covariance matrix estimation (see \code{\link[sandwich]{vcovHC}}
+for details).}
+
+\item{vcov.args}{List of named vectors, used as additional arguments that
+are passed down to \code{vcov.fun}.}
+
+\item{interval}{Type of interval calculation. Can be abbreviated. Unlike
+\emph{confidence intervals}, \emph{prediction intervals} include the
+residual variance (sigma^2). This argument is ignored for mixed models,
+as \code{interval = "prediction"} is equivalent to \code{type = "re"}
+(and \code{interval = "confidence"} is equivalent to \code{type = "fe"}).
+Note that not all prediction intervals are not available for all models.}
 
 \item{...}{For \code{ggpredict()}, further arguments passed down to
 \code{predict()}; for \code{ggeffect()}, further arguments passed
@@ -154,21 +181,6 @@ If \code{FALSE} (the default), the returned data frame only contains
 predictions for all combinations of unique values of the model's
 predictors. Residuals and observed values are set to \code{NA}.
 Usually, this argument is only used internally by \code{ggaverage()}.}
-
-\item{vcov.fun}{String, indicating the name of the \code{vcov*()}-function
-from the \pkg{sandwich}-package, e.g. \code{vcov.fun = "vcovCL"},
-which is used to compute robust standard errors for predictions.
-If \code{NULL}, standard errors (and confidence intervals) for predictions
-are based on the standard errors as returned by the \code{predict()}-function.
-\strong{Note} that probably not all model objects that work with \code{ggpredict()}
-are also supported by the \pkg{sandwich}-package.}
-
-\item{vcov.type}{Character vector, specifying the estimation type for the
-robust covariance matrix estimation (see \code{\link[sandwich]{vcovHC}}
-for details).}
-
-\item{vcov.args}{List of named vectors, used as additional arguments that
-are passed down to \code{vcov.fun}.}
 }
 \value{
 A data frame (with \code{ggeffects} class attribute) with consistent
@@ -208,15 +220,17 @@ A data frame (with \code{ggeffects} class attribute) with consistent
 \strong{Supported Models}
   \cr \cr
   Currently supported model-objects are (in alphabetical order):
-  \code{betareg}, \code{brglm}, \code{brmsfit}, \code{clm}, \code{clm2}, \code{clmm},
-  \code{coxph}, \code{gam} (package \pkg{mgcv}), \code{Gam} (package \pkg{gam}),
-  \code{gamm}, \code{gamm4}, \code{gee}, \code{glm}, \code{glm.nb}, \code{glmer},
-  \code{glmer.nb}, \code{glmmTMB}, \code{glmmPQL}, \code{glmRob}, \code{gls},
-  \code{hurdle}, \code{ivreg}, \code{lm}, \code{lm_robust}, \code{lme},
-  \code{lmer}, \code{lmRob}, \code{lrm}, \code{MixMod}, \code{MCMCglmm},
-  \code{multinom}, \code{nlmer}, \code{plm}, \code{polr}, \code{rlm},
-  \code{stanreg}, \code{svyglm}, \code{svyglm.nb}, \code{truncreg},
-  \code{vgam}, \code{zeroinfl} and \code{zerotrunc}.
+  \code{betareg}, \code{bglmer}, \code{blmer}, \code{brglm}, \code{brmsfit},
+  \code{clm}, \code{clm2}, \code{clmm}, \code{coxph}, \code{gam} (package \pkg{mgcv}),
+  \code{Gam} (package \pkg{gam}), \code{gamlss}, \code{gamm}, \code{gamm4},
+  \code{gee}, \code{geeglm}, \code{glm}, \code{glm.nb}, \code{glmer},
+  \code{glmer.nb}, \code{glmmTMB}, \code{glmmPQL}, \code{glmrob}, \code{glmRob},
+  \code{gls}, \code{hurdle}, \code{ivreg}, \code{lm}, \code{lm_robust}, \code{lme},
+  \code{lmer}, \code{lmrob}, \code{lmRob}, \code{logistf}, \code{lrm},
+  \code{MixMod}, \code{MCMCglmm}, \code{multinom}, \code{nlmer}, \code{ols}, \code{plm},
+  \code{polr}, \code{rlm}, \code{rlmer}, \code{rq}, \code{rqss},
+  \code{stanreg}, \code{survreg}, \code{svyglm}, \code{svyglm.nb},
+  \code{tobit}, \code{truncreg}, \code{vgam}, \code{zeroinfl} and \code{zerotrunc}.
   Other models not listed here are passed to a generic predict-function
   and might work as well, or maybe with \code{ggeffect()} or \code{ggemmeans()},
   which effectively do the same as \code{ggpredict()}. The main difference

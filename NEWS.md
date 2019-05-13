@@ -1,3 +1,26 @@
+# ggeffects 0.10.0
+
+## General
+
+* Better support, including confidence intervals, for some of the already supported model types.
+* New package-vignette _Logistic Mixed Effects Model with Interaction Term_.
+
+## New supported models
+
+* `gamlss`, `geeglm` (package **geepack**), `lmrob` and `glmrob` (package **robustbase**), `ols` (package **rms**), `rlmer` (package **robustlmm**), `rq` and `rqss` (package **quantreg**), `tobit` (package **AER**), `survreg` (package **survival**)
+
+## Changes to functions
+
+* The steps for specifying a range of values (e.g. `terms = "predictor [1:10]"`) can now be changed with `by`, e.g. `terms = "predictor [1:10 by=.5]"` (see also vignette _Marginal Effects at Specific Values_).
+* Robust standard errors for predictions (see argument `vcov.fun` in `ggpredict()`) now also works for following model-objects: `coxph`, `plm`, `polr` (and probably also `lme` and `gls`, not tested yet).
+* `ggpredict()` gets an `interval`-argument, to compute prediction intervals instead of confidence intervals.
+* `plot.ggeffects()` now allows different horizontal and vertical jittering for `rawdata` when `jitter` is a numeric vector of length two.
+
+## Bug fixes
+
+* Models with `AsIs`-conversion from division of two variables as dependent variable, e.g. `I(amount/frequency)`, now should work.
+* `ggpredict()` failed for `MixMod`-objects when `ci.lvl=NA`.
+
 # ggeffects 0.9.0
 
 ## General

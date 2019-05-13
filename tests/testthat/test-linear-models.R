@@ -20,8 +20,27 @@ if (suppressWarnings(
     print(x)
   })
 
+  test_that("ggpredict, lm by", {
+    expect_equal(nrow(ggpredict(fit, "c12hour [10:20]")), 11)
+    expect_equal(nrow(ggpredict(fit, "c12hour [10:20 by=.2]")), 51)
+    expect_equal(nrow(ggpredict(fit, "c12hour [10:20 by = .2]")), 51)
+    expect_equal(nrow(ggpredict(fit, "c12hour [10:20by=.2]")), 51)
+  })
+
   test_that("ggpredict, lm-vcov", {
     ggpredict(fit, c("c12hour", "c161sex"), vcov.fun = "vcovHC", vcov.type = "HC1")
+  })
+
+  test_that("ggpredict, lm-prediction-interval", {
+    pr <- ggpredict(fit, c("c12hour", "c161sex"), interval = "predict")
+    expect_equal(pr$conf.low[1], 27.43113, tolerance = 1e-4)
+    pr <- ggpredict(fit, c("c12hour", "c161sex"), interval = "conf")
+    expect_equal(pr$conf.low[1], 71.02894, tolerance = 1e-4)
+    pr <- ggpredict(fit, c("c12hour", "c161sex"), interval = "predict", vcov.fun = "vcovHC", vcov.type = "HC1")
+    expect_equal(pr$conf.low[1], 27.44084, tolerance = 1e-4)
+
+    ggpredict(fit, c("c12hour", "c161sex"), interval = "predict", ci.lvl = NA)
+    ggpredict(fit, c("c12hour", "c161sex"), interval = "conf", ci.lvl = NA)
   })
 
   test_that("ggpredict, lm-noci", {
