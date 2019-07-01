@@ -2,7 +2,7 @@
 #' @importFrom stats confint na.omit
 #' @importFrom dplyr select arrange
 #' @importFrom sjlabelled get_labels as_numeric
-#' @importFrom insight find_response get_data model_info find_variables
+#' @importFrom insight find_response get_data model_info
 #' @rdname ggpredict
 #' @export
 ggemmeans <- function(model,
@@ -11,6 +11,7 @@ ggemmeans <- function(model,
                       type = c("fe", "fe.zi"),
                       typical = "mean",
                       condition = NULL,
+                      back.transform = TRUE,
                       x.as.factor = FALSE,
                       x.cat,
                       ...) {
@@ -87,6 +88,8 @@ ggemmeans <- function(model,
     }
   }
 
+  # return NULL on error
+  if (is.null(fitfram)) return(NULL)
 
   # copy standard errors
   attr(fitfram, "std.error") <- fitfram$std.error
@@ -112,39 +115,30 @@ ggemmeans <- function(model,
   # now select only relevant variables: the predictors on the x-axis,
   # the predictions and the originial response vector (needed for scatter plot)
 
-  cols.to.keep <- stats::na.omit(match(
+  mydf <- fitfram[, stats::na.omit(match(
     c(cleaned.terms, "predicted", "std.error", "conf.low", "conf.high", "response.level"),
     colnames(fitfram)
-  ))
+  ))]
 
-  mydf <- dplyr::select(fitfram, !! cols.to.keep)
+  # name and sort columns, depending on groups, facet and panel
+  mydf <- prepare_columns(mydf, cleaned.terms)
 
-  # with or w/o grouping factor?
-  if (length(cleaned.terms) == 1) {
-    colnames(mydf)[1] <- "x"
-    mydf$group <- sjmisc::to_factor(1)
-  } else {
-    if (length(cleaned.terms) == 2) {
-      colnames(mydf)[1:2] <- c("x", "group")
-    } else {
-      colnames(mydf)[1:3] <- c("x", "group", "facet")
-    }
+  # convert to factor for proper legend
+  mydf <- add_groupvar_labels(mydf, ori.fram, cleaned.terms)
+  mydf <- groupvar_to_label(mydf)
 
-    # convert to factor for proper legend
-    mydf <- add_groupvar_labels(mydf, ori.fram, cleaned.terms)
-    mydf <- groupvar_to_label(mydf)
-
-    # check if we have legend labels
-    legend.labels <- sjlabelled::get_labels(mydf$group)
-  }
+  # check if we have legend labels
+  legend.labels <- sjlabelled::get_labels(mydf$group)
 
   # if we had numeric variable w/o labels, these still might be numeric
   # make sure we have factors here for our grouping and facet variables
   if (is.numeric(mydf$group))
     mydf$group <- sjmisc::to_factor(mydf$group)
 
-  if (obj_has_name(mydf, "facet") && is.numeric(mydf$facet))
+  if (obj_has_name(mydf, "facet") && is.numeric(mydf$facet)) {
     mydf$facet <- sjmisc::to_factor(mydf$facet)
+    attr(mydf, "numeric.facet") <- TRUE
+  }
 
 
   # remember if x is factor and if we had full data
@@ -156,15 +150,12 @@ ggemmeans <- function(model,
 
 
   # sort values
-  mydf <- mydf %>%
-    dplyr::arrange(.data$x, .data$group) %>%
-    sjmisc::remove_empty_cols()
+  # sort values
+  mydf <- sjmisc::remove_empty_cols(mydf[order(mydf$x, mydf$group), ])
 
   # apply link inverse function
   linv <- insight::link_inverse(model)
-  if (!is.null(linv) && (inherits(model, "lrm") ||
-                         pmode == "link" ||
-                         (inherits(model, "MixMod") && type != "fe.zi"))) {
+  if (!is.null(linv) && (inherits(model, "lrm") || pmode == "link" || (inherits(model, "MixMod") && type != "fe.zi"))) {
     mydf$predicted <- linv(mydf$predicted)
     mydf$conf.low <- linv(mydf$conf.low)
     mydf$conf.high <- linv(mydf$conf.high)
@@ -172,24 +163,7 @@ ggemmeans <- function(model,
 
   # check if outcome is log-transformed, and if so,
   # back-transform predicted values to response scale
-
-  rv <- insight::find_variables(model)[["response"]]
-
-  if (any(grepl("log\\((.*)\\)", rv))) {
-
-    # do we have log-log models?
-    if (grepl("log\\(log\\((.*)\\)\\)", rv)) {
-      mydf$predicted <- exp(exp(mydf$predicted))
-      mydf$conf.low <- exp(exp(mydf$conf.low))
-      mydf$conf.high <- exp(exp(mydf$conf.high))
-    } else {
-      mydf$predicted <- exp(mydf$predicted)
-      mydf$conf.low <- exp(mydf$conf.low)
-      mydf$conf.high <- exp(mydf$conf.high)
-    }
-
-    message("Model has log-transformed response. Back-transforming predictions to original response scale. Standard errors are still on the log-scale.")
-  }
+  mydf <- .back_transform_response(model, mydf, back.transform)
 
   attr(mydf, "model.name") <- model.name
 

@@ -2,6 +2,7 @@
 #' @importFrom stats terms median
 #' @importFrom purrr map map_lgl map_df modify_if compact
 #' @importFrom sjlabelled as_numeric
+#' @importFrom insight find_predictors find_response find_random find_weights get_weights
 # fac.typical indicates if factors should be held constant or not
 # need to be false for computing std.error for merMod objects
 get_expanded_data <- function(model, mf, terms, typ.fun, fac.typical = TRUE, pretty.message = TRUE, condition = NULL, emmeans.only = FALSE) {
@@ -22,11 +23,17 @@ get_expanded_data <- function(model, mf, terms, typ.fun, fac.typical = TRUE, pre
   }
 
   # any weights?
-  w <- get_model_weights(model)
-  if (all(w == 1)) w <- NULL
+  w <- insight::get_weights(model)
+  if (is.null(w) || all(w == 1)) w <- NULL
+
+
+  ## TODO check for other panelr models
 
   # clean variable names
-  colnames(mf) <- insight::clean_names(colnames(mf))
+  # if (!inherits(model, "wbm")) {
+    colnames(mf) <- insight::clean_names(colnames(mf))
+  # }
+
 
   # get specific levels
   first <- get_xlevels_vector(terms, mf)
@@ -93,8 +100,20 @@ get_expanded_data <- function(model, mf, terms, typ.fun, fac.typical = TRUE, pre
   names(xl) <- rest[xl.remain]
   first <- c(first, xl)
 
+
+  ## TODO check for other panelr models
+
   # get names of all predictor variable
+  # if (inherits(model, "wbm")) {
+  #   alle <- colnames(mf)
+  # } else {
+  #   alle <- insight::find_predictors(model, effects = "all", component = "all", flatten = TRUE)
+  # }
+
   alle <- insight::find_predictors(model, effects = "all", component = "all", flatten = TRUE)
+  if (inherits(model, "wbm")) {
+    alle <- unique(c(insight::find_response(model), alle, model@call_info$id, model@call_info$wave))
+  }
 
   # get count of terms, and number of columns
   term.cnt <- length(alle)
@@ -118,17 +137,23 @@ get_expanded_data <- function(model, mf, terms, typ.fun, fac.typical = TRUE, pre
 
   ## TODO brms does currently not support "terms()" generic
 
-  if (sum(!(alle %in% colnames(mf))) > 0 && !inherits(model, "brmsfit")) {
-    # get terms from model directly
-    alle <- attr(stats::terms(model), "term.labels", exact = TRUE)
-  }
+  if (!inherits(model, "wbm")) {
 
-  # 2nd check
-  if (is.null(alle) || sum(!(alle %in% colnames(mf))) > 0) {
-    # get terms from model frame column names
-    alle <- colnames(mf)
-    # we may have more terms now, e.g. intercept. remove those now
-    if (length(alle) > term.cnt) alle <- alle[2:(term.cnt + 1)]
+    if (sum(!(alle %in% colnames(mf))) > 0 && !inherits(model, "brmsfit")) {
+      # get terms from model directly
+      alle <- attr(stats::terms(model), "term.labels", exact = TRUE)
+    }
+
+    # 2nd check
+    if (is.null(alle) || sum(!(alle %in% colnames(mf))) > 0) {
+      # get terms from model frame column names
+      alle <- colnames(mf)
+      # we may have more terms now, e.g. intercept. remove those now
+      if (length(alle) > term.cnt) alle <- alle[2:(term.cnt + 1)]
+    }
+
+  } else {
+    alle <- alle[alle %in% colnames(mf)]
   }
 
   # keep those, which we did not process yet
@@ -292,6 +317,10 @@ get_expanded_data <- function(model, mf, terms, typ.fun, fac.typical = TRUE, pre
   names(datlist) <- names(first)
   datlist <- as.data.frame(datlist)
 
+  if (inherits(model, "wbm")) {
+    colnames(datlist) <- names(first)
+  }
+
 
   # check if predictions should be conditioned on random effects,
   # but not on each group level. If so, set random effect to NA
@@ -300,6 +329,14 @@ get_expanded_data <- function(model, mf, terms, typ.fun, fac.typical = TRUE, pre
 
   if (inherits(model, c("glmmTMB", "merMod", "rlmerMod", "MixMod", "brmsfit"))) {
     cleaned.terms <- get_clear_vars(terms)
+
+    # check if we have fixed effects as grouping factor in random effects as well...
+    # if so, remove from random-effects here
+    cleaned.terms <- unique(c(
+      cleaned.terms,
+      insight::find_predictors(model, effects = "fixed", flatten = TRUE)
+    ))
+
     re.terms <- insight::find_random(model, split_nested = TRUE, flatten = TRUE)
     re.terms <- re.terms[!(re.terms %in% cleaned.terms)]
 
@@ -330,6 +367,12 @@ get_expanded_data <- function(model, mf, terms, typ.fun, fac.typical = TRUE, pre
   # save constant values as attribute
   attr(datlist, "constant.values") <- const.values
   attr(datlist, "n.trials") <- n.trials
+
+  w <- insight::find_weights(model)
+  if (!is.null(w)) {
+    datlist$.w <- NA
+    colnames(datlist)[ncol(datlist)] <- w
+  }
 
   datlist
 }

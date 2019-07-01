@@ -1,7 +1,7 @@
 # ggeffects - Create Tidy Data Frames of Marginal Effects for 'ggplot' from Model Outputs <img src="man/figures/logo.png" align="right" />
 
-[![DOI](http://joss.theoj.org/papers/10.21105/joss.00772/status.svg)](https://doi.org/10.21105/joss.00772) &#160;&#160;  [![CRAN_Status_Badge](http://www.r-pkg.org/badges/version/ggeffects)](https://cran.r-project.org/package=ggeffects)
-&#160;&#160; [![Documentation](https://img.shields.io/badge/documentation-ggeffects-orange.svg?colorB=E91E63)](https://strengejacke.github.io/ggeffects/) &#160;&#160; [![Build Status](https://travis-ci.org/strengejacke/ggeffects.svg?branch=master)](https://travis-ci.org/strengejacke/ggeffects) &#160;&#160; [![codecov](https://codecov.io/gh/strengejacke/ggeffects/branch/master/graph/badge.svg)](https://codecov.io/gh/strengejacke/ggeffects)
+[![CRAN_Status_Badge](http://www.r-pkg.org/badges/version/ggeffects)](https://cran.r-project.org/package=ggeffects) &#160;&#160; [![DOI](http://joss.theoj.org/papers/10.21105/joss.00772/status.svg)](https://doi.org/10.21105/joss.00772) &#160;&#160; [![Documentation](https://img.shields.io/badge/documentation-ggeffects-orange.svg?colorB=E91E63)](https://strengejacke.github.io/ggeffects/) &#160;&#160; [![downloads](http://cranlogs.r-pkg.org/badges/ggeffects)](http://cranlogs.r-pkg.org/) &#160;&#160; [![total](http://cranlogs.r-pkg.org/badges/grand-total/ggeffects)](http://cranlogs.r-pkg.org/)
+
 
 ## Why marginal effects?
 
@@ -9,15 +9,15 @@ Results of regression models are typically presented as tables that are easy to 
 
 ## Aim of this package
 
-**ggeffects** computes marginal effects at the mean or average marginal effects from statistical models and returns the result as tidy data frames. These data frames are ready to use with the **ggplot2**-package.
+**ggeffects** computes marginal effects at the mean or at representative values ([see definitions here](https://stats.stackexchange.com/tags/marginal-effect/info)) from statistical models and returns the result as tidy data frames. These data frames are ready to use with the **ggplot2**-package.
 
 ## Documentation and Support
 
-Please visit [https://strengejacke.github.io/ggeffects/](https://strengejacke.github.io/ggeffects/) for documentation and vignettes. In case you want to file an issue or contribute in another way to the package, please follow [this guide](CONTRIBUTING.md). For questions about the functionality, you may either contact me via email or also file an issue.
+Please visit [https://strengejacke.github.io/ggeffects/](https://strengejacke.github.io/ggeffects/) for documentation and vignettes. In case you want to file an issue or contribute in another way to the package, please follow [this guide](https://github.com/strengejacke/ggeffects/blob/master/CONTRIBUTING.md). For questions about the functionality, you may either contact me via email or also file an issue.
 
 ## ggeffects supports many different models and is easy to use
 
-Marginal effects can be calculated for many different models. Currently supported model-objects are: `betareg`, `bglmer`, `blmer`, `brglm`, `brmsfit`, `clm`, `clm2`, `clmm`, `coxph`, `gam` (package **mgcv**), `Gam` (package **gam**), `gamlss`, `gamm`, `gamm4`, `gee`, `geeglm`, `glm`, `glm.nb`, `glmer`, `glmer.nb`, `glmmTMB`, `glmmPQL`, `glmrob`, `glmRob`, `gls`, `hurdle`, `ivreg`, `lm`, `lm_robust`, `lme`, `lmer`, `lmrob`, `lmRob`, `logistf`, `lrm`, `MixMod`, `MCMCglmm`, `multinom`, `nlmer`, `ols`, `plm`, `polr`, `rlm`, `rlmer`, `rq`, `rqss`, `stanreg`, `survreg`, `svyglm`, `svyglm.nb`, `tobit`, `truncreg`, `vgam`, `zeroinfl` and `zerotrunc`. Other models not listed here are passed to a generic predict-function and might work as well, or maybe with `ggeffect()` or `ggemmeans()`, which effectively do the same as `ggpredict()`.
+Marginal effects can be calculated for many different models. Currently supported model-objects are: `betabin`, `betareg`, `bglmer`, `blmer`, `brglm`, `brmsfit`, `clm`, `clm2`, `clmm`, `coxph`, `gam` (package **mgcv**), `Gam` (package **gam**), `gamlss`, `gamm`, `gamm4`, `gee`, `geeglm`, `glm`, `glm.nb`, `glmer`, `glmer.nb`, `glmmTMB`, `glmmPQL`, `glmrob`, `glmRob`, `gls`, `hurdle`, `ivreg`, `lm`, `lm_robust`, `lme`, `lmer`, `lmrob`, `lmRob`, `logistf`, `lrm`, `MixMod`, `MCMCglmm`, `multinom`, `negbin`, `nlmer`, `ols`, `plm`, `polr`, `rlm`, `rlmer`, `rq`, `rqss`, `stanreg`, `survreg`, `svyglm`, `svyglm.nb`, `tobit`, `truncreg`, `vgam`, `wbm`, `zeroinfl` and `zerotrunc`. Other models not listed here are passed to a generic predict-function and might work as well, or maybe with `ggeffect()` or `ggemmeans()`, which effectively do the same as `ggpredict()`.
 
 Interaction terms, splines and polynomial terms are also supported. The main functions are `ggpredict()`, `ggemmeans()` and `ggeffect()`. There is a generic `plot()`-method to plot the results using **ggplot2**.
 
@@ -25,7 +25,7 @@ Interaction terms, splines and polynomial terms are also supported. The main fun
 
 The returned data frames always have the same, consistent structure and column names, so it's easy to create ggplot-plots without the need to re-write the function call. `x` and `predicted` are the values for the x- and y-axis. `conf.low` and `conf.high` could be used as `ymin` and `ymax` aesthetics for ribbons to add confidence bands to the plot. `group` can be used as grouping-aesthetics, or for faceting.
 
-`ggpredict()` requires at least one, but not more than three terms specified in the `terms`-argument. Predicted values of the response, along the values of the first term are calucalted, optionally grouped by the other terms specified in `terms`.
+`ggpredict()` requires at least one, but not more than four terms specified in the `terms`-argument. Predicted values of the response, along the values of the first term are calculated, optionally grouped by the other terms specified in `terms`.
 
 ```
 data(efc)
@@ -152,7 +152,7 @@ There are some more features, which are explained in more detail in the package-
 
 ## Contributing to the package
 
-Please follow [this guide](CONTRIBUTING.md) if you like to contribute to this package.
+Please follow [this guide](https://github.com/strengejacke/ggeffects/blob/master/CONTRIBUTING.md) if you like to contribute to this package.
 
 ## Installation
 
@@ -171,11 +171,6 @@ Please note the package dependencies when installing from GitHub. The GitHub ver
 
 
 ### Officiale, stable release
-
-[![CRAN_Status_Badge](http://www.r-pkg.org/badges/version/ggeffects)](https://cran.r-project.org/package=ggeffects)
-&#160;&#160; [![Documentation](https://img.shields.io/badge/documentation-ggeffects-orange.svg?colorB=E91E63)](https://strengejacke.github.io/ggeffects/) &#160;&#160; [![Build Status](https://travis-ci.org/strengejacke/ggeffects.svg?branch=master)](https://travis-ci.org/strengejacke/ggeffects) &#160;&#160; [![downloads](http://cranlogs.r-pkg.org/badges/ggeffects)](http://cranlogs.r-pkg.org/)
-&#160;&#160;
-[![total](http://cranlogs.r-pkg.org/badges/grand-total/ggeffects)](http://cranlogs.r-pkg.org/)
 
 To install the latest stable release from CRAN, type following command into the R console:
 

@@ -1,10 +1,10 @@
 ---
-title: "Marginal Effects of Regression Models"
+title: "ggeffects: Marginal Effects of Regression Models"
 author: "Daniel Lüdecke"
 date: "`r Sys.Date()`"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{Marginal Effects of Regression Models}
+  %\VignetteIndexEntry{ggeffects: Marginal Effects of Regression Models}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
@@ -18,11 +18,11 @@ options(width = 800)
 
 Results of regression models are typically presented as tables that are easy to understand. For more complex models that include interaction or quadratic / spline terms, tables with numbers are less helpful and difficult to interpret. In such cases, the visualization of _marginal effects_ is far easier to understand and allows to intuitively get the idea of how predictors and outcome are associated, even for complex models. 
 
-The aim of this package is similar to the [broom-package](https://cran.r-project.org/package=broom): transforming "untidy" input into a tidy data frame, especially for further use with [ggplot](https://cran.r-project.org/package=ggplot2). However, **ggeffects** does not return model-summaries; rather, this package computes marginal effects at the mean or average marginal effects from statistical models and returns the result as tidy data frame.
+The aim of this package is similar to the [broom-package](https://cran.r-project.org/package=broom): transforming "untidy" input into a tidy data frame, especially for further use with [ggplot](https://cran.r-project.org/package=ggplot2). However, **ggeffects** does not return model-summaries; rather, this package computes marginal effects at the mean (MEM) or at representative values (MER) from statistical models and returns the result as tidy data frame. Definitions [can be found here](https://stats.stackexchange.com/tags/marginal-effect/info).
 
 Since the focus lies on plotting the data (the marginal effects), at least one model term needs to be specified for which the effects are computed. It is also possible to compute marginal effects for model terms, grouped by the levels of another model's predictor. The package also allows plotting marginal effects for two- or three-way-interactions, or for specific values of a model term only. Examples are shown below.
 
-# Short technical note
+## Short technical note
 
 `ggpredict()`, `ggeffect()`, `ggemmeans()` and `ggaverage()` always return predicted values for the _response_ of a model (or _response distribution_ for Bayesian models).
 
@@ -30,11 +30,11 @@ Typically, `ggpredict()` returns confidence intervals based on the standard erro
 
 For mixed models, if `type = "re"` or `type = "re.zi"`, the uncertainty in the random effects is accounted for when calculating the standard errors. Hence, in such cases, the intervals may be considered as _prediction intervals_.
 
-# Consistent and tidy structure
+## Consistent and tidy structure
 
 The returned data frames always have the same, consistent structure and column names, so it's easy to create ggplot-plots without the need to re-write the arguments to be mapped in each ggplot-call. `x` and `predicted` are the values for the x- and y-axis. `conf.low` and `conf.high` could be used as `ymin` and `ymax` aesthetics for ribbons to add confidence bands to the plot. `group` can be used as grouping-aesthetics, or for faceting.
 
-The examples shown here mostly use **ggplot2**-code for the plots, however, there is also a `plot()`-method, which is described in the vignette [Plotting Marginal Effects](plotmethod.html).
+The examples shown here mostly use **ggplot2**-code for the plots, however, there is also a `plot()`-method, which is described in the vignette [Plotting Marginal Effects](introduction_plotmethod.html).
 
 # Marginal effects at the mean
 
@@ -62,7 +62,7 @@ ggplot(mydf, aes(x, predicted)) + geom_line()
 
 # Marginal effects at the mean for different groups
 
-The `terms`-argument accepts up to three model terms, where the second and third term indicate grouping levels. This allows predictions for the term in question at different levels for other model terms:
+The `terms`-argument accepts up to four model terms, where the second to fourth terms indicate grouping levels. This allows predictions for the term in question at different levels for other model terms:
 
 ```{r}
 ggpredict(fit, terms = c("c12hour", "c172code"))
@@ -75,7 +75,7 @@ mydf <- ggpredict(fit, terms = c("c12hour", "c172code"))
 ggplot(mydf, aes(x, predicted, colour = group)) + geom_line()
 ```
 
-Finally, a second grouping structure can be defined, which will create another column named `facet`, which - as the name implies - might be used to create a facted plot:
+A second grouping structure can be defined, which will create another column named `facet`, which - as the name implies - might be used to create a facted plot:
 
 ```{r}
 mydf <- ggpredict(fit, terms = c("c12hour", "c172code", "c161sex"))
@@ -83,6 +83,13 @@ mydf
 ggplot(mydf, aes(x, predicted, colour = group)) + 
   geom_line() + 
   facet_wrap(~facet)
+```
+
+Finally, a third grouping structure can be defined, creating another column named `panel`. In such cases, you may create multiple plots (for each value in `panel`). **ggeffects** takes care of this when you use `plot()` and automatically creates an integrated plot with all panels in one figure.
+
+```{r fig.height = 8}
+mydf <- ggpredict(fit, terms = c("c12hour", "c172code", "c161sex", "neg_c_7"))
+plot(mydf)
 ```
 
 # Marginal effects for each model term
@@ -95,9 +102,9 @@ mydf
 ```
 
 
-# Average marginal effects
+# Marginal effects, averaged over present data
 
-`ggaverage()` compute average marginal effects. While `ggpredict()` creates a data-grid (using `expand.grid()`) for all possible combinations of values (even if some combinations are not present in the data), `ggaverage()` computes predicted values based on the given data. This means that _different_ predicted values for the outcome may occure at the _same_ value or level for the term in question. The predicted values are then averaged for each value of the term in question and the linear trend is smoothed accross the averaged predicted values. This means that the line representing the marginal effects may cross or diverge, and are not necessarily in paralell to each other.
+`ggaverage()` computes averaged predicted values. While `ggpredict()` creates a data-grid (using `expand.grid()`) for all possible combinations of values (even if some combinations are not present in the data), `ggaverage()` computes predicted values based on the given data. This means that _different_ predicted values for the outcome may occure at the _same_ value or level for the term in question. The predicted values are then averaged for each value of the term in question and the linear trend is smoothed across the averaged predicted values. This means that the line representing the marginal effects may cross or diverge, and are not necessarily in paralell to each other.
 
 ```{r}
 mydf <- ggaverage(fit, terms = c("c12hour", "c172code"))
@@ -106,7 +113,7 @@ ggplot(mydf, aes(x, predicted, colour = group)) + geom_line()
 
 Since `ggaverage()` produces _different_ predicted values for the _same_ value or level of terms, linear-smoothing for gaussian models and loess-smoothing for non-gaussian models is used to produce "smooth" lines. This may lead to misleading plots, especially if polynomial or spline terms are included in the model. It's preferred to use `ggpredict()` or `ggeffect()` resp. `ggemmeans()`.
 
-# Two- and Three-Way-Interactions
+# Two-Way, Three-Way- and Four-Way-Interactions
 
 To plot the marginal effects of interaction terms, simply specify these terms in the `terms`-argument.
 
@@ -125,7 +132,7 @@ mydf <- ggpredict(fit, terms = c("barthtot [30,50,70]", "c161sex"))
 ggplot(mydf, aes(x, predicted, colour = group)) + geom_line()
 ```
 
-Since the `terms`-argument accepts up to three model terms, you can also compute marginal effects for a 3-way-interaction. To plot the marginal effects of three interaction terms, just like before, specify all three terms in the `terms`-argument.
+Since the `terms`-argument accepts up to four model terms, you can also compute marginal effects for a 3-way-interaction or 4-way-interaction. To plot the marginal effects of three interaction terms, just like before, specify all three terms in the `terms`-argument.
 
 ```{r}
 # fit model with 3-way-interaction
@@ -138,6 +145,20 @@ ggplot(mydf, aes(x, predicted, colour = group)) +
   geom_line() +
   facet_wrap(~facet)
 ```
+
+4-way-interactions are rather confusing to print and plot. When plotting, multiple plots (for each level of the fourth interaction term) are plotted for the remaining three interaction terms. This can easily be done using the [`plot()`-method](https://strengejacke.github.io/ggeffects/articles/introduction_plotmethod.html).
+
+```{r fig.height = 8}
+# fit model with 4-way-interaction
+fit <- lm(neg_c_7 ~ c12hour * barthtot * c161sex * c172code, data = efc)
+
+# marginal effects for all 4 interaction terms
+pr <- ggpredict(fit, c("c12hour", "barthtot", "c161sex", "c172code"))
+
+# use plot() method, easier than own ggplot-code from scratch
+plot(pr)
+```
+
 
 # Polynomial terms and splines
 
@@ -160,7 +181,7 @@ ggplot(dat, aes(x, predicted)) +
 
 `ggpredict()` also supports `coxph`-models from the **survival**-package and is able to either plot risk-scores (the default), probabilities of survival (`type = "surv"`) or cumulative hazards (`type = "cumhaz"`).
 
-Since probabilities of survival and cumulative hazards are changing accross time, the time-variable is automatically used as x-axis in such cases, so the `terms`-argument only needs up to **two** variables for `type = "surv"` or `type = "cumhaz"`.
+Since probabilities of survival and cumulative hazards are changing across time, the time-variable is automatically used as x-axis in such cases, so the `terms`-argument only needs up to **two** variables for `type = "surv"` or `type = "cumhaz"`.
 
 ```{r}
 data("lung", package = "survival")
@@ -182,9 +203,9 @@ ggpredict(m, c("sex", "ph.ecog"), type = "surv")
 
 # Printing factor levels instead of numeric values
 
-By default, to quickly create plot where data points can be connected with lines (i.e. to use a continuous x-axis-scale), the `x`-value is numeric, even if the first variable in `terms` (which is represented by the `x`-column in the returned data frame) is categorical. Since **ggeffects** supports labelled data (see also next section), plots are always correctly annotated, and a discrete scale is automatically used (see vignette [Plotting Marginal Effects](plotmethod.html)).
+By default, to quickly create plot where data points can be connected with lines (i.e. to use a continuous x-axis-scale), the `x`-value is numeric, even if the first variable in `terms` (which is represented by the `x`-column in the returned data frame) is categorical. Since **ggeffects** supports labelled data (see also next section), plots are always correctly annotated, and a discrete scale is automatically used (see vignette [Plotting Marginal Effects](introduction_plotmethod.html)).
 
-If you want to preserve the factor-class for `x`, use the argument `x.as.factor = TRUE`. This will also print the factor levels instead of numeric values in the console. An alternative would be to use the  `x.lab = TRUE`-argument in the `print()`-method.
+If you want to preserve the factor-class for `x`, use the argument `x.as.factor = TRUE` (or its alias, `x.cat = TRUE`). This will also print the factor levels instead of numeric values in the console. An alternative would be to use the  `x.lab = TRUE`-argument in the `print()`-method.
 
 Here are some examples, first we fit a model where two variables are factors with character factor levels (we use `sjmisc::to_label()` to convert the labelled data into factors):
 

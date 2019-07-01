@@ -1,3 +1,26 @@
+# ggeffects 0.11.0
+
+## General
+
+* Revised docs and vignettes - the use of the term _average marginal effects_ was replaced by a less misleading wording, since the functions of **ggeffects** calculate marginal effects at the mean or at representative values, but not average marginal effects.
+* Replace references to internal vignettes in docstrings to website-vignettes, so links on website are no longer broken.
+* `values_at()` is an alias for `rprs_values()`.
+
+## New supported models
+
+* `betabin`, `negbin` (package **aod**), `wbm` (package *panelr*)
+
+## Changes to functions
+
+* `ggpredict()` now supports prediction intervals for models from *MCMCglmm*.
+* `ggpredict()` gets a `back.transform`-argument, to tranform predicted values from log-transformed responses back to their original scale (the default behaviour), or to allow predictions to remain on log-scale (new).
+* `ggpredict()` and `ggemmeans()` now can calculate marginal effects for specific values from up to three terms (i.e. `terms` can be of lenght four now).
+* The `ci.style`-argument from `plot()` now also applies to error bars for categorical variables on the x-axis.
+
+# Bug fixes
+
+* Fixed issue with *glmmTMB* models that included model weights.
+
 # ggeffects 0.10.0
 
 ## General

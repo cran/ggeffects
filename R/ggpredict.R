@@ -8,19 +8,20 @@
 #'   \code{ggeffect()} computes marginal effects by internally calling
 #'   \code{\link[effects]{Effect}}, while \code{ggemmeans()} computes marginal
 #'   effects by internally calling \code{\link[emmeans]{emmeans}}.
-#'   \code{ggaverage()} computes the average predicted values. The result is
+#'   \code{ggaverage()} computes averaged predicted values. The result is
 #'   returned as tidy data frame.
 #'
 #' @param model A fitted model object, or a list of model objects. Any model
 #'   that supports common methods like \code{predict()}, \code{family()}
 #'   or \code{model.frame()} should work. For \code{ggeffect()}, any model
-#'   that is supported by the \CRANpkg{effects}-package should work.
+#'   that is supported by \CRANpkg{effects} should work, and for
+#'   \code{ggemmeans()}, all models supported by \CRANpkg{emmeans} should work.
 #' @param terms Character vector (or a formula) with the names of those terms
 #'   from \code{model}, for which marginal effects should be displayed. At least
 #'   one term is required to calculate effects for certain terms, maximum length is
-#'   three terms, where the second and third term indicate the groups, i.e.
-#'   predictions of first term are grouped by the values of the second (and third)
-#'   term. If \code{terms} is missing or \code{NULL}, marginal effects for each
+#'   four terms, where the second to fourth term indicate the groups, i.e.
+#'   predictions of first term are grouped by the values of the remaining
+#'   terms. If \code{terms} is missing or \code{NULL}, marginal effects for each
 #'   model term are calculated. It is also possible to define specific values for
 #'   terms, at which marginal effects should be calculated (see 'Details').
 #'   All remaining covariates that are not specified in \code{terms} are held
@@ -60,7 +61,7 @@
 #'     \cr \cr
 #'     To get predicted values for each level of the random effects groups, add the
 #'     name of the related random effect term to the \code{terms}-argument
-#'     (for more details, see \href{../doc/effectsatvalues.html}{this vignette}).
+#'     (for more details, see \href{https://strengejacke.github.io/ggeffects/articles/introduction_effectsatvalues.html}{this vignette}).
 #'     }
 #'     \item{\code{"fe.zi"}}{
 #'     Predicted values are conditioned on the fixed effects and the zero-inflation
@@ -106,6 +107,9 @@
 #' @param typical Character vector, naming the function to be applied to the
 #'   covariates over which the effect is "averaged". The default is "mean".
 #'   See \code{\link[sjmisc]{typical_value}} for options.
+#' @param back.transform Logical, if \code{TRUE} (the default), predicted values
+#'   for log- or log-log transformend responses will be back-transformed to
+#'   original response-scale.
 #' @param ppd Logical, if \code{TRUE}, predictions for Stan-models are
 #'   based on the posterior predictive distribution
 #'   (\code{\link[rstantools]{posterior_predict}}). If \code{FALSE} (the
@@ -118,8 +122,8 @@
 #'   based on ggplot, so you don't need to coerce \code{x} to factor. The
 #'   \code{plot()}-method, however, automatically uses continuous or discrete
 #'   x-scales, depending on the variable-type. For more details, see
-#'   \href{../doc/plotmethod.html}{the plot-vignette} and the
-#'   \href{../doc/marginaleffects.html}{the vignette on package-basics}.
+#'   \href{https://strengejacke.github.io/ggeffects/articles/introduction_plotmethod.html}{the plot-vignette} and the
+#'   \href{https://strengejacke.github.io/ggeffects/articles/ggeffects.html}{the vignette on package-basics}.
 #'   \code{x.cat} is an alias for \code{x.as.factor}.
 #' @param condition Named character vector, which indicates covariates that
 #'   should be held constant at specific values. Unlike \code{typical}, which
@@ -153,38 +157,35 @@
 #'    simulation, e.g. \code{nsim = 500}.
 #'
 #' @details
-#'   \strong{Supported Models}
-#'   \cr \cr
+#'   \subsection{Supported Models}{
 #'   Currently supported model-objects are (in alphabetical order):
-#'   \code{betareg}, \code{bglmer}, \code{blmer}, \code{brglm}, \code{brmsfit},
+#'   \code{betabin}, \code{betareg}, \code{bglmer}, \code{blmer}, \code{brglm}, \code{brmsfit},
 #'   \code{clm}, \code{clm2}, \code{clmm}, \code{coxph}, \code{gam} (package \pkg{mgcv}),
 #'   \code{Gam} (package \pkg{gam}), \code{gamlss}, \code{gamm}, \code{gamm4},
 #'   \code{gee}, \code{geeglm}, \code{glm}, \code{glm.nb}, \code{glmer},
 #'   \code{glmer.nb}, \code{glmmTMB}, \code{glmmPQL}, \code{glmrob}, \code{glmRob},
 #'   \code{gls}, \code{hurdle}, \code{ivreg}, \code{lm}, \code{lm_robust}, \code{lme},
 #'   \code{lmer}, \code{lmrob}, \code{lmRob}, \code{logistf}, \code{lrm},
-#'   \code{MixMod}, \code{MCMCglmm}, \code{multinom}, \code{nlmer}, \code{ols}, \code{plm},
+#'   \code{MixMod}, \code{MCMCglmm}, \code{multinom}, \code{negbin}, \code{nlmer}, \code{ols}, \code{plm},
 #'   \code{polr}, \code{rlm}, \code{rlmer}, \code{rq}, \code{rqss},
 #'   \code{stanreg}, \code{survreg}, \code{svyglm}, \code{svyglm.nb},
-#'   \code{tobit}, \code{truncreg}, \code{vgam}, \code{zeroinfl} and \code{zerotrunc}.
+#'   \code{tobit}, \code{truncreg}, \code{vgam}, \code{wbm}, \code{zeroinfl} and \code{zerotrunc}.
 #'   Other models not listed here are passed to a generic predict-function
 #'   and might work as well, or maybe with \code{ggeffect()} or \code{ggemmeans()},
 #'   which effectively do the same as \code{ggpredict()}. The main difference
 #'   is that \code{ggpredict()} calls \code{predict()}, while \code{ggeffect()}
 #'   calls \code{\link[effects]{Effect}} and \code{ggemmeans()} calls
 #'   \code{\link[emmeans]{emmeans}} to compute marginal effects.
-#'   \cr \cr
-#'   \strong{Difference between \code{ggpredict()} and \code{ggeffect()} or \code{ggemmeans()}}
-#'   \cr \cr
+#'   }
+#'   \subsection{Difference between \code{ggpredict()} and \code{ggeffect()} or \code{ggemmeans()}}{
 #'   \code{ggpredict()} and \code{ggeffect()} resp. \code{ggemmeans()} differ in
 #'   how factors are held constant: \code{ggpredict()} uses the reference level, while
 #'   \code{ggeffect()} and \code{ggemmeans()} compute a kind of "average" value,
 #'   which represents the proportions of each factor's category. Use \code{condition}
 #'   to set a specific level for factors in \code{ggemmeans()}, so factors are
 #'   not averaged over their categories, but held constant at a given level.
-#'   \cr \cr
-#'   \strong{Marginal Effects at Specific Values}
-#'   \cr \cr
+#'   }
+#'   \subsection{Marginal Effects at Specific Values}{
 #'   Specific values of model terms can be specified via the \code{terms}-argument.
 #'   Indicating levels in square brackets allows for selecting only
 #'   specific groups or values resp. value ranges. Term name and the start of
@@ -193,7 +194,7 @@
 #'   with colon, are also allowed: \code{terms = c("education", "age [30:60]")}.
 #'   \cr \cr
 #'   The \code{terms}-argument also supports the same shortcuts as the
-#'   \code{values}-argument in \code{rprs_values()}. So
+#'   \code{values}-argument in \code{values_at()}. So
 #'   \code{terms = "age [meansd]"} would return predictions for the values
 #'   one standard deviation below the mean age, the mean age and
 #'   one SD above the mean age. \code{terms = "age [quart2]"} would calculate
@@ -204,20 +205,20 @@
 #'   This is useful when model predictors were transformed for fitting the
 #'   model and should be back-transformed to the original scale for predictions.
 #'   It is also possible to define own functions (see
-#'   \href{../doc/effectsatvalues.html}{this vignette}).
+#'   \href{https://strengejacke.github.io/ggeffects/articles/introduction_effectsatvalues.html}{this vignette}).
 #'   \cr \cr
 #'   You can take a random sample of any size with \code{sample=n}, e.g
 #'   \code{terms = "income [sample=8]"}, which will sample eight values from
 #'   all possible values of the variable \code{income}. This option is especially
 #'   useful for plotting marginal effects at certain levels of random effects
 #'   group levels, where the group factor has many levels that can be completely
-#'   plotted. For more details, see \href{../doc/effectsatvalues.html}{this vignette}.
+#'   plotted. For more details, see \href{https://strengejacke.github.io/ggeffects/articles/introduction_effectsatvalues.html}{this vignette}.
 #'   \cr \cr
 #'   Finally, numeric vectors for which no specific values are given, a
 #'   "pretty range" is calculated (see \code{\link{pretty_range}}), to avoid
 #'   memory allocation problems for vectors with many unique values. If a numeric
 #'   vector is specified as second or third term (i.e. if this vector represents
-#'   a grouping structure), representative values (see \code{\link{rprs_values}})
+#'   a grouping structure), representative values (see \code{\link{values_at}})
 #'   are chosen (unless other values are specified). If all values for a numeric
 #'   vector should be used to compute predictions, you may use e.g.
 #'   \code{terms = "age [all]"}. See also package vignettes.
@@ -226,9 +227,8 @@
 #'   range (i.e. if no specific values would be given), use the \code{n}-tag,
 #'   e.g. \code{terms="age [n=5]"} or \code{terms="age [n=12]"}. Larger
 #'   values for \code{n} return a larger range of predicted values.
-#'   \cr \cr
-#'   \strong{Holding covariates at constant values}
-#'   \cr \cr
+#'   }
+#'   \subsection{Holding covariates at constant values}{
 #'   For \code{ggpredict()}, if \code{full.data = FALSE}, \code{expand.grid()}
 #'   is called on all unique combinations of \code{model.frame(model)[, terms]}
 #'   and used as \code{newdata}-argument for \code{predict()}. In this case,
@@ -245,9 +245,7 @@
 #'   remaining covariates that are not specified in \code{terms} are
 #'   \emph{not} held constant, but vary between observations (and are
 #'   kept as they happen to be). The predicted values are then averaged
-#'   for each group (if any). Thus, \code{ggpredict()} can be considered
-#'   as calculating marginal effects at the mean, while \code{ggaverage()}
-#'   computes average marginal effects.
+#'   for each group (if any).
 #'   \cr \cr
 #'   \code{ggeffect()} and \code{ggemmeans()}, by default, set remaining numeric
 #'   covariates to their mean value, while for factors, a kind of "average" value,
@@ -255,9 +253,8 @@
 #'   \code{ggemmeans()}, use \code{condition} to set a specific level for
 #'   factors so that these are not averaged over their categories, but held
 #'   constant at the given level.
-#'   \cr \cr
-#'   \strong{Bayesian Regression Models}
-#'   \cr \cr
+#'   }
+#'   \subsection{Bayesian Regression Models}{
 #'   \code{ggpredict()} also works with \strong{Stan}-models from
 #'   the \CRANpkg{rstanarm} or \CRANpkg{brms}-package. The predicted
 #'   values are the median value of all drawn posterior samples. The
@@ -267,17 +264,15 @@
 #'   limitations: the uncertainty of the error term is not taken into
 #'   account. The recommendation is to use the posterior predictive
 #'   distribution (\code{\link[rstantools]{posterior_predict}}).
-#'   \cr \cr
-#'   \strong{Zero-Inflated and Zero-Inflated Mixed Models with brms}
-#'   \cr \cr
+#'   }
+#'   \subsection{Zero-Inflated and Zero-Inflated Mixed Models with brms}{
 #'   Models of class \code{brmsfit} always condition on the zero-inflation
 #'   component, if the model has such a component. Hence, there is no
 #'   \code{type = "fe.zi"} nor \code{type = "re.zi"} for \code{brmsfit}-models,
 #'   because predictions are based on draws of the posterior distribution,
 #'   which already account for the zero-inflation part of the model.
-#'   \cr \cr
-#'   \strong{Zero-Inflated and Zero-Inflated Mixed Models with glmmTMB}
-#'   \cr \cr
+#'   }
+#'   \subsection{Zero-Inflated and Zero-Inflated Mixed Models with glmmTMB}{
 #'   If \code{model} is of class \code{glmmTMB}, \code{hurdle}, \code{zeroinfl}
 #'   or \code{zerotrunc}, simulations from a multivariate normal distribution
 #'   (see \code{\link[MASS]{mvrnorm}}) are drawn to calculate \code{mu*(1-p)}.
@@ -290,9 +285,8 @@
 #'   uncertainties into account are simulations based on \code{simulate()}, which
 #'   is used when \code{type = "sim"} (see Brooks et al. 2017, pp.392-393 for
 #'   details).
-#'   \cr \cr
-#'   \strong{MixMod-models from GLMMadaptive}
-#'   \cr \cr
+#'   }
+#'   \subsection{MixMod-models from GLMMadaptive}{
 #'   Predicted values for the fixed effects component (\code{type = "fe"} or
 #'   \code{type = "fe.zi"}) are based on \code{predict(..., type = "mean_subject")},
 #'   while predicted values for random effects components (\code{type = "re"} or
@@ -301,6 +295,7 @@
 #'   requires the response variable to be defined in the \code{newdata}-argument
 #'   of \code{predict()}, which will be set to its typical value (see
 #'   \code{\link[sjmisc]{typical_value}}).
+#'   }
 #'
 #' @references \itemize{
 #'    \item Brooks ME, Kristensen K, Benthem KJ van, Magnusson A, Berg CW, Nielsen A, et al. glmmTMB Balances Speed and Flexibility Among Packages for Zero-inflated Generalized Linear Mixed Modeling. The R Journal. 2017;9: 378-400.
@@ -402,7 +397,7 @@
 #'   stat_smooth(method = "lm", se = FALSE) +
 #'   facet_wrap(~facet, ncol = 2)
 #'
-#' # average marginal effects
+#' # marginal effects, averaged over values in data
 #' mydf <- ggaverage(fit, terms = c("c12hour", "c172code"))
 #' ggplot(mydf, aes(x = x, y = predicted, colour = group)) +
 #'   stat_smooth(method = "lm", se = FALSE)
@@ -479,7 +474,7 @@
 #' @importFrom sjmisc to_factor is_num_fac remove_empty_cols
 #' @importFrom purrr map
 #' @importFrom sjlabelled as_numeric
-#' @importFrom insight find_random find_predictors model_info find_formula find_variables
+#' @importFrom insight find_random find_predictors model_info find_formula
 #' @export
 ggpredict <- function(model,
                       terms,
@@ -487,6 +482,7 @@ ggpredict <- function(model,
                       type = c("fe", "re", "fe.zi", "re.zi", "sim", "surv", "cumhaz", "debug"),
                       typical = "mean",
                       condition = NULL,
+                      back.transform = TRUE,
                       ppd = FALSE,
                       x.as.factor = FALSE,
                       full.data = FALSE,
@@ -526,6 +522,7 @@ ggpredict <- function(model,
       ppd = ppd,
       x.as.factor = x.as.factor,
       condition = condition,
+      back.transform = back.transform,
       vcov.fun = vcov.fun,
       vcov.type = vcov.type,
       vcov.args = vcov.args,
@@ -549,6 +546,7 @@ ggpredict <- function(model,
             ppd = ppd,
             x.as.factor = x.as.factor,
             condition = condition,
+            back.transform = back.transform,
             vcov.fun = vcov.fun,
             vcov.type = vcov.type,
             vcov.args = vcov.args,
@@ -573,6 +571,7 @@ ggpredict <- function(model,
         ppd = ppd,
         x.as.factor = x.as.factor,
         condition = condition,
+        back.transform = back.transform,
         vcov.fun = vcov.fun,
         vcov.type = vcov.type,
         vcov.args = vcov.args,
@@ -598,6 +597,7 @@ ggpredict_helper <- function(model,
                              ppd,
                              x.as.factor,
                              condition,
+                             back.transform,
                              vcov.fun,
                              vcov.type,
                              vcov.args,
@@ -671,6 +671,7 @@ ggpredict_helper <- function(model,
   # the "time" variable
   if (fun == "coxph" && type %in% c("surv", "cumhaz")) {
     terms <- c("time", terms)
+    cleaned.terms <- c("time", cleaned.terms)
   }
 
   # get axis titles and labels
@@ -691,12 +692,10 @@ ggpredict_helper <- function(model,
   # now select only relevant variables: the predictors on the x-axis,
   # the predictions and the originial response vector (needed for scatter plot)
 
-  cols.to.keep <- stats::na.omit(match(
+  mydf <- fitfram[, stats::na.omit(match(
     c(terms, "predicted", "conf.low", "conf.high", "response.level"),
     colnames(fitfram)
-  ))
-
-  mydf <- dplyr::select(fitfram, !! cols.to.keep)
+  ))]
 
 
   # no full data for certain models
@@ -708,56 +707,35 @@ ggpredict_helper <- function(model,
 
   # for full data, we can also get observed and residuals
   if (full.data) {
-    mydf <- dplyr::mutate(mydf,
-      observed = sjlabelled::as_numeric(fitfram[[1]], start.at = 0, keep.labels = F),
-      residuals = .data$observed - .data$predicted
-    )
+    mydf$observed <- sjlabelled::as_numeric(fitfram[[1]], start.at = 0, keep.labels = F)
+    mydf$residuals <- mydf$observed - mydf$predicted
   } else {
-    mydf <- dplyr::mutate(mydf, observed = NA, residuals = NA)
+    mydf$observed <- NA
+    mydf$residuals <- NA
   }
 
+  # name and sort columns, depending on groups, facet and panel
+  mydf <- prepare_columns(mydf, cleaned.terms)
 
-  # with or w/o grouping factor?
-  if (length(terms) == 1) {
-    colnames(mydf)[1] <- "x"
-    # convert to factor for proper legend
-    mydf$group <- sjmisc::to_factor(1)
-  } else {
-    # name data depending on whether we have a facet-variable or not
-    if (length(terms) == 2) {
-      # for some models, like MASS::polr, we have an additional
-      # column for the response category. So maximun ncol is 8, not 7
-      max_value <- ifelse(fun %in% c("polr", "clm", "clm2", "multinom"), 8, 7)
-      colnames(mydf)[1:2] <- c("x", "group")
-      # reorder columns
-      mydf <- mydf[, c(1, 3:max_value, 2)]
-    } else {
-      # for some models, like MASS::polr, we have an additional
-      # column for the response category. So maximun ncol is 8, not 7
-      max_value <- ifelse(fun %in% c("polr", "clm", "clm2", "multinom"), 9, 8)
-      colnames(mydf)[1:3] <- c("x", "group", "facet")
-      # reorder columns
-      mydf <- mydf[, c(1, 4:max_value, 2:3)]
-    }
+  # if we have no full data, grouping variable may not be labelled
+  # do this here, so we convert to labelled factor later
+  if (!full.data) mydf <- add_groupvar_labels(mydf, ori.mf, terms)
 
-    # if we have no full data, grouping variable may not be labelled
-    # do this here, so we convert to labelled factor later
-    if (!full.data) mydf <- add_groupvar_labels(mydf, ori.mf, terms)
+  # convert to factor for proper legend
+  mydf <- groupvar_to_label(mydf)
 
-    # convert to factor for proper legend
-    mydf <- groupvar_to_label(mydf)
-
-    # check if we have legend labels
-    legend.labels <- sjlabelled::get_labels(mydf$group)
-  }
+  # check if we have legend labels
+  legend.labels <- sjlabelled::get_labels(mydf$group)
 
   # if we had numeric variable w/o labels, these still might be numeric
   # make sure we have factors here for our grouping and facet variables
   if (is.numeric(mydf$group))
     mydf$group <- sjmisc::to_factor(mydf$group)
 
-  if (obj_has_name(mydf, "facet") && is.numeric(mydf$facet))
+  if (obj_has_name(mydf, "facet") && is.numeric(mydf$facet)) {
     mydf$facet <- sjmisc::to_factor(mydf$facet)
+    attr(mydf, "numeric.facet") <- TRUE
+  }
 
 
   # remember if x is factor and if we had full data
@@ -777,36 +755,11 @@ ggpredict_helper <- function(model,
 
 
   # sort values
-  mydf <- mydf %>%
-    dplyr::arrange(.data$x, .data$group) %>%
-    sjmisc::remove_empty_cols()
-
+  mydf <- sjmisc::remove_empty_cols(mydf[order(mydf$x, mydf$group), ])
 
   # check if outcome is log-transformed, and if so,
   # back-transform predicted values to response scale
-
-  rv <- insight::find_variables(model)[["response"]]
-
-  if (any(grepl("log\\((.*)\\)", rv))) {
-
-    # do we have log-log models?
-    if (grepl("log\\(log\\((.*)\\)\\)", rv)) {
-      mydf$predicted <- exp(exp(mydf$predicted))
-      if (obj_has_name(mydf, "conf.low") && obj_has_name(mydf, "conf.high")) {
-        mydf$conf.low <- exp(exp(mydf$conf.low))
-        mydf$conf.high <- exp(exp(mydf$conf.high))
-      }
-    } else {
-      mydf$predicted <- exp(mydf$predicted)
-      if (obj_has_name(mydf, "conf.low") && obj_has_name(mydf, "conf.high")) {
-        mydf$conf.low <- exp(mydf$conf.low)
-        mydf$conf.high <- exp(mydf$conf.high)
-      }
-    }
-
-    message("Model has log-transformed response. Back-transforming predictions to original response scale. Standard errors are still on the log-scale.")
-  }
-
+  mydf <- .back_transform_response(model, mydf, back.transform)
 
   # add raw data as well
   attr(mydf, "rawdata") <- get_raw_data(model, ori.mf, terms)

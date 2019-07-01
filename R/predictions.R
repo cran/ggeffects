@@ -36,8 +36,12 @@ select_prediction_method <- function(fun,
     fitfram <- get_predictions_ols(model, expanded_frame, ci.lvl, ...)
   } else if (fun == "lrm") {
     fitfram <- get_predictions_lrm(model, expanded_frame, ci.lvl, linv, ...)
+  } else if (fun == "glimML") {
+    fitfram <- get_predictions_glimML(model, expanded_frame, ci.lvl, linv, ...)
   } else if (fun == "glmmTMB") {
     fitfram <- get_predictions_glmmTMB(model, expanded_frame, ci.lvl, linv, type, terms, typical, condition, ...)
+  } else if (fun == "wbm") {
+    fitfram <- get_predictions_wbm(model, expanded_frame, ci.lvl, linv, type, terms, typical, condition, ...)
   } else if (fun %in% c("lmer", "nlmer", "glmer")) {
     fitfram <- get_predictions_merMod(model, expanded_frame, ci.lvl, linv, type, terms, typical, condition, ...)
   } else if (fun == "geeglm") {
@@ -91,7 +95,7 @@ select_prediction_method <- function(fun,
   } else if (fun == "MixMod") {
     fitfram <- get_predictions_MixMod(model, expanded_frame, ci.lvl, linv, type, terms, typical, condition, ...)
   } else if (fun == "MCMCglmm") {
-    fitfram <- get_predictions_MCMCglmm(model, expanded_frame, ci.lvl, ...)
+    fitfram <- get_predictions_MCMCglmm(model, expanded_frame, ci.lvl, interval, ...)
   } else {
     fitfram <- get_predictions_generic(model, expanded_frame, linv, ...)
   }

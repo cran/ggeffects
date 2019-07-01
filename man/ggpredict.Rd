@@ -17,28 +17,29 @@ ggaverage(model, terms, ci.lvl = 0.95, type = c("fe", "re", "fe.zi",
 ggeffect(model, terms, ci.lvl = 0.95, x.as.factor = FALSE, ...)
 
 ggemmeans(model, terms, ci.lvl = 0.95, type = c("fe", "fe.zi"),
-  typical = "mean", condition = NULL, x.as.factor = FALSE, x.cat,
-  ...)
+  typical = "mean", condition = NULL, back.transform = TRUE,
+  x.as.factor = FALSE, x.cat, ...)
 
 ggpredict(model, terms, ci.lvl = 0.95, type = c("fe", "re", "fe.zi",
   "re.zi", "sim", "surv", "cumhaz", "debug"), typical = "mean",
-  condition = NULL, ppd = FALSE, x.as.factor = FALSE,
-  full.data = FALSE, vcov.fun = NULL, vcov.type = NULL,
-  vcov.args = NULL, interval = c("confidence", "prediction"), x.cat,
-  ...)
+  condition = NULL, back.transform = TRUE, ppd = FALSE,
+  x.as.factor = FALSE, full.data = FALSE, vcov.fun = NULL,
+  vcov.type = NULL, vcov.args = NULL, interval = c("confidence",
+  "prediction"), x.cat, ...)
 }
 \arguments{
 \item{model}{A fitted model object, or a list of model objects. Any model
 that supports common methods like \code{predict()}, \code{family()}
 or \code{model.frame()} should work. For \code{ggeffect()}, any model
-that is supported by the \CRANpkg{effects}-package should work.}
+that is supported by \CRANpkg{effects} should work, and for
+\code{ggemmeans()}, all models supported by \CRANpkg{emmeans} should work.}
 
 \item{terms}{Character vector (or a formula) with the names of those terms
 from \code{model}, for which marginal effects should be displayed. At least
 one term is required to calculate effects for certain terms, maximum length is
-three terms, where the second and third term indicate the groups, i.e.
-predictions of first term are grouped by the values of the second (and third)
-term. If \code{terms} is missing or \code{NULL}, marginal effects for each
+four terms, where the second to fourth term indicate the groups, i.e.
+predictions of first term are grouped by the values of the remaining
+terms. If \code{terms} is missing or \code{NULL}, marginal effects for each
 model term are calculated. It is also possible to define specific values for
 terms, at which marginal effects should be calculated (see 'Details').
 All remaining covariates that are not specified in \code{terms} are held
@@ -80,7 +81,7 @@ the zero-inflation part of the model (see 'Details').
   \cr \cr
   To get predicted values for each level of the random effects groups, add the
   name of the related random effect term to the \code{terms}-argument
-  (for more details, see \href{../doc/effectsatvalues.html}{this vignette}).
+  (for more details, see \href{https://strengejacke.github.io/ggeffects/articles/introduction_effectsatvalues.html}{this vignette}).
   }
   \item{\code{"fe.zi"}}{
   Predicted values are conditioned on the fixed effects and the zero-inflation
@@ -140,8 +141,8 @@ numeric. This argument is useful when building own plots from the data,
 based on ggplot, so you don't need to coerce \code{x} to factor. The
 \code{plot()}-method, however, automatically uses continuous or discrete
 x-scales, depending on the variable-type. For more details, see
-\href{../doc/plotmethod.html}{the plot-vignette} and the
-\href{../doc/marginaleffects.html}{the vignette on package-basics}.
+\href{https://strengejacke.github.io/ggeffects/articles/introduction_plotmethod.html}{the plot-vignette} and the
+\href{https://strengejacke.github.io/ggeffects/articles/ggeffects.html}{the vignette on package-basics}.
 \code{x.cat} is an alias for \code{x.as.factor}.}
 
 \item{vcov.fun}{String, indicating the name of the \code{vcov*()}-function
@@ -172,6 +173,10 @@ down to \code{\link[effects]{Effect}}; and for \code{ggemmeans()},
 further arguments passed down to \code{\link[emmeans]{emmeans}}.
 If \code{type = "sim"}, \code{...} may also be used to set the number of
 simulation, e.g. \code{nsim = 500}.}
+
+\item{back.transform}{Logical, if \code{TRUE} (the default), predicted values
+for log- or log-log transformend responses will be back-transformed to
+original response-scale.}
 
 \item{full.data}{Logical, if \code{TRUE}, the returned data frame contains
 predictions for all observations. This data frame also has columns
@@ -213,42 +218,39 @@ A data frame (with \code{ggeffects} class attribute) with consistent
   \code{ggeffect()} computes marginal effects by internally calling
   \code{\link[effects]{Effect}}, while \code{ggemmeans()} computes marginal
   effects by internally calling \code{\link[emmeans]{emmeans}}.
-  \code{ggaverage()} computes the average predicted values. The result is
+  \code{ggaverage()} computes averaged predicted values. The result is
   returned as tidy data frame.
 }
 \details{
-\strong{Supported Models}
-  \cr \cr
+\subsection{Supported Models}{
   Currently supported model-objects are (in alphabetical order):
-  \code{betareg}, \code{bglmer}, \code{blmer}, \code{brglm}, \code{brmsfit},
+  \code{betabin}, \code{betareg}, \code{bglmer}, \code{blmer}, \code{brglm}, \code{brmsfit},
   \code{clm}, \code{clm2}, \code{clmm}, \code{coxph}, \code{gam} (package \pkg{mgcv}),
   \code{Gam} (package \pkg{gam}), \code{gamlss}, \code{gamm}, \code{gamm4},
   \code{gee}, \code{geeglm}, \code{glm}, \code{glm.nb}, \code{glmer},
   \code{glmer.nb}, \code{glmmTMB}, \code{glmmPQL}, \code{glmrob}, \code{glmRob},
   \code{gls}, \code{hurdle}, \code{ivreg}, \code{lm}, \code{lm_robust}, \code{lme},
   \code{lmer}, \code{lmrob}, \code{lmRob}, \code{logistf}, \code{lrm},
-  \code{MixMod}, \code{MCMCglmm}, \code{multinom}, \code{nlmer}, \code{ols}, \code{plm},
+  \code{MixMod}, \code{MCMCglmm}, \code{multinom}, \code{negbin}, \code{nlmer}, \code{ols}, \code{plm},
   \code{polr}, \code{rlm}, \code{rlmer}, \code{rq}, \code{rqss},
   \code{stanreg}, \code{survreg}, \code{svyglm}, \code{svyglm.nb},
-  \code{tobit}, \code{truncreg}, \code{vgam}, \code{zeroinfl} and \code{zerotrunc}.
+  \code{tobit}, \code{truncreg}, \code{vgam}, \code{wbm}, \code{zeroinfl} and \code{zerotrunc}.
   Other models not listed here are passed to a generic predict-function
   and might work as well, or maybe with \code{ggeffect()} or \code{ggemmeans()},
   which effectively do the same as \code{ggpredict()}. The main difference
   is that \code{ggpredict()} calls \code{predict()}, while \code{ggeffect()}
   calls \code{\link[effects]{Effect}} and \code{ggemmeans()} calls
   \code{\link[emmeans]{emmeans}} to compute marginal effects.
-  \cr \cr
-  \strong{Difference between \code{ggpredict()} and \code{ggeffect()} or \code{ggemmeans()}}
-  \cr \cr
+  }
+  \subsection{Difference between \code{ggpredict()} and \code{ggeffect()} or \code{ggemmeans()}}{
   \code{ggpredict()} and \code{ggeffect()} resp. \code{ggemmeans()} differ in
   how factors are held constant: \code{ggpredict()} uses the reference level, while
   \code{ggeffect()} and \code{ggemmeans()} compute a kind of "average" value,
   which represents the proportions of each factor's category. Use \code{condition}
   to set a specific level for factors in \code{ggemmeans()}, so factors are
   not averaged over their categories, but held constant at a given level.
-  \cr \cr
-  \strong{Marginal Effects at Specific Values}
-  \cr \cr
+  }
+  \subsection{Marginal Effects at Specific Values}{
   Specific values of model terms can be specified via the \code{terms}-argument.
   Indicating levels in square brackets allows for selecting only
   specific groups or values resp. value ranges. Term name and the start of
@@ -257,7 +259,7 @@ A data frame (with \code{ggeffects} class attribute) with consistent
   with colon, are also allowed: \code{terms = c("education", "age [30:60]")}.
   \cr \cr
   The \code{terms}-argument also supports the same shortcuts as the
-  \code{values}-argument in \code{rprs_values()}. So
+  \code{values}-argument in \code{values_at()}. So
   \code{terms = "age [meansd]"} would return predictions for the values
   one standard deviation below the mean age, the mean age and
   one SD above the mean age. \code{terms = "age [quart2]"} would calculate
@@ -268,20 +270,20 @@ A data frame (with \code{ggeffects} class attribute) with consistent
   This is useful when model predictors were transformed for fitting the
   model and should be back-transformed to the original scale for predictions.
   It is also possible to define own functions (see
-  \href{../doc/effectsatvalues.html}{this vignette}).
+  \href{https://strengejacke.github.io/ggeffects/articles/introduction_effectsatvalues.html}{this vignette}).
   \cr \cr
   You can take a random sample of any size with \code{sample=n}, e.g
   \code{terms = "income [sample=8]"}, which will sample eight values from
   all possible values of the variable \code{income}. This option is especially
   useful for plotting marginal effects at certain levels of random effects
   group levels, where the group factor has many levels that can be completely
-  plotted. For more details, see \href{../doc/effectsatvalues.html}{this vignette}.
+  plotted. For more details, see \href{https://strengejacke.github.io/ggeffects/articles/introduction_effectsatvalues.html}{this vignette}.
   \cr \cr
   Finally, numeric vectors for which no specific values are given, a
   "pretty range" is calculated (see \code{\link{pretty_range}}), to avoid
   memory allocation problems for vectors with many unique values. If a numeric
   vector is specified as second or third term (i.e. if this vector represents
-  a grouping structure), representative values (see \code{\link{rprs_values}})
+  a grouping structure), representative values (see \code{\link{values_at}})
   are chosen (unless other values are specified). If all values for a numeric
   vector should be used to compute predictions, you may use e.g.
   \code{terms = "age [all]"}. See also package vignettes.
@@ -290,9 +292,8 @@ A data frame (with \code{ggeffects} class attribute) with consistent
   range (i.e. if no specific values would be given), use the \code{n}-tag,
   e.g. \code{terms="age [n=5]"} or \code{terms="age [n=12]"}. Larger
   values for \code{n} return a larger range of predicted values.
-  \cr \cr
-  \strong{Holding covariates at constant values}
-  \cr \cr
+  }
+  \subsection{Holding covariates at constant values}{
   For \code{ggpredict()}, if \code{full.data = FALSE}, \code{expand.grid()}
   is called on all unique combinations of \code{model.frame(model)[, terms]}
   and used as \code{newdata}-argument for \code{predict()}. In this case,
@@ -309,9 +310,7 @@ A data frame (with \code{ggeffects} class attribute) with consistent
   remaining covariates that are not specified in \code{terms} are
   \emph{not} held constant, but vary between observations (and are
   kept as they happen to be). The predicted values are then averaged
-  for each group (if any). Thus, \code{ggpredict()} can be considered
-  as calculating marginal effects at the mean, while \code{ggaverage()}
-  computes average marginal effects.
+  for each group (if any).
   \cr \cr
   \code{ggeffect()} and \code{ggemmeans()}, by default, set remaining numeric
   covariates to their mean value, while for factors, a kind of "average" value,
@@ -319,9 +318,8 @@ A data frame (with \code{ggeffects} class attribute) with consistent
   \code{ggemmeans()}, use \code{condition} to set a specific level for
   factors so that these are not averaged over their categories, but held
   constant at the given level.
-  \cr \cr
-  \strong{Bayesian Regression Models}
-  \cr \cr
+  }
+  \subsection{Bayesian Regression Models}{
   \code{ggpredict()} also works with \strong{Stan}-models from
   the \CRANpkg{rstanarm} or \CRANpkg{brms}-package. The predicted
   values are the median value of all drawn posterior samples. The
@@ -331,17 +329,15 @@ A data frame (with \code{ggeffects} class attribute) with consistent
   limitations: the uncertainty of the error term is not taken into
   account. The recommendation is to use the posterior predictive
   distribution (\code{\link[rstantools]{posterior_predict}}).
-  \cr \cr
-  \strong{Zero-Inflated and Zero-Inflated Mixed Models with brms}
-  \cr \cr
+  }
+  \subsection{Zero-Inflated and Zero-Inflated Mixed Models with brms}{
   Models of class \code{brmsfit} always condition on the zero-inflation
   component, if the model has such a component. Hence, there is no
   \code{type = "fe.zi"} nor \code{type = "re.zi"} for \code{brmsfit}-models,
   because predictions are based on draws of the posterior distribution,
   which already account for the zero-inflation part of the model.
-  \cr \cr
-  \strong{Zero-Inflated and Zero-Inflated Mixed Models with glmmTMB}
-  \cr \cr
+  }
+  \subsection{Zero-Inflated and Zero-Inflated Mixed Models with glmmTMB}{
   If \code{model} is of class \code{glmmTMB}, \code{hurdle}, \code{zeroinfl}
   or \code{zerotrunc}, simulations from a multivariate normal distribution
   (see \code{\link[MASS]{mvrnorm}}) are drawn to calculate \code{mu*(1-p)}.
@@ -354,9 +350,8 @@ A data frame (with \code{ggeffects} class attribute) with consistent
   uncertainties into account are simulations based on \code{simulate()}, which
   is used when \code{type = "sim"} (see Brooks et al. 2017, pp.392-393 for
   details).
-  \cr \cr
-  \strong{MixMod-models from GLMMadaptive}
-  \cr \cr
+  }
+  \subsection{MixMod-models from GLMMadaptive}{
   Predicted values for the fixed effects component (\code{type = "fe"} or
   \code{type = "fe.zi"}) are based on \code{predict(..., type = "mean_subject")},
   while predicted values for random effects components (\code{type = "re"} or
@@ -365,6 +360,7 @@ A data frame (with \code{ggeffects} class attribute) with consistent
   requires the response variable to be defined in the \code{newdata}-argument
   of \code{predict()}, which will be set to its typical value (see
   \code{\link[sjmisc]{typical_value}}).
+  }
 }
 \note{
 Since data for \code{ggaverage()} comes from the model frame, not all
@@ -438,7 +434,7 @@ ggplot(mydf, aes(x = x, y = predicted, colour = group)) +
   stat_smooth(method = "lm", se = FALSE) +
   facet_wrap(~facet, ncol = 2)
 
-# average marginal effects
+# marginal effects, averaged over values in data
 mydf <- ggaverage(fit, terms = c("c12hour", "c172code"))
 ggplot(mydf, aes(x = x, y = predicted, colour = group)) +
   stat_smooth(method = "lm", se = FALSE)

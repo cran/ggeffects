@@ -13,7 +13,7 @@
   jitter = 0.2, log.y = FALSE, case = NULL, show.legend = TRUE,
   show.title = TRUE, show.x.title = TRUE, show.y.title = TRUE,
   dot.size = NULL, line.size = NULL, connect.lines = FALSE, grid,
-  ...)
+  one.plot = TRUE, ...)
 
 theme_ggeffects(base_size = 11, base_family = "")
 
@@ -100,6 +100,9 @@ more details on this argument.}
 error bars (this is usually the case when the x-axis is discrete), points
 of same groups will be connected with a line.}
 
+\item{one.plot}{Logical, if \code{TRUE} and \code{x} has a \code{panel} column
+(i.e. when four \code{terms} were used), a single, integrated plot is produced.}
+
 \item{...}{Further arguments passed down to \code{ggplot::scale_y*()}, to
 control the appearance of the y-axis.}
 
@@ -129,16 +132,15 @@ A generic plot-method for \code{ggeffects}-objects.
          \code{ggpredict()} with argument \code{full.data = TRUE} to additionally
          plot the raw data points, which is automatically done.
          \cr \cr
-         For \code{ggaverage()}, which computes average marginal effects,
+         For \code{ggaverage()}, which computes averaged predicted values,
          the same problem with standard errors and confidence bands would
-         apply. However, the standard errors for the average marginal effects
-         are taken from the marginal effects at the mean, and the predicted
-         values from the average marginal effects are used to compute
-         another regression on these values, to get the "smoothened" values
-         that are used to compute standard errors and confidence intervals
-         that match the predicted values of the average marginal effects
-         (maybe, at this point, it is helpful to inspect the code to better
-         understand what is happening...).
+         apply. However, the standard errors are taken from the marginal
+         effects at the mean, and the predicted values from the averaged
+         predictions are used to compute another regression on these values,
+         to get the "smoothened" values that are used to compute standard
+         errors and confidence intervals that match the averaged predicted
+         values (maybe, at this point, it is helpful to inspect the code to
+         better understand what is happening...).
          \cr \cr
          For proportional odds logistic regression (see \code{\link[MASS]{polr}})
          or cumulative link models in general, plots are automatically facetted

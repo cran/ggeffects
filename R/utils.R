@@ -74,9 +74,9 @@ check_vars <- function(terms, model) {
   }
 
   # check for correct length of vector
-  if (length(terms) > 3) {
-    message("`terms` must have not more than three values. Using first three values now.")
-    terms <- terms[1:3]
+  if (length(terms) > 4) {
+    message("`terms` must have not more than four values. Using first four values now.")
+    terms <- terms[1:4]
   }
 
   if (!is.null(model)) {
@@ -155,7 +155,7 @@ prettify_data <- function(xl.remain, fitfram, terms, use.all = FALSE) {
     pr <- fitfram[[terms[.x]]]
     if (is.numeric(pr)) {
       if (.x > 1 && dplyr::n_distinct(pr, na.rm = TRUE) >= 10)
-        rprs_values(pr)
+        values_at(pr)
       else if (dplyr::n_distinct(pr, na.rm = TRUE) < 20 || isTRUE(use.all))
         sort(stats::na.omit(unique(pr)))
       else
@@ -223,12 +223,12 @@ getVarRand <- function(x) {
 }
 
 
-#' @importFrom insight find_variables
+#' @importFrom insight find_terms
 #' @keywords internal
 .get_pasted_formula <- function(model) {
   tryCatch(
     {
-      unlist(compact_list(insight::find_variables(model)[c("conditional", "random", "instruments")]))
+      unlist(compact_list(insight::find_terms(model)[c("conditional", "random", "instruments")]))
     },
     error = function(x) { NULL }
   )
@@ -295,7 +295,7 @@ is_brms_trial <- function(model) {
 
   if (inherits(model, "brmsfit") && is.null(stats::formula(model)$responses)) {
     is.trial <- tryCatch({
-      rv <- deparse(stats::formula(model)$formula[[2L]], width.cutoff = 500L)
+      rv <- .safe_deparse(stats::formula(model)$formula[[2L]])
       sjmisc::trim(sub("(.*)\\|(.*)\\(([^,)]*).*", "\\2", rv)) %in% c("trials", "resp_trials")
     },
     error = function(x) {
@@ -317,3 +317,9 @@ get_model_info <- function(model) {
 
 
 compact_list <- function(x) x[!sapply(x, function(i) length(i) == 0 || is.null(i) || any(i == "NULL"))]
+
+
+.safe_deparse <- function(string) {
+  paste0(sapply(deparse(string, width.cutoff = 500), sjmisc::trim, simplify = TRUE), collapse = " ")
+}
+

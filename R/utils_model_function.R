@@ -2,6 +2,8 @@
 get_model_function <- function(model) {
   # check class of fitted model
   dplyr::case_when(
+    inherits(model, c("wblm", "wbm")) ~ "lm",
+    inherits(model, "glimML") ~ "glm",
     inherits(model, "bigglm") ~ "glm",
     inherits(model, "biglm") ~ "lm",
     inherits(model, "speedglm") ~ "glm",
@@ -51,6 +53,8 @@ get_model_function <- function(model) {
 get_predict_function <- function(model) {
   # check class of fitted model
   dplyr::case_when(
+    inherits(model, c("wblm", "wbm")) ~ "wbm",
+    inherits(model, "glimML") ~ "glimML",
     inherits(model, "ols") ~ "ols",
     inherits(model, "lrm") ~ "lrm",
     inherits(model, "lmrob") ~ "lmrob",
