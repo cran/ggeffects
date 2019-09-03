@@ -6,9 +6,7 @@
 #' @param x An object of class \code{ggeffects}, as returned by the functions
 #'   from this package.
 #' @param ci Logical, if \code{TRUE}, confidence bands (for continuous variables
-#'   at x-axis) resp. error bars (for factors at x-axis) are plotted.For
-#'   \code{ggeffects}-objects from \code{ggpredict()} with argument
-#'   \code{full.data = TRUE}, \code{ci} is automatically set to \code{FALSE}.
+#'   at x-axis) resp. error bars (for factors at x-axis) are plotted.
 #' @param ci.style Character vector, indicating the style of the confidence
 #'   bands. May be either \code{"ribbon"}, \code{"errorbar"}, \code{"dash"} or
 #'   \code{"dot"}, to plot a ribbon, error bars, or dashed or dotted lines as
@@ -18,7 +16,7 @@
 #'   column. Set \code{facets = TRUE} to wrap the plot into facets even
 #'   for grouping variables (see 'Examples'). \code{grid} is an alias for
 #'   \code{facets}.
-#' @param rawdata Logical, if \code{TRUE}, a layer with raw data from response by
+#' @param add.data,rawdata Logical, if \code{TRUE}, a layer with raw data from response by
 #'   predictor on the x-axis, plotted as point-geoms, is added to the plot.
 #' @param colors Character vector with color values in hex-format, valid
 #'   color value names (see \code{demo("colors")}) or a name of a
@@ -42,9 +40,9 @@
 #' @param use.theme Logical, if \code{TRUE}, a slightly tweaked version of ggplot's
 #'   minimal-theme, \code{theme_ggeffects()}, is applied to the plot. If
 #'   \code{FALSE}, no theme-modifications are applied.
-#' @param dot.alpha Alpha value for data points, when \code{rawdata = TRUE}.
+#' @param dot.alpha Alpha value for data points, when \code{add.data = TRUE}.
 #' @param jitter Numeric, between 0 and 1. If not \code{NULL} and
-#'   \code{rawdata = TRUE}, adds a small amount of random variation to
+#'   \code{add.data = TRUE}, adds a small amount of random variation to
 #'   the location of data points dots, to avoid overplotting. Hence the
 #'   points don't reflect exact values in the data. May also be a numeric
 #'   vector of length two, to add different horizontal and vertical jittering.
@@ -79,35 +77,10 @@
 #'   There are pre-defined colour palettes in this package. Use
 #'   \code{show_pals()} to show all available colour palettes.
 #'
-#' @details \code{ggpredict()} with argument \code{full.data = FALSE} computes
-#'          marginal effects at the mean, where covariates are held constant. In
-#'          this case, the slope between groups does not vary and the standard
-#'          errors and confidence intervals have the same "trend" as the predicted
-#'          values. Hence, plotting confidence bands or error bars is possible.
-#'          However, \code{ggpredict()} with argument \code{full.data = TRUE},
-#'          covariates and standard errors vary between groups, so plotting
-#'          confidence bands and error bars would follow a "winding" shape,
-#'          while the predicted values are smoothened by \code{\link[ggplot2]{geom_smooth}}.
-#'          Predicted values and confidence bands or error bars would no
-#'          longer match, thus, \code{ci} is automatically set to \code{FALSE}
-#'          in such cases. You still may want to plot objects returned by
-#'          \code{ggpredict()} with argument \code{full.data = TRUE} to additionally
-#'          plot the raw data points, which is automatically done.
-#'          \cr \cr
-#'          For \code{ggaverage()}, which computes averaged predicted values,
-#'          the same problem with standard errors and confidence bands would
-#'          apply. However, the standard errors are taken from the marginal
-#'          effects at the mean, and the predicted values from the averaged
-#'          predictions are used to compute another regression on these values,
-#'          to get the "smoothened" values that are used to compute standard
-#'          errors and confidence intervals that match the averaged predicted
-#'          values (maybe, at this point, it is helpful to inspect the code to
-#'          better understand what is happening...).
-#'          \cr \cr
-#'          For proportional odds logistic regression (see \code{\link[MASS]{polr}})
-#'          or cumulative link models in general, plots are automatically facetted
-#'          by \code{response.level}, which indicates the grouping of predictions
-#'          based on the level of the model's response.
+#' @details For proportional odds logistic regression (see \code{\link[MASS]{polr}})
+#'   or cumulative link models in general, plots are automatically facetted
+#'   by \code{response.level}, which indicates the grouping of predictions
+#'   based on the level of the model's response.
 #'
 #' @examples
 #' library(sjlabelled)
@@ -118,19 +91,12 @@
 #' dat <- ggpredict(fit, terms = "c12hour")
 #' plot(dat)
 #'
-#' dat <- ggpredict(fit, terms = "c12hour", full.data = TRUE)
-#' plot(dat)
-#'
-#' dat <- ggaverage(fit, terms = "neg_c_7")
-#' plot(dat)
-#' plot(dat, ci = "dash")
-#'
 #' # facet by group, use pre-defined color palette
 #' dat <- ggpredict(fit, terms = c("c12hour", "c172code"))
 #' plot(dat, facet = TRUE, colors = "hero")
 #'
 #' # don't use facets, b/w figure, w/o confidence bands
-#' dat <- ggaverage(fit, terms = c("c12hour", "c172code"))
+#' dat <- ggpredict(fit, terms = c("c12hour", "c172code"))
 #' plot(dat, colors = "bw", ci = FALSE)
 #'
 #' # factor at x axis, plot exact data points and error bars
@@ -146,13 +112,12 @@
 #' @importFrom sjmisc empty_cols zap_inf is_num_fac
 #' @importFrom sjlabelled as_numeric
 #' @importFrom scales percent
-#' @importFrom dplyr n_distinct
 #' @export
 plot.ggeffects <- function(x,
                            ci = TRUE,
                            ci.style = c("ribbon", "errorbar", "dash", "dot"),
                            facets,
-                           rawdata = FALSE,
+                           add.data = FALSE,
                            colors = "Set1",
                            alpha = .15,
                            dodge = .25,
@@ -170,11 +135,15 @@ plot.ggeffects <- function(x,
                            connect.lines = FALSE,
                            grid,
                            one.plot = TRUE,
+                           rawdata,
                            ...) {
 
   if (!requireNamespace("ggplot2", quietly = FALSE)) {
     stop("Package `ggplot2` needed to produce marginal effects plots. Please install it by typing `install.packages(\"ggplot2\", dependencies = TRUE)` into the console.", call. = FALSE)
   }
+
+  # check alias
+  if (missing(rawdata)) rawdata <- add.data
 
   # set some defaults
 
@@ -243,15 +212,6 @@ plot.ggeffects <- function(x,
   # remember if we have a b/w plot
   is_black_white <- colors[1] == "bw"
 
-  # do we have full data (average effects), or expanded grid?
-  has_full_data <- attr(x, "full.data", exact = TRUE) == "1"
-
-  # for ggalleffects, we don't have this attribute
-  if (sjmisc::is_empty(has_full_data)) has_full_data <- FALSE
-
-  # no CI for full data, because these are not computed
-  if (has_full_data) ci <- FALSE
-
   # set default, if argument not specified
   if (has_facets)
     facets <- TRUE
@@ -262,9 +222,8 @@ plot.ggeffects <- function(x,
   # plot facets for the grouping variable
   facets_grp <- facets && !has_facets
 
-  # set CI to false if we don't have SE and CI, or if we have full data
-  if ("conf.low" %in% names(sjmisc::empty_cols(x)) ||
-      has_full_data || !obj_has_name(x, "conf.low"))
+  # set CI to false if we don't have SE and CI
+  if ("conf.low" %in% names(sjmisc::empty_cols(x)) || !obj_has_name(x, "conf.low"))
     ci <- FALSE
 
 
@@ -315,7 +274,6 @@ plot.ggeffects <- function(x,
         facet_polr = facet_polr,
         is_black_white = is_black_white,
         x_is_factor = x_is_factor,
-        has_full_data = has_full_data,
         alpha = alpha,
         dot.alpha = dot.alpha,
         dodge = dodge,
@@ -362,7 +320,6 @@ plot.ggeffects <- function(x,
       facet_polr = facet_polr,
       is_black_white = is_black_white,
       x_is_factor = x_is_factor,
-      has_full_data = has_full_data,
       alpha = alpha,
       dot.alpha = dot.alpha,
       dodge = dodge,
@@ -405,7 +362,6 @@ plot_panel <- function(x,
                        facet_polr,
                        is_black_white,
                        x_is_factor,
-                       has_full_data,
                        alpha,
                        dot.alpha,
                        dodge,
@@ -428,6 +384,10 @@ plot_panel <- function(x,
                        use.theme,
                        ...) {
 
+  if (obj_has_name(x, "group") && is.character(x$group)) x$group <- factor(x$group, levels = unique(x$group))
+  if (obj_has_name(x, "facet") && is.character(x$facet)) x$facet <- factor(x$facet, levels = unique(x$facet))
+  if (obj_has_name(x, "response.level") && is.character(x$response.level)) x$response.level <- ordered(x$response.level, levels = unique(x$response.level))
+
   # base plot, set mappings
   if (has_groups && !facets_grp && is_black_white && x_is_factor)
     p <- ggplot2::ggplot(x, ggplot2::aes_string(x = "x", y = "predicted", colour = "group", fill = "group", shape = "group"))
@@ -442,7 +402,7 @@ plot_panel <- function(x,
 
 
   # get color values
-  colors <- get_colors(colors, length(unique(x$group)))
+  colors <- .get_colors(colors, length(unique(x$group)))
 
 
   # now plot the geom. we use a smoother for a continuous x, and
@@ -450,23 +410,7 @@ plot_panel <- function(x,
   # numeric, but we need to plot exact data points between categories
   # and no smoothing across all x-values
 
-  if (has_full_data) {
-
-    # we need a smoother on our predictions, but loess for 1 degree
-    p <- p +
-      ggplot2::geom_smooth(
-        method = "loess",
-        method.args = list(family = "symmetric", degree = 1),
-        se = FALSE
-      ) +
-      # if we have full data, also plot data points
-      ggplot2::geom_point(
-        position = ggplot2::position_jitter(width = .1, height = .1),
-        alpha = alpha,
-        shape = 16
-      )
-
-  } else if (x_is_factor) {
+  if (x_is_factor) {
     # for x as factor
     p <- p + ggplot2::geom_point(
       position = ggplot2::position_dodge(width = dodge),
@@ -590,15 +534,16 @@ plot_panel <- function(x,
       rawdat$response <- sjlabelled::as_numeric(rawdat$response)
 
       # check if we have a group-variable with at least two groups
-      if (obj_has_name(rawdat, "group"))
-        grps <- dplyr::n_distinct(rawdat$group, na.rm = TRUE) > 1
-      else
+      if (obj_has_name(rawdat, "group")) {
+        rawdat$group <- as.factor(rawdat$group)
+        grps <- .n_distinct(rawdat$group) > 1
+      } else {
         grps <- FALSE
+      }
 
       # check if we have only selected values for groups, in this case
       # filter raw data to match grouping colours
-      if (grps &&
-          dplyr::n_distinct(rawdat$group, na.rm = TRUE) > dplyr::n_distinct(x$group, na.rm = TRUE)) {
+      if (grps && .n_distinct(rawdat$group) > .n_distinct(x$group)) {
         rawdat <- rawdat[which(rawdat$group %in% x$group), ]
       }
 
@@ -727,14 +672,15 @@ plot_panel <- function(x,
 #' @export
 plot.ggalleffects <- function(x,
                               ci = TRUE,
+                              ci.style = c("ribbon", "errorbar", "dash", "dot"),
                               facets,
-                              rawdata = FALSE,
+                              add.data = FALSE,
                               colors = "Set1",
                               alpha = .15,
-                              dodge = .1,
+                              dodge = .25,
                               use.theme = TRUE,
                               dot.alpha = .5,
-                              jitter = TRUE,
+                              jitter = .2,
                               log.y = FALSE,
                               case = NULL,
                               show.legend = TRUE,
@@ -743,9 +689,17 @@ plot.ggalleffects <- function(x,
                               show.y.title = TRUE,
                               dot.size = NULL,
                               line.size = NULL,
+                              connect.lines = FALSE,
+                              grid,
+                              one.plot = TRUE,
+                              rawdata,
                               ...) {
 
+  if (!missing(grid)) facets <- grid
   if (missing(facets)) facets <- NULL
+
+  # check alias
+  if (missing(rawdata)) rawdata <- add.data
 
   if (isTRUE(facets)) {
     # merge all effect-data frames into one
@@ -772,8 +726,9 @@ plot.ggalleffects <- function(x,
     graphics::plot(
       x = dat,
       ci = ci,
+      ci.style = ci.style,
       facets = TRUE,
-      rawdata = rawdata,
+      add.data = rawdata,
       colors = colors,
       alpha = alpha,
       dodge = dodge,
@@ -788,6 +743,7 @@ plot.ggalleffects <- function(x,
       show.y.title = FALSE,
       dot.size = dot.size,
       line.size = line.size,
+      connect.lines = connect.lines,
       ...
     )
   } else {

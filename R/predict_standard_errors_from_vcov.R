@@ -1,10 +1,10 @@
 # get standard errors of predictions from model matrix and vcov ----
 
-get_se_from_vcov <- function(model,
+.get_se_from_vcov <- function(model,
                              fitfram,
                              typical,
                              terms,
-                             fun = NULL,
+                             model.class = NULL,
                              type = "fe",
                              vcov.fun = NULL,
                              vcov.type = NULL,
@@ -14,12 +14,12 @@ get_se_from_vcov <- function(model,
 
   se <- tryCatch(
     {
-      safe_se_from_vcov(
+      .safe_se_from_vcov(
         model,
         fitfram,
         typical,
         terms,
-        fun,
+        model.class,
         type,
         vcov.fun,
         vcov.type,
@@ -49,16 +49,16 @@ get_se_from_vcov <- function(model,
 }
 
 #' @importFrom stats model.matrix terms vcov formula
-#' @importFrom dplyr arrange n_distinct
+#' @importFrom dplyr arrange
 #' @importFrom rlang parse_expr
 #' @importFrom purrr map flatten_chr map_lgl map2
 #' @importFrom sjmisc is_empty
 #' @importFrom insight find_random clean_names find_parameters
-safe_se_from_vcov <- function(model,
+.safe_se_from_vcov <- function(model,
                               fitfram,
                               typical,
                               terms,
-                              fun,
+                              model.class,
                               type,
                               vcov.fun,
                               vcov.type,
@@ -88,7 +88,7 @@ safe_se_from_vcov <- function(model,
 
 
   # copy data frame with predictions
-  newdata <- get_expanded_data(
+  newdata <- .get_data_grid(
     model,
     mf,
     terms,
@@ -107,7 +107,7 @@ safe_se_from_vcov <- function(model,
 
   if (any(nlevels_terms)) {
     not_enough <- colnames(newdata)[which(nlevels_terms)[1]]
-    remove_lvl <- paste0("[", gsub(pattern = "(.*)\\[(.*)\\]", replacement = "\\2", x = terms[which(get_clear_vars(terms) == not_enough)]), "]", collapse = "")
+    remove_lvl <- paste0("[", gsub(pattern = "(.*)\\[(.*)\\]", replacement = "\\2", x = terms[which(.get_cleaned_terms(terms) == not_enough)]), "]", collapse = "")
     stop(sprintf("`%s` does not have enough factor levels. Try to remove `%s`.", not_enough, remove_lvl), call. = TRUE)
   }
 
@@ -128,7 +128,7 @@ safe_se_from_vcov <- function(model,
   newdata <- sjmisc::add_variables(newdata, as.list(new.resp), .after = -1)
 
   # clean terms from brackets
-  terms <- get_clear_vars(terms)
+  terms <- .get_cleaned_terms(terms)
 
   # sort data by grouping levels, so we have the correct order
   # to slice data afterwards
@@ -158,17 +158,17 @@ safe_se_from_vcov <- function(model,
     vcm <- as.matrix(do.call(vcov.fun, c(list(x = model, type = vcov.type), vcov.args)))
   } else {
     # get variance-covariance-matrix, depending on model type
-    if (is.null(fun)) {
+    if (is.null(model.class)) {
       vcm <- as.matrix(stats::vcov(model))
-    } else if (fun %in% c("hurdle", "zeroinfl", "zerotrunc")) {
+    } else if (model.class %in% c("hurdle", "zeroinfl", "zerotrunc")) {
       vcm <- as.matrix(stats::vcov(model, model = "count"))
-    } else if (fun == "betareg") {
+    } else if (model.class == "betareg") {
       vcm <- as.matrix(stats::vcov(model, model = "mean"))
-    } else if (fun == "truncreg") {
+    } else if (model.class == "truncreg") {
       vcm <- as.matrix(stats::vcov(model))
       # remove sigma from matrix
       vcm <- vcm[1:(nrow(vcm) - 1), 1:(ncol(vcm) - 1)]
-    } else if (fun == "gamlss") {
+    } else if (model.class == "gamlss") {
       vc <- suppressWarnings(stats::vcov(model))
       cond_pars <- length(insight::find_parameters(model)$conditional)
       vcm <- as.matrix(vc)[1:cond_pars, 1:cond_pars]
@@ -233,7 +233,7 @@ safe_se_from_vcov <- function(model,
 
   mm <- mm[mm.rows, ]
 
-  if (!is.null(fun) && fun %in% c("polr", "multinom")) {
+  if (!is.null(model.class) && model.class %in% c("polr", "multinom")) {
     keep <- intersect(colnames(mm), colnames(vcm))
     vcm <- vcm[keep, keep]
     mm <- mm[, keep]
@@ -244,7 +244,7 @@ safe_se_from_vcov <- function(model,
 
   # condition on random effect variances
   if (type == "re" || (!is.null(interval) && interval == "prediction")) {
-    sig <- getVarRand(model)
+    sig <- .get_random_effect_variance(model)
     if (sig > 0.0001) {
       pvar <- pvar + sig
       pr_int <- TRUE
@@ -254,8 +254,8 @@ safe_se_from_vcov <- function(model,
   se.fit <- sqrt(pvar)
 
   # shorten to length of fitfram
-  if (!is.null(fun) && fun %in% c("polr", "multinom"))
-    se.fit <- rep(se.fit, each = dplyr::n_distinct(fitfram$response.level))
+  if (!is.null(model.class) && model.class %in% c("polr", "multinom"))
+    se.fit <- rep(se.fit, each = .n_distinct(fitfram$response.level))
   else
     se.fit <- se.fit[1:nrow(fitfram)]
 

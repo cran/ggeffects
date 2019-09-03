@@ -27,12 +27,6 @@ if (.runThisTest) {
       ggpredict(fit, c("c12hour", "c161sex", "c172code"), type = "re")
     })
 
-    test_that("ggaverage, glmer", {
-      ggaverage(fit, "c12hour")
-      ggaverage(fit, c("c12hour", "c161sex"))
-      ggaverage(fit, c("c12hour", "c161sex", "c172code"))
-    })
-
     test_that("ggeffect, glmer", {
       ggeffect(fit, "c12hour")
       ggeffect(fit, c("c12hour", "c161sex"))
@@ -57,12 +51,6 @@ if (.runThisTest) {
         ggpredict(m, c("f1", "f2"), type = "re")
         ggemmeans(m, "f1")
         ggemmeans(m, c("f1", "f2"))
-      })
-
-      test_that("compare, glmer.nb", {
-        p1 <- ggpredict(m, c("f1", "f2"))
-        p2 <- ggemmeans(m, c("f1", "f2"))
-        expect_equal(p1$predicted[1], p2$predicted[1], tolerance = 1e-3)
       })
 
       test_that("ggpredict, glmer.nb-simulate", {

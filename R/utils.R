@@ -11,64 +11,9 @@ data_frame <- function(...) {
 }
 
 
-# get color palette
-#' @keywords internal
-#' @importFrom scales brewer_pal grey_pal
-get_colors <- function(geom.colors, collen) {
-  # check for corrct color argument
-  if (!is.null(geom.colors)) {
-    # check for color brewer palette
-    if (is.brewer.pal(geom.colors[1]) && collen == 1) {
-      geom.colors <- "black"
-    } else if (is.brewer.pal(geom.colors[1])) {
-      geom.colors <- scales::brewer_pal(palette = geom.colors[1])(collen)
-    } else if (geom.colors[1] %in% names(ggeffects_colors)) {
-      geom.colors <- ggeffects_pal(palette = geom.colors[1], n = collen)
-    } else if (geom.colors[1] == "gs") {
-      geom.colors <- scales::grey_pal()(collen)
-      # do we have correct amount of colours?
-    } else if (geom.colors[1] == "bw") {
-      geom.colors <- rep("black", times = collen)
-      # do we have correct amount of colours?
-    } else if (length(geom.colors) > collen) {
-      # shorten palette
-      geom.colors <- geom.colors[1:collen]
-    } else if (length(geom.colors) < collen) {
-      # warn user abount wrong color palette
-      warning(sprintf("Insufficient length of color palette provided. %i color values needed.", collen), call. = F)
-      # set default palette
-      geom.colors <- scales::brewer_pal(palette = "Set1")(collen)
-    }
-  } else {
-    geom.colors <- scales::brewer_pal(palette = "Set1")(collen)
-  }
-
-  geom.colors
-}
 
 
-# check whether a color value is indicating
-# a color brewer palette
-#' @keywords internal
-is.brewer.pal <- function(pal) {
-  bp.seq <- c("BuGn", "BuPu", "GnBu", "OrRd", "PuBu", "PuBuGn", "PuRd", "RdPu",
-              "YlGn", "YlGnBu", "YlOrBr", "YlOrRd", "Blues", "Greens", "Greys",
-              "Oranges", "Purples", "Reds")
-
-  bp.div <- c("BrBG", "PiYG", "PRGn", "PuOr", "RdBu", "RdGy", "RdYlBu",
-              "RdYlGn", "Spectral")
-
-  bp.qul <- c("Accent", "Dark2", "Paired", "Pastel1", "Pastel2", "Set1",
-              "Set2", "Set3")
-
-  bp <- c(bp.seq, bp.div, bp.qul)
-
-  any(bp == pal)
-}
-
-
-#' @keywords internal
-check_vars <- function(terms, model) {
+.check_vars <- function(terms, model) {
   if (missing(terms) || is.null(terms)) {
     stop("`terms` needs to be a character vector with at least one predictor names: one term used for the x-axis, more optional terms as grouping factors.", call. = F)
   }
@@ -83,7 +28,7 @@ check_vars <- function(terms, model) {
     tryCatch(
       {
         pv <- insight::find_predictors(model, effects = "all", component = "all", flatten = TRUE)
-        clean.terms <- get_clear_vars(terms)
+        clean.terms <- .get_cleaned_terms(terms)
         for (i in clean.terms) {
           if (!(i %in% pv)) {
             insight::print_color(sprintf("`%s` was not found in model terms. Maybe misspelled?\n", i), "red")
@@ -102,7 +47,7 @@ check_vars <- function(terms, model) {
 #' @importFrom dplyr filter
 #' @importFrom stats complete.cases
 #' @importFrom sjlabelled as_label as_numeric
-get_raw_data <- function(model, mf, terms) {
+.get_raw_data <- function(model, mf, terms) {
   # for matrix variables, don't return raw data
   if (any(purrr::map_lgl(mf, is.matrix)) && !inherits(model, c("coxph", "coxme")))
     return(NULL)
@@ -148,18 +93,22 @@ get_raw_data <- function(model, mf, terms) {
 
 
 #' @importFrom purrr map
-#' @importFrom dplyr n_distinct
 #' @importFrom stats na.omit
-prettify_data <- function(xl.remain, fitfram, terms, use.all = FALSE) {
+.prettify_data <- function(xl.remain, fitfram, terms, use.all = FALSE, pretty.message = FALSE) {
   purrr::map(xl.remain, function(.x) {
     pr <- fitfram[[terms[.x]]]
     if (is.numeric(pr)) {
-      if (.x > 1 && dplyr::n_distinct(pr, na.rm = TRUE) >= 10)
+      if (.x > 1 && .n_distinct(pr) >= 10)
         values_at(pr)
-      else if (dplyr::n_distinct(pr, na.rm = TRUE) < 20 || isTRUE(use.all))
+      else if (.n_distinct(pr) < 20 || isTRUE(use.all)) {
         sort(stats::na.omit(unique(pr)))
-      else
+      } else {
+        if (pretty.message) {
+          message(sprintf("Data were 'prettified'. Consider using `terms=\"%s [all]\"` to get smooth plots.", terms[.x]))
+          pretty.message <- FALSE
+        }
         pretty_range(pr)
+      }
     } else if (is.factor(pr))
       levels(droplevels(pr))
     else
@@ -171,7 +120,7 @@ prettify_data <- function(xl.remain, fitfram, terms, use.all = FALSE) {
 #' @importFrom insight get_variance_random n_obs find_parameters
 #' @importFrom stats deviance
 #' @keywords internal
-getVarRand <- function(x) {
+.get_random_effect_variance <- function(x) {
   tryCatch(
     {
       if (inherits(x, c("merMod", "rlmerMod", "lmerMod", "glmerMod", "glmmTMB", "stanreg", "MixMod"))) {
@@ -308,7 +257,7 @@ is_brms_trial <- function(model) {
 }
 
 
-get_model_info <- function(model) {
+.get_model_info <- function(model) {
   faminfo <- insight::model_info(model)
   if (insight::is_multivariate(model)) faminfo <- faminfo[[1]]
   faminfo$is_brms_trial <- is_brms_trial(model)
@@ -323,3 +272,31 @@ compact_list <- function(x) x[!sapply(x, function(i) length(i) == 0 || is.null(i
   paste0(sapply(deparse(string, width.cutoff = 500), sjmisc::trim, simplify = TRUE), collapse = " ")
 }
 
+
+is.gamm <- function(x) {
+  inherits(x, c("list", "gamm")) && all(names(x) %in% c("lme", "gam"))
+}
+
+is.gamm4 <- function(x) {
+  inherits(x, "list") && all(names(x) %in% c("mer", "gam"))
+}
+
+
+.n_distinct <- function(x, na.rm = TRUE) {
+  if (na.rm) x <- x[!is.na(x)]
+  length(unique(x))
+}
+
+
+
+# select rows where values in "variable" match "value"
+.select_rows <- function(data, variable, value) {
+  data[which(data[[variable]] == value), ]
+}
+
+# remove column
+.remove_column <- function(data, variables) {
+  if (!length(variables) || is.null(variables)) return(data)
+  if (is.numeric(variables)) variables <- colnames(data)[variables]
+  data[, -which(colnames(data) %in% variables), drop = FALSE]
+}

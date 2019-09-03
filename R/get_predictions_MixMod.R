@@ -29,10 +29,13 @@ get_predictions_MixMod <- function(model, fitfram, ci.lvl, linv, type, terms, ty
     message(sprintf("Model has zero-inflation part, predicted values can only be conditioned on zero-inflation part. Changing prediction-type to \"%s\".", type))
   }
 
-  prtype <- dplyr::case_when(
-    type %in% c("fe", "fe.zi") ~ "mean_subject",
-    type %in% c("re", "re.zi") ~ "subject_specific",
-    TRUE ~ "mean_subject"
+  prtype <- switch(
+    type,
+    "fe" = ,
+    "fe.zi" = "mean_subject",
+    "re" = ,
+    "re.zi" = "subject_specific",
+    "mean_subject"
   )
 
   prdat <- stats::predict(
@@ -60,9 +63,9 @@ get_predictions_MixMod <- function(model, fitfram, ci.lvl, linv, type, terms, ty
       nsim <- 1000
 
     mf <- insight::get_data(model)
-    clean_terms <- get_clear_vars(terms)
+    clean_terms <- .get_cleaned_terms(terms)
 
-    newdata <- get_expanded_data(
+    newdata <- .get_data_grid(
       model = model,
       mf = mf,
       terms = terms,

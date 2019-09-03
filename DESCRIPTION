@@ -3,8 +3,8 @@ Type: Package
 Encoding: UTF-8
 Title: Create Tidy Data Frames of Marginal Effects for 'ggplot' from
         Model Outputs
-Version: 0.11.0
-Date: 2019-07-01
+Version: 0.12.0
+Date: 2019-09-03
 Authors@R: person("Daniel", "Lüdecke", role = c("aut", "cre"), email = "d.luedecke@uke.de", comment = c(ORCID = "0000-0002-8895-3206"))
 Maintainer: Daniel Lüdecke <d.luedecke@uke.de>
 Description: Compute marginal effects from statistical models and returns the 
@@ -15,9 +15,9 @@ Description: Compute marginal effects from statistical models and returns the
     generic plot()-method to plot the results using 'ggplot2'.
 License: GPL-3
 Depends: R (>= 3.2), graphics, stats, utils
-Imports: dplyr, insight (>= 0.4.0), magrittr, MASS, purrr, rlang,
+Imports: dplyr, insight (>= 0.4.1), magrittr, MASS, purrr, rlang,
         scales, sjlabelled (>= 1.1.0), sjmisc (>= 2.8.0)
-Suggests: AER, aod, betareg, brms, effects (>= 4.0-0), emmeans, gam,
+Suggests: AER, aod, betareg, brms, effects (>= 4.1-0), emmeans, gam,
         gamm4, gee, geepack, ggplot2, GLMMadaptive, glmmTMB, httr,
         knitr, lme4, logistf, Matrix, MCMCglmm, mgcv, nlme, ordinal,
         prediction, pscl, quantreg, rmarkdown, rms, robust, robustbase,
@@ -28,7 +28,7 @@ BugReports: https://github.com/strengejacke/ggeffects/issues
 RoxygenNote: 6.1.1
 VignetteBuilder: knitr
 NeedsCompilation: no
-Packaged: 2019-07-01 09:42:07 UTC; mail
+Packaged: 2019-09-03 09:07:34 UTC; mail
 Author: Daniel Lüdecke [aut, cre] (<https://orcid.org/0000-0002-8895-3206>)
 Repository: CRAN
-Date/Publication: 2019-07-01 10:20:02 UTC
+Date/Publication: 2019-09-03 13:40:03 UTC

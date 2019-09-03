@@ -1,5 +1,5 @@
 #' @importFrom purrr map flatten_df
-#' @importFrom dplyr select group_by n_distinct case_when
+#' @importFrom dplyr select case_when
 #' @importFrom sjmisc round_num is_empty add_variables seq_row is_num_fac
 #' @importFrom stats quantile
 #' @importFrom rlang .data
@@ -32,6 +32,7 @@ print.ggeffects <- function(x, n = 10, digits = 3, x.lab = FALSE, ...) {
   has_groups <- obj_has_name(x, "group") && length(unique(x$group)) > 1
   has_facets <- obj_has_name(x, "facet") && length(unique(x$facet)) > 1
   has_panel <- obj_has_name(x, "panel") && length(unique(x$panel)) > 1
+  has_response <- obj_has_name(x, "response.level") && length(unique(x$response.level)) > 1
   has_se <- obj_has_name(x, "std.error")
 
   cat("\n")
@@ -64,24 +65,33 @@ print.ggeffects <- function(x, n = 10, digits = 3, x.lab = FALSE, ...) {
   if (tl > 2) terms[2:tl] <- format(terms[2:tl], justify = "right")
 
   if (has_groups) {
-    .n <- dplyr::n_distinct(x$group, na.rm = T)
+    .n <-  .n_distinct(x$group)
     if (!is.null(terms) && length(terms) >= 2) {
-      x$group <- sprintf("%s = %s", terms[2], as.character(x$group))
+      vals <- sprintf("%s = %s", terms[2], as.character(x$group))
+      lvls <- unique(vals)
+      x$group <- factor(vals, levels = lvls)
     }
   }
 
   if (has_facets) {
-    .n <- .n * dplyr::n_distinct(x$facet, na.rm = T)
+    .n <- .n * .n_distinct(x$facet)
     if (!is.null(terms) && length(terms) >= 3) {
       x$facet <- sprintf("%s = %s", terms[3], as.character(x$facet))
     }
   }
 
   if (has_panel) {
-    .n <- .n * dplyr::n_distinct(x$panel, na.rm = T)
+    .n <- .n * .n_distinct(x$panel)
     if (!is.null(terms) && length(terms) >= 4) {
       x$panel <- sprintf("%s = %s", terms[4], as.character(x$panel))
     }
+  }
+
+  if (has_response) {
+    .n <- .n * .n_distinct(x$response.level)
+    vals <- sprintf("Response Level = %s", as.character(x$response.level))
+    lvls <- unique(vals)
+    x$response.level <- ordered(vals, levels = lvls)
   }
 
   # make sure that by default not too many rows are printed
@@ -95,39 +105,79 @@ print.ggeffects <- function(x, n = 10, digits = 3, x.lab = FALSE, ...) {
   }
 
   if (!has_groups) {
-    cat("\n")
-    if (obj_has_name(x, "group"))
-      x <- dplyr::select(x, -.data$group)
-    print.data.frame(x[get_sample_rows(x, n), ], ..., row.names = FALSE, quote = FALSE)
+
+    if (!has_response) {
+      cat("\n")
+      if (obj_has_name(x, "group")) x <- .remove_column(x, "group")
+      print.data.frame(x[.get_sample_rows(x, n), ], ..., row.names = FALSE, quote = FALSE)
+    } else {
+      x$.nest <- tapply(x$predicted, list(x$response.level), NULL)
+      xx <- split(x, x$.nest)
+
+      for (i in xx) {
+        insight::print_color(sprintf("\n# %s\n", i$response.level[1]), "red")
+        .print_block(i, n, ...)
+      }
+    }
+
   } else if (has_groups && !has_facets) {
-    xx <- x %>%
-      dplyr::group_by(.data$group) %>%
-      .nest()
 
-    for (i in 1:nrow(xx)) {
-      insight::print_color(sprintf("\n# %s\n", xx[i, 1]), "red")
-      tmp <- purrr::flatten_df(xx[i, 2])
-      print.data.frame(tmp[get_sample_rows(tmp, n), ], ..., row.names = FALSE, quote = FALSE)
+    if (!has_response) {
+      x$.nest <- tapply(x$predicted, list(x$group), NULL)
+      xx <- split(x, x$.nest)
+
+      for (i in xx) {
+        insight::print_color(sprintf("\n# %s\n", i$group[1]), "red")
+        .print_block(i, n, ...)
+      }
+    } else {
+      x$.nest <- tapply(x$predicted, list(x$response.level, x$group), NULL)
+      xx <- split(x, x$.nest)
+
+      for (i in xx) {
+        insight::print_color(sprintf("\n# %s\n# %s\n", i$response.level[1], i$group[1]), "red")
+        .print_block(i, n, ...)
+      }
     }
+
   } else if (has_groups && has_facets && !has_panel) {
-    xx <- x %>%
-      dplyr::group_by(.data$group, .data$facet) %>%
-      .nest()
 
-    for (i in 1:nrow(xx)) {
-      insight::print_color(sprintf("\n# %s\n# %s\n", xx[i, 1], xx[i, 2]), "red")
-      tmp <- purrr::flatten_df(xx[i, 3])
-      print.data.frame(tmp[get_sample_rows(tmp, n), ], ..., row.names = FALSE, quote = FALSE)
+    if (!has_response) {
+      x$.nest <- tapply(x$predicted, list(x$group, x$facet), NULL)
+      xx <- split(x, x$.nest)
+
+      for (i in xx) {
+        insight::print_color(sprintf("\n# %s\n# %s\n", i$group[1], i$facet[1]), "red")
+        .print_block(i, n, ...)
+      }
+    } else {
+      x$.nest <- tapply(x$predicted, list(x$response.level, x$group, x$facet), NULL)
+      xx <- split(x, x$.nest)
+
+      for (i in xx) {
+        insight::print_color(sprintf("\n# %s\n# %s\n# %s\n", i$response.level[1], i$group[1], i$facet[1]), "red")
+        .print_block(i, n, ...)
+      }
     }
-  } else {
-    xx <- x %>%
-      dplyr::group_by(.data$group, .data$facet, .data$panel) %>%
-      .nest()
 
-    for (i in 1:nrow(xx)) {
-      insight::print_color(sprintf("\n# %s\n# %s\n# %s\n", xx[i, 1], xx[i, 2], xx[i, 3]), "red")
-      tmp <- purrr::flatten_df(xx[i, 4])
-      print.data.frame(tmp[get_sample_rows(tmp, n), ], ..., row.names = FALSE, quote = FALSE)
+  } else {
+
+    if (!has_response) {
+      x$.nest <- tapply(x$predicted, list(x$group, x$facet, x$panel), NULL)
+      xx <- split(x, x$.nest)
+
+      for (i in xx) {
+        insight::print_color(sprintf("\n# %s\n# %s\n# %s\n", i$group[1], i$facet[1], i$panel[1]), "red")
+        .print_block(i, n, ...)
+      }
+    } else {
+      x$.nest <- tapply(x$predicted, list(x$response.level, x$group, x$facet, x$panel), NULL)
+      xx <- split(x, x$.nest)
+
+      for (i in xx) {
+        insight::print_color(sprintf("\n# %s\n# %s\n# %s\n# %s\n", i$response.level[1], i$group[1], i$facet[1], i$panel[1]), "red")
+        .print_block(i, n, ...)
+      }
     }
   }
 
@@ -179,7 +229,8 @@ print.ggeffects <- function(x, n = 10, digits = 3, x.lab = FALSE, ...) {
 }
 
 
-get_sample_rows <- function(x, n) {
+
+.get_sample_rows <- function(x, n) {
   nr.of.rows <- sjmisc::seq_row(x)
 
   if (n < length(nr.of.rows)) {
@@ -193,4 +244,11 @@ get_sample_rows <- function(x, n) {
   }
 
   sample.rows
+}
+
+
+
+.print_block <- function(i, n, ...) {
+  i <- i[setdiff(colnames(i), c("group", "facet", "panel", "response.level", ".nest"))]
+  print.data.frame(i[.get_sample_rows(i, n), ], ..., row.names = FALSE, quote = FALSE)
 }

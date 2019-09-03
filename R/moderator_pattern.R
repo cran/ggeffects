@@ -1,5 +1,5 @@
 #' @title Calculate representative values of a vector
-#' @name rprs_values
+#' @name values_at
 #'
 #' @description This function calculates representative values of a vector,
 #'   like minimum/maximum values or lower, median and upper quartile etc.,
@@ -28,7 +28,7 @@
 #'
 #' @importFrom stats sd quantile
 #' @export
-rprs_values <- function(x, values = "meansd") {
+values_at <- function(x, values = "meansd") {
 
   # check if representative value is possible to compute
   # e.g. for quantiles, if we have at least three values
@@ -98,10 +98,11 @@ check_rv <- function(values, x) {
 }
 
 
-#' @rdname rprs_values
+#' @rdname values_at
 #' @export
-representative_values <- rprs_values
+representative_values <- values_at
 
-#' @rdname rprs_values
+
+#' @rdname values_at
 #' @export
-values_at <- rprs_values
+rprs_values <- values_at

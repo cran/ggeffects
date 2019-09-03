@@ -1,11 +1,14 @@
-#' @importFrom stats qlogis
-get_predictions_generic2 <- function(model, fitfram, ci.lvl, linv, type, fun, typical, terms, vcov.fun, vcov.type, vcov.args, condition, interval, ...) {
+#' @importFrom stats qnorm predict
+get_predictions_generic2 <- function(model, fitfram, ci.lvl, linv, type, model.class, typical, terms, vcov.fun, vcov.type, vcov.args, condition, interval, ...) {
   # get prediction type.
-  pt <- dplyr::case_when(
-    fun == "betareg" ~ "link",
-    fun == "vgam" ~ "link",
-    TRUE ~ "response"
+  pt <- switch(
+    model.class,
+    "betareg" = "link",
+    "vgam" = "link",
+    "response"
   )
+
+  se <- (!is.null(ci.lvl) && !is.na(ci.lvl)) || !is.null(vcov.fun)
 
   # compute ci, two-ways
   if (!is.null(ci.lvl) && !is.na(ci.lvl))
@@ -27,13 +30,13 @@ get_predictions_generic2 <- function(model, fitfram, ci.lvl, linv, type, fun, ty
 
   # get standard errors from variance-covariance matrix
   se.pred <-
-    get_se_from_vcov(
+    .get_se_from_vcov(
       model = model,
       fitfram = fitfram,
       typical = typical,
       type = type,
       terms = terms,
-      fun = fun,
+      model.class = model.class,
       vcov.fun = vcov.fun,
       vcov.type = vcov.type,
       vcov.args = vcov.args,
@@ -42,7 +45,7 @@ get_predictions_generic2 <- function(model, fitfram, ci.lvl, linv, type, fun, ty
     )
 
 
-  if (!is.null(se.pred)) {
+  if (!is.null(se.pred) && isTRUE(se)) {
     se.fit <- se.pred$se.fit
     fitfram <- se.pred$fitfram
 

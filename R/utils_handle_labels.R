@@ -1,10 +1,9 @@
 # add labels to grouping and facet variables, if these
 # variables come from labelled data
-#' @importFrom dplyr n_distinct
 #' @importFrom sjmisc recode_to is_num_fac
 #' @importFrom sjlabelled get_labels set_labels
 #' @importFrom stats na.omit
-add_groupvar_labels <- function(mydf, ori.mf, terms) {
+.add_labels_to_groupvariable <- function(mydf, ori.mf, terms) {
   grp.lbl <- sjlabelled::get_labels(
     ori.mf[[terms[2]]],
     non.labelled = TRUE,
@@ -17,7 +16,7 @@ add_groupvar_labels <- function(mydf, ori.mf, terms) {
     grp.lbl <- NULL
 
   # drop levels, if necessary
-  if (is.factor(mydf$group) && dplyr::n_distinct(mydf$group, na.rm = TRUE) < nlevels(mydf$group))
+  if (is.factor(mydf$group) && .n_distinct(mydf$group) < nlevels(mydf$group))
     mydf$group <- droplevels(mydf$group)
 
   # check if vector has any labels
@@ -47,7 +46,7 @@ add_groupvar_labels <- function(mydf, ori.mf, terms) {
       facet.lbl <- NULL
 
     # drop levels, if necessary
-    if (is.factor(mydf$facet) && dplyr::n_distinct(mydf$facet, na.rm = TRUE) < nlevels(mydf$facet))
+    if (is.factor(mydf$facet) && .n_distinct(mydf$facet) < nlevels(mydf$facet))
       mydf$facet <- droplevels(mydf$facet)
 
     # check if vector has any labels
@@ -72,7 +71,7 @@ add_groupvar_labels <- function(mydf, ori.mf, terms) {
 # this method converts lavelled group variables
 # into factors with labelled levels
 #' @importFrom sjlabelled as_label
-groupvar_to_label <- function(mydf) {
+.groupvariable_to_labelled_factor <- function(mydf) {
   mydf$group <-
     sjlabelled::as_label(
       mydf$group,
@@ -99,7 +98,7 @@ groupvar_to_label <- function(mydf) {
 
 # get labels from labelled data for axis titles and labels
 #' @importFrom sjlabelled get_label
-get_all_labels <- function(fitfram, terms, fun, faminfo, no.transform, type) {
+.get_axis_titles_and_labels <- function(fitfram, terms, fun, faminfo, no.transform, type) {
   # Retrieve response for automatic title
   resp.col <- colnames(fitfram)[1]
 
@@ -159,7 +158,7 @@ get_title_labels <- function(fun, faminfo, no.transform, type) {
   if (fun == "glm") {
     if (faminfo$is_brms_trial)
       ysc <- "successes"
-    else if (faminfo$is_binomial)
+    else if (faminfo$is_binomial || faminfo$is_ordinal)
       ysc <-
         dplyr::if_else(
           isTRUE(no.transform),

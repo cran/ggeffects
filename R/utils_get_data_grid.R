@@ -5,14 +5,14 @@
 #' @importFrom insight find_predictors find_response find_random find_weights get_weights
 # fac.typical indicates if factors should be held constant or not
 # need to be false for computing std.error for merMod objects
-get_expanded_data <- function(model, mf, terms, typ.fun, fac.typical = TRUE, pretty.message = TRUE, condition = NULL, emmeans.only = FALSE) {
+.get_data_grid <- function(model, mf, terms, typ.fun, fac.typical = TRUE, pretty.message = TRUE, condition = NULL, emmeans.only = FALSE) {
   # special handling for coxph
   if (inherits(model, c("coxph", "coxme"))) {
     surv.var <- which(colnames(mf) == insight::find_response(model))
-    mf <- dplyr::select(mf, !! -surv.var)
+    mf <- .remove_column(mf, surv.var)
   }
 
-  fam.info <- get_model_info(model)
+  fam.info <- .get_model_info(model)
 
   # make sure we don't have arrays as variables
   mf <- purrr::modify_if(mf, is.array, as.data.frame)
@@ -36,9 +36,9 @@ get_expanded_data <- function(model, mf, terms, typ.fun, fac.typical = TRUE, pre
 
 
   # get specific levels
-  first <- get_xlevels_vector(terms, mf)
+  first <- .get_representative_values(terms, mf)
   # and all specified variables
-  rest <- get_clear_vars(terms)
+  rest <- .get_cleaned_terms(terms)
 
 
   # check if user has any predictors with log-transformatio inside
@@ -53,7 +53,7 @@ get_expanded_data <- function(model, mf, terms, typ.fun, fac.typical = TRUE, pre
           clean.term <- unlist(clean.term[c("conditional", "random", "instruments")])[.get_log_terms(model)]
           exp.term <- string_ends_with(pattern = "[exp]", x = terms)
 
-          if (any(sjmisc::is_empty(exp.term)) || any(get_clear_vars(terms)[exp.term] != clean.term)) {
+          if (any(sjmisc::is_empty(exp.term)) || any(.get_cleaned_terms(terms)[exp.term] != clean.term)) {
             message(sprintf("Model has log-transformed predictors. Consider using `terms=\"%s [exp]\"` to back-transform scale.", clean.term[1]))
           }
         }
@@ -96,7 +96,14 @@ get_expanded_data <- function(model, mf, terms, typ.fun, fac.typical = TRUE, pre
   xl.remain <- which(!(rest %in% names(first)))
 
   # prettify numeric vectors, get representative values
-  xl <- prettify_data(xl.remain, mf, rest, use.all = use.all)
+  xl <-
+    .prettify_data(
+      xl.remain = xl.remain,
+      fitfram = mf,
+      terms = rest,
+      use.all = use.all,
+      pretty.message = pretty.message && fam.info$is_binomial
+    )
   names(xl) <- rest[xl.remain]
   first <- c(first, xl)
 
@@ -327,8 +334,8 @@ get_expanded_data <- function(model, mf, terms, typ.fun, fac.typical = TRUE, pre
   # which will return predictions on a population level.
   # See ?glmmTMB::predict
 
-  if (inherits(model, c("glmmTMB", "merMod", "rlmerMod", "MixMod", "brmsfit"))) {
-    cleaned.terms <- get_clear_vars(terms)
+  if (inherits(model, c("glmmTMB", "merMod", "rlmerMod", "MixMod", "brmsfit", "lme"))) {
+    cleaned.terms <- .get_cleaned_terms(terms)
 
     # check if we have fixed effects as grouping factor in random effects as well...
     # if so, remove from random-effects here
@@ -352,7 +359,7 @@ get_expanded_data <- function(model, mf, terms, typ.fun, fac.typical = TRUE, pre
             const.values[i] <- "NA (population-level)"
           }
         }
-      } else if (inherits(model, c("merMod", "rlmerMod"))) {
+      } else if (inherits(model, c("merMod", "rlmerMod", "lme"))) {
         for (i in re.terms) {
           if (i %in% names(const.values)) {
             datlist[[i]] <- 0
@@ -369,35 +376,10 @@ get_expanded_data <- function(model, mf, terms, typ.fun, fac.typical = TRUE, pre
   attr(datlist, "n.trials") <- n.trials
 
   w <- insight::find_weights(model)
-  if (!is.null(w)) {
-    datlist$.w <- NA
+  if (!is.null(w) && !inherits(model, "brmsfit")) {
+    datlist$.w <- as.numeric(NA)
     colnames(datlist)[ncol(datlist)] <- w
   }
 
   datlist
-}
-
-
-#' @importFrom sjmisc is_empty
-#' @importFrom dplyr slice
-#' @importFrom insight clean_names
-get_sliced_data <- function(fitfram, terms) {
-  # check if we have specific levels in square brackets
-  x.levels <- get_xlevels_vector(terms)
-
-  # if we have any x-levels, go on and filter
-  if (!sjmisc::is_empty(x.levels) && !is.null(x.levels)) {
-    # get names of covariates that should be filtered
-    x.lvl.names <- names(x.levels)
-
-    # slice data, only select observations that have specified
-    # levels for the grouping variables
-    for (i in seq_len(length(x.levels)))
-      fitfram <- dplyr::slice(fitfram, which(fitfram[[x.lvl.names[i]]] %in% x.levels[[i]]))
-  }
-
-  # clean variable names
-  colnames(fitfram) <- insight::clean_names(colnames(fitfram))
-
-  fitfram
 }

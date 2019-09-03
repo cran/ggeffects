@@ -1,12 +1,13 @@
 #' @importFrom stats confint
 #' @importFrom sjmisc var_rename
+#' @importFrom insight find_random find_predictors print_color
 get_predictions_clmm <- function(model, terms, typical, condition, ci.lvl, linv, ...) {
 
   if (!requireNamespace("emmeans")) {
     stop("Package `emmeans` required to compute marginal effects for clmm-models.", call. = FALSE)
   }
 
-  values.at <- get_expanded_data(
+  values.at <- .get_data_grid(
     model = model,
     mf = insight::get_data(model),
     terms = terms,
@@ -16,9 +17,19 @@ get_predictions_clmm <- function(model, terms, typical, condition, ci.lvl, linv,
     emmeans.only = TRUE
   )
 
+  # no predicted values at random terms allowed
+  re.terms <- insight::find_random(model, split_nested = TRUE, flatten = TRUE)
+  fe.terms <- insight::find_predictors(model, flatten = TRUE)
+
+  if (any(re.terms %in% names(values.at)) && !any(re.terms %in% fe.terms)) {
+    insight::print_color("Predicted values can't be computed for levels of random effects from 'clmm' models.\n", "red")
+    cat(sprintf("Please remove following variables from 'terms': %s\n", paste0(re.terms[which(re.terms %in% names(values.at))], collapse = ", ")))
+    return(NULL)
+  }
+
   fitfram <- emmeans::emmeans(
     object = model,
-    spec = c(insight::find_response(model, combine = FALSE), get_clear_vars(terms)),
+    spec = c(insight::find_response(model, combine = FALSE), .get_cleaned_terms(terms)),
     at = values.at,
     mode = "prob"
   ) %>%

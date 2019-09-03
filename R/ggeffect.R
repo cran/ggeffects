@@ -1,14 +1,13 @@
 #' @rdname ggpredict
 #'
 #' @importFrom purrr map map2
-#' @importFrom dplyr if_else case_when bind_rows mutate
 #' @importFrom sjmisc is_empty str_contains
 #' @importFrom stats na.omit
 #' @importFrom sjlabelled as_numeric
 #' @importFrom rlang .data
 #' @importFrom insight find_predictors link_inverse print_color
 #' @export
-ggeffect <- function(model, terms, ci.lvl = .95, x.as.factor = FALSE, ...) {
+ggeffect <- function(model, terms, ci.lvl = .95, x.as.factor = TRUE, ...) {
 
   if (!requireNamespace("effects", quietly = TRUE)) {
     message("Package `effects` is not available, but needed for `ggeffect()`. Either install package `effects`, or use `ggpredict()`. Calling `ggpredict()` now.", call. = FALSE)
@@ -53,14 +52,14 @@ ggeffect <- function(model, terms, ci.lvl = .95, x.as.factor = FALSE, ...) {
 ggeffect_helper <- function(model, terms, ci.lvl, x.as.factor, ...) {
 
   # check terms argument
-  terms <- check_vars(terms, model)
-  cleaned.terms <- get_clear_vars(terms)
+  terms <- .check_vars(terms, model)
+  cleaned.terms <- .get_cleaned_terms(terms)
 
   # get model frame
   fitfram <- insight::get_data(model)
 
   # get model family
-  faminfo <- get_model_info(model)
+  faminfo <- .get_model_info(model)
 
   # check whether we have an argument "transformation" for effects()-function
   # in this case, we need another default title, since we have
@@ -74,15 +73,15 @@ ggeffect_helper <- function(model, terms, ci.lvl, x.as.factor, ...) {
 
 
   # check if we have specific levels in square brackets
-  x.levels <- get_xlevels_vector(terms, fitfram)
+  x.levels <- .get_representative_values(terms, fitfram)
 
   # clear argument from brackets
-  terms <- get_clear_vars(terms)
+  terms <- .get_cleaned_terms(terms)
 
   # fix remaining x-levels
   xl.remain <- which(!(terms %in% names(x.levels)))
   if (!sjmisc::is_empty(xl.remain)) {
-    xl <- prettify_data(xl.remain, fitfram, terms)
+    xl <- .prettify_data(xl.remain, fitfram, terms)
     names(xl) <- terms[xl.remain]
     x.levels <- c(x.levels, xl)
   }
@@ -147,7 +146,7 @@ ggeffect_helper <- function(model, terms, ci.lvl, x.as.factor, ...) {
     tmp2$conf.high <- tmp$predicted + stats::qnorm(ci) * tmp2$se
     tmp2$std.error <- tmp2$se
 
-    tmp <- dplyr::bind_cols(tmp, tmp2[, c("std.error", "conf.low", "conf.high")])
+    tmp <- cbind(tmp, tmp2[, c("std.error", "conf.low", "conf.high")])
     tmp$response.level <- substr(tmp$response.level, 7, max(nchar(tmp$response.level)))
   } else {
 
@@ -206,10 +205,10 @@ ggeffect_helper <- function(model, terms, ci.lvl, x.as.factor, ...) {
   legend.labels <- NULL
 
   # get axis titles and labels
-  all.labels <- get_all_labels(
+  all.labels <- .get_axis_titles_and_labels(
     fitfram,
     terms,
-    get_model_function(model),
+    .get_model_function(model),
     faminfo = faminfo,
     no.transform,
     type = NULL
@@ -246,10 +245,10 @@ ggeffect_helper <- function(model, terms, ci.lvl, x.as.factor, ...) {
   if (length(terms) > 1) {
     # grouping variable may not be labelled
     # do this here, so we convert to labelled factor later
-    tmp <- add_groupvar_labels(tmp, fitfram, terms)
+    tmp <- .add_labels_to_groupvariable(tmp, fitfram, terms)
 
     # convert to factor for proper legend
-    tmp <- groupvar_to_label(tmp)
+    tmp <- .groupvariable_to_labelled_factor(tmp)
 
     # check if we have legend labels
     legend.labels <- sjlabelled::get_labels(tmp$group, attr.only = FALSE, drop.unused = TRUE)
@@ -260,7 +259,7 @@ ggeffect_helper <- function(model, terms, ci.lvl, x.as.factor, ...) {
   mydf <- as.data.frame(tmp, stringsAsFactors = FALSE)
 
   # add raw data as well
-  attr(mydf, "rawdata") <- get_raw_data(model, fitfram, terms)
+  attr(mydf, "rawdata") <- .get_raw_data(model, fitfram, terms)
 
 
   x_v <- fitfram[[fx.term]]
@@ -271,7 +270,7 @@ ggeffect_helper <- function(model, terms, ci.lvl, x.as.factor, ...) {
 
   # set attributes with necessary information
   mydf <-
-    set_attributes_and_class(
+    .set_attributes_and_class(
       data = mydf,
       model = model,
       t.title = all.labels$t.title,
@@ -282,7 +281,6 @@ ggeffect_helper <- function(model, terms, ci.lvl, x.as.factor, ...) {
       x.axis.labels = all.labels$axis.labels,
       faminfo = faminfo,
       x.is.factor = xif,
-      full.data = "0",
       terms = cleaned.terms
     )
 
@@ -306,13 +304,10 @@ create_eff_group <- function(tmp, terms, eff, sub) {
     # convert to factor for proper legend
     tmp$group <- sjmisc::to_factor(1)
   } else if (length(terms) == 2) {
-    tmp <- dplyr::mutate(tmp, group = sjmisc::to_factor(fx$x[[terms[2]]]))
+    tmp$group<- sjmisc::to_factor(fx$x[[terms[2]]])
   } else {
-    tmp <- dplyr::mutate(
-      tmp,
-      group = sjmisc::to_factor(fx$x[[terms[2]]]),
-      facet = sjmisc::to_factor(fx$x[[terms[3]]])
-    )
+    tmp$group<- sjmisc::to_factor(fx$x[[terms[2]]])
+    tmp$facet<- sjmisc::to_factor(fx$x[[terms[3]]])
   }
 
   tmp

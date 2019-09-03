@@ -12,7 +12,7 @@ ggemmeans <- function(model,
                       typical = "mean",
                       condition = NULL,
                       back.transform = TRUE,
-                      x.as.factor = FALSE,
+                      x.as.factor = TRUE,
                       x.cat,
                       ...) {
 
@@ -33,21 +33,19 @@ ggemmeans <- function(model,
 
   # for gamm/gamm4 objects, we have a list with two items, mer and gam
   # extract just the mer-part then
-  is.gamm <- inherits(model, c("list", "gamm")) && all(names(model %in% c("lme", "gam")))
-  is.gamm4 <- inherits(model, "list") && all(names(model %in% c("mer", "gam")))
-  if (is.gamm || is.gamm4) model <- model$gam
+  if (is.gamm(model) || is.gamm4(model)) model <- model$gam
 
   # check model family, do we have count model?
-  faminfo <- get_model_info(model)
+  faminfo <- .get_model_info(model)
 
   # get model frame
   ori.fram <- fitfram <- insight::get_data(model)
 
   # check terms argument
-  terms <- check_vars(terms, model)
-  cleaned.terms <- get_clear_vars(terms)
+  terms <- .check_vars(terms, model)
+  cleaned.terms <- .get_cleaned_terms(terms)
 
-  expanded_frame <- get_expanded_data(
+  expanded_frame <- .get_data_grid(
     model = model, mf = fitfram, terms = terms, typ.fun = typical,
     condition = condition, emmeans.only = TRUE
   )
@@ -70,14 +68,24 @@ ggemmeans <- function(model,
     else
       nsim <- 1000
 
-    fitfram <- .ggemmeans_zi_predictions(model, fitfram, preds, ci.lvl, terms, cleaned.terms, typical, condition, nsim)
+    fitfram <- .ggemmeans_zi_predictions(
+      model,
+      fitfram,
+      preds,
+      ci.lvl,
+      terms,
+      cleaned.terms,
+      typical,
+      condition,
+      nsim
+    )
     pmode <- "response"
 
   } else {
 
     # get prediction mode, i.e. at which scale predicted
     # values should be returned
-    pmode <- get_pred_mode(model, faminfo, type)
+    pmode <- .get_prediction_mode_argument(model, faminfo, type)
 
     if (faminfo$is_ordinal | faminfo$is_categorical) {
       fitfram <- .ggemmeans_predict_ordinal(model, expanded_frame, cleaned.terms, ci.lvl, ...)
@@ -85,6 +93,13 @@ ggemmeans <- function(model,
       fitfram <- .ggemmeans_predict_MCMCglmm(model, expanded_frame, cleaned.terms, ci.lvl, pmode, ...)
     } else {
       fitfram <- .ggemmeans_predict_generic(model, expanded_frame, cleaned.terms, ci.lvl, pmode, ...)
+    }
+
+    # fix gam here
+    if (inherits(model, "gam") && faminfo$is_zero_inflated) {
+      fitfram$predicted <- exp(fitfram$predicted)
+      fitfram$conf.low <- exp(fitfram$conf.low)
+      fitfram$conf.high <- exp(fitfram$conf.high)
     }
   }
 
@@ -103,10 +118,10 @@ ggemmeans <- function(model,
   legend.labels <- NULL
 
   # get axis titles and labels
-  all.labels <- get_all_labels(
+  all.labels <- .get_axis_titles_and_labels(
     fitfram = ori.fram,
     terms = cleaned.terms,
-    fun = get_model_function(model),
+    fun = .get_model_function(model),
     faminfo = faminfo,
     no.transform = FALSE,
     type = type
@@ -121,11 +136,11 @@ ggemmeans <- function(model,
   ))]
 
   # name and sort columns, depending on groups, facet and panel
-  mydf <- prepare_columns(mydf, cleaned.terms)
+  mydf <- .prepare_columns(mydf, cleaned.terms)
 
   # convert to factor for proper legend
-  mydf <- add_groupvar_labels(mydf, ori.fram, cleaned.terms)
-  mydf <- groupvar_to_label(mydf)
+  mydf <- .add_labels_to_groupvariable(mydf, ori.fram, cleaned.terms)
+  mydf <- .groupvariable_to_labelled_factor(mydf)
 
   # check if we have legend labels
   legend.labels <- sjlabelled::get_labels(mydf$group)
@@ -141,9 +156,8 @@ ggemmeans <- function(model,
   }
 
 
-  # remember if x is factor and if we had full data
+  # remember if x is factor
   x.is.factor <- ifelse(is.factor(mydf$x), "1", "0")
-  has.full.data <- "0"
 
   # x needs to be numeric
   if (!x.as.factor) mydf$x <- sjlabelled::as_numeric(mydf$x)
@@ -168,7 +182,7 @@ ggemmeans <- function(model,
   attr(mydf, "model.name") <- model.name
 
   # set attributes with necessary information
-  set_attributes_and_class(
+  .set_attributes_and_class(
     data = mydf,
     model = model,
     t.title = all.labels$t.title,
@@ -179,11 +193,10 @@ ggemmeans <- function(model,
     x.axis.labels = all.labels$axis.labels,
     faminfo = faminfo,
     x.is.factor = x.is.factor,
-    full.data = has.full.data,
     constant.values = attr(expanded_frame, "constant.values", exact = TRUE),
     terms = cleaned.terms,
     ori.terms = terms,
-    at.list = get_expanded_data(
+    at.list = .get_data_grid(
       model = model, mf = ori.fram, terms = terms, typ.fun = typical,
       condition = condition, pretty.message = FALSE, emmeans.only = TRUE
     ),
@@ -193,7 +206,7 @@ ggemmeans <- function(model,
 
 
 #' @importFrom dplyr case_when
-get_pred_mode <- function(model, faminfo, type) {
+.get_prediction_mode_argument <- function(model, faminfo, type) {
   dplyr::case_when(
     inherits(model, "betareg") ~ "response",
     inherits(model, c("polr", "clm", "clmm", "clm2", "rms")) ~ "prob",

@@ -47,7 +47,7 @@ emm <- function(model, ci.lvl = .95, type = c("fe", "re", "fe.zi", "re.zi", "sim
   # check class of fitted model
   fun <- get_predict_function(model)
   # check model family, do we have count model?
-  faminfo <- get_model_info(model)
+  faminfo <- .get_model_info(model)
 
   # compute predictions here
   preds <-
@@ -68,6 +68,9 @@ emm <- function(model, ci.lvl = .95, type = c("fe", "re", "fe.zi", "re.zi", "sim
       interval = NULL,
       ...
     )
+
+  # return if no predicted values have been computed
+  if (is.null(preds)) return(NULL)
 
   # add std.error
   se <- attr(preds, "std.error", exact = TRUE)

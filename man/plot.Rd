@@ -8,12 +8,12 @@
 \title{Plot ggeffects-objects}
 \usage{
 \method{plot}{ggeffects}(x, ci = TRUE, ci.style = c("ribbon",
-  "errorbar", "dash", "dot"), facets, rawdata = FALSE, colors = "Set1",
-  alpha = 0.15, dodge = 0.25, use.theme = TRUE, dot.alpha = 0.5,
-  jitter = 0.2, log.y = FALSE, case = NULL, show.legend = TRUE,
-  show.title = TRUE, show.x.title = TRUE, show.y.title = TRUE,
-  dot.size = NULL, line.size = NULL, connect.lines = FALSE, grid,
-  one.plot = TRUE, ...)
+  "errorbar", "dash", "dot"), facets, add.data = FALSE,
+  colors = "Set1", alpha = 0.15, dodge = 0.25, use.theme = TRUE,
+  dot.alpha = 0.5, jitter = 0.2, log.y = FALSE, case = NULL,
+  show.legend = TRUE, show.title = TRUE, show.x.title = TRUE,
+  show.y.title = TRUE, dot.size = NULL, line.size = NULL,
+  connect.lines = FALSE, grid, one.plot = TRUE, rawdata, ...)
 
 theme_ggeffects(base_size = 11, base_family = "")
 
@@ -24,9 +24,7 @@ show_pals()
 from this package.}
 
 \item{ci}{Logical, if \code{TRUE}, confidence bands (for continuous variables
-at x-axis) resp. error bars (for factors at x-axis) are plotted.For
-\code{ggeffects}-objects from \code{ggpredict()} with argument
-\code{full.data = TRUE}, \code{ci} is automatically set to \code{FALSE}.}
+at x-axis) resp. error bars (for factors at x-axis) are plotted.}
 
 \item{ci.style}{Character vector, indicating the style of the confidence
 bands. May be either \code{"ribbon"}, \code{"errorbar"}, \code{"dash"} or
@@ -39,7 +37,7 @@ column. Set \code{facets = TRUE} to wrap the plot into facets even
 for grouping variables (see 'Examples'). \code{grid} is an alias for
 \code{facets}.}
 
-\item{rawdata}{Logical, if \code{TRUE}, a layer with raw data from response by
+\item{add.data, rawdata}{Logical, if \code{TRUE}, a layer with raw data from response by
 predictor on the x-axis, plotted as point-geoms, is added to the plot.}
 
 \item{colors}{Character vector with color values in hex-format, valid
@@ -66,10 +64,10 @@ confidence bands are replaced by error bars automatically), or if
 minimal-theme, \code{theme_ggeffects()}, is applied to the plot. If
 \code{FALSE}, no theme-modifications are applied.}
 
-\item{dot.alpha}{Alpha value for data points, when \code{rawdata = TRUE}.}
+\item{dot.alpha}{Alpha value for data points, when \code{add.data = TRUE}.}
 
 \item{jitter}{Numeric, between 0 and 1. If not \code{NULL} and
-\code{rawdata = TRUE}, adds a small amount of random variation to
+\code{add.data = TRUE}, adds a small amount of random variation to
 the location of data points dots, to avoid overplotting. Hence the
 points don't reflect exact values in the data. May also be a numeric
 vector of length two, to add different horizontal and vertical jittering.
@@ -117,35 +115,10 @@ A ggplot2-object.
 A generic plot-method for \code{ggeffects}-objects.
 }
 \details{
-\code{ggpredict()} with argument \code{full.data = FALSE} computes
-         marginal effects at the mean, where covariates are held constant. In
-         this case, the slope between groups does not vary and the standard
-         errors and confidence intervals have the same "trend" as the predicted
-         values. Hence, plotting confidence bands or error bars is possible.
-         However, \code{ggpredict()} with argument \code{full.data = TRUE},
-         covariates and standard errors vary between groups, so plotting
-         confidence bands and error bars would follow a "winding" shape,
-         while the predicted values are smoothened by \code{\link[ggplot2]{geom_smooth}}.
-         Predicted values and confidence bands or error bars would no
-         longer match, thus, \code{ci} is automatically set to \code{FALSE}
-         in such cases. You still may want to plot objects returned by
-         \code{ggpredict()} with argument \code{full.data = TRUE} to additionally
-         plot the raw data points, which is automatically done.
-         \cr \cr
-         For \code{ggaverage()}, which computes averaged predicted values,
-         the same problem with standard errors and confidence bands would
-         apply. However, the standard errors are taken from the marginal
-         effects at the mean, and the predicted values from the averaged
-         predictions are used to compute another regression on these values,
-         to get the "smoothened" values that are used to compute standard
-         errors and confidence intervals that match the averaged predicted
-         values (maybe, at this point, it is helpful to inspect the code to
-         better understand what is happening...).
-         \cr \cr
-         For proportional odds logistic regression (see \code{\link[MASS]{polr}})
-         or cumulative link models in general, plots are automatically facetted
-         by \code{response.level}, which indicates the grouping of predictions
-         based on the level of the model's response.
+For proportional odds logistic regression (see \code{\link[MASS]{polr}})
+  or cumulative link models in general, plots are automatically facetted
+  by \code{response.level}, which indicates the grouping of predictions
+  based on the level of the model's response.
 }
 \note{
 Load \code{library(ggplot2)} and use \code{theme_set(theme_ggeffects())}
@@ -165,19 +138,12 @@ fit <- lm(barthtot ~ c12hour + neg_c_7 + c161sex + c172code, data = efc)
 dat <- ggpredict(fit, terms = "c12hour")
 plot(dat)
 
-dat <- ggpredict(fit, terms = "c12hour", full.data = TRUE)
-plot(dat)
-
-dat <- ggaverage(fit, terms = "neg_c_7")
-plot(dat)
-plot(dat, ci = "dash")
-
 # facet by group, use pre-defined color palette
 dat <- ggpredict(fit, terms = c("c12hour", "c172code"))
 plot(dat, facet = TRUE, colors = "hero")
 
 # don't use facets, b/w figure, w/o confidence bands
-dat <- ggaverage(fit, terms = c("c12hour", "c172code"))
+dat <- ggpredict(fit, terms = c("c12hour", "c172code"))
 plot(dat, colors = "bw", ci = FALSE)
 
 # factor at x axis, plot exact data points and error bars
