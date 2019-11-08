@@ -1,4 +1,3 @@
-#' @importFrom dplyr select
 #' @importFrom stats predict qnorm plogis
 #' @importFrom insight link_function print_color
 get_predictions_glmmTMB <- function(model, fitfram, ci.lvl, linv, type, terms, typical, condition, ...) {
@@ -17,7 +16,7 @@ get_predictions_glmmTMB <- function(model, fitfram, ci.lvl, linv, type, terms, t
   modfam <- insight::model_info(model)
   clean_terms <- .get_cleaned_terms(terms)
 
-  if (!modfam$is_zeroinf && type %in% c("fe.zi", "re.zi")) {
+  if (!modfam$is_zero_inflated && type %in% c("fe.zi", "re.zi")) {
     if (type == "fe.zi")
       type <- "fe"
     else
@@ -154,7 +153,7 @@ get_predictions_glmmTMB <- function(model, fitfram, ci.lvl, linv, type, terms, t
     }
   }
 
-  if (obj_has_name(fitfram, "std.error")) {
+  if (.obj_has_name(fitfram, "std.error")) {
     # copy standard errors
     attr(fitfram, "std.error") <- fitfram$std.error
     fitfram <- .remove_column(fitfram, "std.error")

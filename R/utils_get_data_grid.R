@@ -74,7 +74,7 @@
 
   use.all <- FALSE
   if (.has_splines(model) && !.uses_all_tag(terms)) {
-    if (inherits(model, c("Gam", "gam", "vgam", "glm", "lm", "brmsfit")))
+    if (inherits(model, c("Gam", "gam", "vgam", "glm", "lm", "brmsfit", "bamlss", "gamlss")))
       use.all <- TRUE
     else if (pretty.message) {
       message(sprintf("Model contains splines or polynomial terms. Consider using `terms=\"%s [all]\"` to get smooth plots. See also package-vignette 'Marginal Effects at Specific Values'.", rest[1]))
@@ -323,6 +323,11 @@
   # get list names. we need to remove patterns like "log()" etc.
   names(datlist) <- names(first)
   datlist <- as.data.frame(datlist)
+
+  # in case we have variable names with white space, fix here
+  if (any(names(first) != colnames(datlist))) {
+    colnames(datlist) <- names(first)
+  }
 
   if (inherits(model, "wbm")) {
     colnames(datlist) <- names(first)

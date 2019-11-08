@@ -3,7 +3,7 @@
 magrittr::`%>%`
 
 
-#' @keywords internal
+
 data_frame <- function(...) {
   x <- data.frame(..., stringsAsFactors = FALSE)
   rownames(x) <- NULL
@@ -44,16 +44,12 @@ data_frame <- function(...) {
 }
 
 
-#' @importFrom dplyr filter
 #' @importFrom stats complete.cases
 #' @importFrom sjlabelled as_label as_numeric
 .get_raw_data <- function(model, mf, terms) {
   # for matrix variables, don't return raw data
   if (any(purrr::map_lgl(mf, is.matrix)) && !inherits(model, c("coxph", "coxme")))
     return(NULL)
-
-  # remove missings from model frame
-  mf <- dplyr::filter(mf, stats::complete.cases(mf))
 
   if (!all(insight::find_response(model, combine = FALSE) %in% colnames(mf)))
     return(NULL)
@@ -79,6 +75,9 @@ data_frame <- function(...) {
   } else {
     group <- sjmisc::to_factor(1)
   }
+
+  # remove missings from model frame
+  mf <- mf[stats::complete.cases(mf), ]
 
   # return all as data.frame
   tryCatch(
@@ -119,7 +118,6 @@ data_frame <- function(...) {
 
 #' @importFrom insight get_variance_random n_obs find_parameters
 #' @importFrom stats deviance
-#' @keywords internal
 .get_random_effect_variance <- function(x) {
   tryCatch(
     {
@@ -137,7 +135,7 @@ data_frame <- function(...) {
 }
 
 
-#' @keywords internal
+
 .has_splines <- function(model) {
   form <- .get_pasted_formula(model)
   if (is.null(form)) return(FALSE)
@@ -150,7 +148,7 @@ data_frame <- function(...) {
 }
 
 
-#' @keywords internal
+
 .has_poly <- function(model) {
   form <- .get_pasted_formula(model)
   if (is.null(form)) return(FALSE)
@@ -158,13 +156,13 @@ data_frame <- function(...) {
 }
 
 
-#' @keywords internal
+
 .has_log <- function(model) {
   any(.get_log_terms(model))
 }
 
 
-#' @keywords internal
+
 .get_log_terms <- function(model) {
   form <- .get_pasted_formula(model)
   if (is.null(form)) return(FALSE)
@@ -173,24 +171,23 @@ data_frame <- function(...) {
 
 
 #' @importFrom insight find_terms
-#' @keywords internal
 .get_pasted_formula <- function(model) {
   tryCatch(
     {
-      unlist(compact_list(insight::find_terms(model)[c("conditional", "random", "instruments")]))
+      unlist(.compact_list(insight::find_terms(model)[c("conditional", "random", "instruments")]))
     },
     error = function(x) { NULL }
   )
 }
 
 
-#' @keywords internal
+
 .has_poly_term <- function(x) {
   any(grepl("poly\\(([^,)]*)", x))
 }
 
 
-#' @keywords internal
+
 .uses_all_tag <- function(terms) {
   tags <- unlist(regmatches(
     terms,
@@ -205,8 +202,7 @@ data_frame <- function(...) {
 }
 
 
-#' @keywords internal
-frac_length <- function(x) {
+.frac_length <- function(x) {
   if (is.numeric(x)) {
     max(nchar(gsub(pattern = "(.\\.)(.*)", "\\2", sprintf("%f", abs(x) %% 1))))
   } else
@@ -214,19 +210,20 @@ frac_length <- function(x) {
 }
 
 
+
 is.whole <- function(x) {
   (is.numeric(x) && all(floor(x) == x, na.rm = T)) || is.character(x) || is.factor(x)
 }
 
 
-#' @keywords internal
+
 .get_poly_term <- function(x) {
   p <- "(.*)poly\\(([^,]*)[^)]*\\)(.*)"
   sub(p, "\\2", x)
 }
 
 
-#' @keywords internal
+
 .get_poly_degree <- function(x) {
   p <- "(.*)poly\\(([^,]*)([^)])*\\)(.*)"
   tryCatch(
@@ -257,6 +254,7 @@ is_brms_trial <- function(model) {
 }
 
 
+
 .get_model_info <- function(model) {
   faminfo <- insight::model_info(model)
   if (insight::is_multivariate(model)) faminfo <- faminfo[[1]]
@@ -265,7 +263,7 @@ is_brms_trial <- function(model) {
 }
 
 
-compact_list <- function(x) x[!sapply(x, function(i) length(i) == 0 || is.null(i) || any(i == "NULL"))]
+.compact_list <- function(x) x[!sapply(x, function(i) length(i) == 0 || is.null(i) || any(i == "NULL"))]
 
 
 .safe_deparse <- function(string) {
@@ -273,13 +271,16 @@ compact_list <- function(x) x[!sapply(x, function(i) length(i) == 0 || is.null(i
 }
 
 
+
 is.gamm <- function(x) {
   inherits(x, c("list", "gamm")) && all(names(x) %in% c("lme", "gam"))
 }
 
+
 is.gamm4 <- function(x) {
   inherits(x, "list") && all(names(x) %in% c("mer", "gam"))
 }
+
 
 
 .n_distinct <- function(x, na.rm = TRUE) {

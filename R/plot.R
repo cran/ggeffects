@@ -20,14 +20,13 @@
 #'   predictor on the x-axis, plotted as point-geoms, is added to the plot.
 #' @param colors Character vector with color values in hex-format, valid
 #'   color value names (see \code{demo("colors")}) or a name of a
-#'   \href{http://colorbrewer2.org}{color brewer} palette.
+#'   ggeffects-color-palette.
 #'   Following options are valid for \code{colors}:
 #'   \itemize{
 #'     \item If not specified, the color brewer palette "Set1" will be used.
 #'     \item If \code{"gs"}, a greyscale will be used.
 #'     \item If \code{"bw"}, the plot is black/white and uses different line types to distinguish groups.
-#'     \item If \code{colors} is any valid color brewer palette name, the related palette will be used. Use \code{\link[RColorBrewer]{display.brewer.all}} to view all available palette names.
-#'     \item There are some pre-defined color-palettes in this package that can be used, e.g. \code{colors = "metro"}. See \code{show_pals()} to show all available palettes.
+#'     \item There are some pre-defined color-palettes in this package that can be used, e.g. \code{colors = "metro"}. See \code{\link[=show_pals]{show_pals()}} to show all available palettes.
 #'     \item Else specify own color values or names as vector (e.g. \code{colors = c("#f00000", "#00ff00")}).
 #'   }
 #' @param alpha Alpha value for the confidence bands.
@@ -91,6 +90,7 @@
 #' dat <- ggpredict(fit, terms = "c12hour")
 #' plot(dat)
 #'
+#' \donttest{
 #' # facet by group, use pre-defined color palette
 #' dat <- ggpredict(fit, terms = c("c12hour", "c172code"))
 #' plot(dat, facet = TRUE, colors = "hero")
@@ -105,13 +105,14 @@
 #'
 #' # for three variables, automatic facetting
 #' dat <- ggpredict(fit, terms = c("c12hour", "c172code", "c161sex"))
-#' plot(dat)
+#' plot(dat)}
 #'
+#' # show all color palettes
+#' show_pals()
 #'
 #' @importFrom stats binomial poisson gaussian Gamma inverse.gaussian quasi quasibinomial quasipoisson
 #' @importFrom sjmisc empty_cols zap_inf is_num_fac
 #' @importFrom sjlabelled as_numeric
-#' @importFrom scales percent
 #' @export
 plot.ggeffects <- function(x,
                            ci = TRUE,
@@ -122,7 +123,7 @@ plot.ggeffects <- function(x,
                            alpha = .15,
                            dodge = .25,
                            use.theme = TRUE,
-                           dot.alpha = .5,
+                           dot.alpha = .35,
                            jitter = .2,
                            log.y = FALSE,
                            case = NULL,
@@ -191,9 +192,9 @@ plot.ggeffects <- function(x,
 
 
   # do we have groups and facets?
-  has_groups <- obj_has_name(x, "group") && length(unique(x$group)) > 1
-  has_facets <- obj_has_name(x, "facet") && length(unique(x$facet)) > 1
-  has_panel <- obj_has_name(x, "panel") && length(unique(x$panel)) > 1
+  has_groups <- .obj_has_name(x, "group") && length(unique(x$group)) > 1
+  has_facets <- .obj_has_name(x, "facet") && length(unique(x$facet)) > 1
+  has_panel <- .obj_has_name(x, "panel") && length(unique(x$panel)) > 1
 
   # convert x back to numeric
   if (!is.numeric(x$x)) {
@@ -204,7 +205,7 @@ plot.ggeffects <- function(x,
 
   # special solution for polr
   facet_polr <- FALSE
-  if (obj_has_name(x, "response.level") && length(unique(x$response.level)) > 1) {
+  if (.obj_has_name(x, "response.level") && length(unique(x$response.level)) > 1) {
     has_facets <- TRUE
     facet_polr <- TRUE
   }
@@ -223,7 +224,7 @@ plot.ggeffects <- function(x,
   facets_grp <- facets && !has_facets
 
   # set CI to false if we don't have SE and CI
-  if ("conf.low" %in% names(sjmisc::empty_cols(x)) || !obj_has_name(x, "conf.low"))
+  if ("conf.low" %in% names(sjmisc::empty_cols(x)) || !.obj_has_name(x, "conf.low"))
     ci <- FALSE
 
 
@@ -384,9 +385,9 @@ plot_panel <- function(x,
                        use.theme,
                        ...) {
 
-  if (obj_has_name(x, "group") && is.character(x$group)) x$group <- factor(x$group, levels = unique(x$group))
-  if (obj_has_name(x, "facet") && is.character(x$facet)) x$facet <- factor(x$facet, levels = unique(x$facet))
-  if (obj_has_name(x, "response.level") && is.character(x$response.level)) x$response.level <- ordered(x$response.level, levels = unique(x$response.level))
+  if (.obj_has_name(x, "group") && is.character(x$group)) x$group <- factor(x$group, levels = unique(x$group))
+  if (.obj_has_name(x, "facet") && is.character(x$facet)) x$facet <- factor(x$facet, levels = unique(x$facet))
+  if (.obj_has_name(x, "response.level") && is.character(x$response.level)) x$response.level <- ordered(x$response.level, levels = unique(x$response.level))
 
   # base plot, set mappings
   if (has_groups && !facets_grp && is_black_white && x_is_factor)
@@ -534,8 +535,9 @@ plot_panel <- function(x,
       rawdat$response <- sjlabelled::as_numeric(rawdat$response)
 
       # check if we have a group-variable with at least two groups
-      if (obj_has_name(rawdat, "group")) {
+      if (.obj_has_name(rawdat, "group")) {
         rawdat$group <- as.factor(rawdat$group)
+        # levels(rawdat$group) <- unique(x$group)
         grps <- .n_distinct(rawdat$group) > 1
       } else {
         grps <- FALSE
@@ -570,17 +572,35 @@ plot_panel <- function(x,
           shape = 16
         )
       } else {
-        p <- p + ggplot2::geom_jitter(
-          data = rawdat,
-          mapping = mp,
-          alpha = dot.alpha,
-          size = dot.size,
-          width = jitter[1],
-          height = jitter[2],
-          show.legend = FALSE,
-          inherit.aes = FALSE,
-          shape = 16
-        )
+        if (ci.style == "errorbar") {
+          p <- p + ggplot2::geom_point(
+            data = rawdat,
+            mapping = mp,
+            alpha = dot.alpha,
+            size = dot.size,
+            position = ggplot2::position_jitterdodge(
+              jitter.width = jitter[1],
+              jitter.height = jitter[2],
+              dodge.width = dodge
+            ),
+            show.legend = FALSE,
+            inherit.aes = FALSE,
+            shape = 16
+          )
+
+        } else {
+          p <- p + ggplot2::geom_jitter(
+            data = rawdat,
+            mapping = mp,
+            alpha = dot.alpha,
+            size = dot.size,
+            width = jitter[1],
+            height = jitter[2],
+            show.legend = FALSE,
+            inherit.aes = FALSE,
+            shape = 16
+          )
+        }
       }
     } else {
       message("Raw data not available.")
@@ -639,13 +659,25 @@ plot_panel <- function(x,
   # for binomial family, fix coord
 
   if (attr(x, "logistic", exact = TRUE) == "1" && attr(x, "is.trial", exact = TRUE) == "0") {
-    if (log.y) {
-      if (is.null(y.breaks))
-        p <- p + ggplot2::scale_y_log10(labels = scales::percent, ...)
-      else
-        p <- p + ggplot2::scale_y_log10(labels = scales::percent, breaks = y.breaks, limits = y.limits, ...)
-    } else
-      p <- p + ggplot2::scale_y_continuous(labels = scales::percent, ...)
+
+    if (!requireNamespace("scales", quietly = FALSE)) {
+      warning("Package `scales` needed to use percentage values for the y-axis. Install it by typing `install.packages(\"scales\", dependencies = TRUE)` into the console.", call. = FALSE)
+      if (log.y) {
+        if (is.null(y.breaks))
+          p <- p + ggplot2::scale_y_log10(...)
+        else
+          p <- p + ggplot2::scale_y_log10(breaks = y.breaks, limits = y.limits, ...)
+      } else
+        p <- p + ggplot2::scale_y_continuous(...)
+    } else {
+      if (log.y) {
+        if (is.null(y.breaks))
+          p <- p + ggplot2::scale_y_log10(labels = scales::percent, ...)
+        else
+          p <- p + ggplot2::scale_y_log10(labels = scales::percent, breaks = y.breaks, limits = y.limits, ...)
+      } else
+        p <- p + ggplot2::scale_y_continuous(labels = scales::percent, ...)
+    }
   } else if (log.y) {
     if (is.null(y.breaks))
       p <- p + ggplot2::scale_y_log10(...)

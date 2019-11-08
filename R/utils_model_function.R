@@ -4,7 +4,7 @@
   lm_models <- c(
     "wblm", "wbm", "biglm", "speedlm", "gls", "ols", "ivreg", "gee", "plm", "lm",
     "rq", "rqss", "lmRob", "lm_robust", "lme", "truncreg", "nlmerMod", "lmerMod",
-    "merModLmerTest", "rlmerMod"
+    "merModLmerTest", "rlmerMod", "bayesx"
   )
 
   if (inherits(model, lm_models))
@@ -34,7 +34,9 @@ get_predict_function <- function(model) {
   else if (inherits(model, "svyglm")) return("svyglm")
   else if (inherits(model, "stanreg")) return("stanreg")
   else if (inherits(model, "brmsfit")) return("brmsfit")
+  else if (inherits(model, "bayesx")) return("bayesx")
   else if (inherits(model, "gamlss")) return("gamlss")
+  else if (inherits(model, "bamlss")) return("bamlss")
   else if (inherits(model, "gam")) return("gam")
   else if (inherits(model, c("tobit", "survreg"))) return("tobit")
   else if (inherits(model, "Gam")) return("Gam")
@@ -58,19 +60,21 @@ get_predict_function <- function(model) {
   else if (inherits(model, "negbin")) return("glm.nb")
   else if (inherits(model, "vgam")) return("vgam")
   else if (inherits(model, "vglm")) return("vglm")
-  else if (inherits(model, "glm")) return("glm")
   else if (inherits(model, "lm_robust")) return("lm")
   else if (inherits(model, "lmrob")) return("lm")
   else if (inherits(model, "lmRob")) return("lm")
-  else if (inherits(model, "lm")) return("lm")
   else if (inherits(model, "betareg")) return("betareg")
   else if (inherits(model, "truncreg")) return("truncreg")
   else if (inherits(model, "coxph")) return("coxph")
+  else if (inherits(model, "brmultinom")) return("brmultinom")
   else if (inherits(model, "multinom")) return("multinom")
+  else if (inherits(model, "bracl")) return("bracl")
   else if (inherits(model, "Zelig-relogit")) return("Zelig-relogit")
   else if (inherits(model, "zerotrunc")) return("zerotrunc")
   else if (inherits(model, "zeroinfl")) return("zeroinfl")
   else if (inherits(model, "hurdle")) return("hurdle")
   else if (inherits(model, "MixMod")) return("MixMod")
+  else if (inherits(model, "glm")) return("glm")
+  else if (inherits(model, "lm")) return("lm")
   else return("generic")
 }

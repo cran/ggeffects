@@ -1,16 +1,20 @@
 #' @importFrom stats qlogis predict qnorm
-#' @importFrom dplyr case_when select
 get_predictions_zeroinfl <- function(model, fitfram, ci.lvl, linv, type, model.class, typical, terms, vcov.fun, vcov.type, vcov.args, condition, ...) {
   # get prediction type.
-  pt <- dplyr::case_when(
-    model.class == "zeroinfl" && type == "fe" ~ "count",
-    model.class == "zeroinfl" && type == "fe.zi" ~ "response",
-    model.class == "zerotrunc" && type == "fe" ~ "count",
-    model.class == "zerotrunc" && type == "fe.zi" ~ "response",
-    model.class == "hurdle" && type == "fe" ~ "count",
-    model.class == "hurdle" && type == "fe.zi" ~ "response",
-    TRUE ~ "response"
-  )
+  pt <- if (model.class == "zeroinfl" && type == "fe")
+    "count"
+  else if (model.class == "zeroinfl" && type == "fe.zi")
+    "response"
+  else if (model.class == "zerotrunc" && type == "fe")
+    "count"
+  else if (model.class == "zerotrunc" && type == "fe.zi")
+    "response"
+  else if (model.class == "hurdle" && type == "fe")
+    "count"
+  else if (model.class == "hurdle" && type == "fe.zi")
+    "response"
+  else
+    "response"
 
   # compute ci, two-ways
   if (!is.null(ci.lvl) && !is.na(ci.lvl))
@@ -71,7 +75,7 @@ get_predictions_zeroinfl <- function(model, fitfram, ci.lvl, linv, type, model.c
       sims <- exp(prdat.sim$cond) * (1 - stats::plogis(prdat.sim$zi))
       fitfram <- get_zeroinfl_fitfram(fitfram, newdata, as.vector(prdat), sims, ci, clean_terms)
 
-      if (obj_has_name(fitfram, "std.error")) {
+      if (.obj_has_name(fitfram, "std.error")) {
         # copy standard errors
         attr(fitfram, "std.error") <- fitfram$std.error
         fitfram <- .remove_column(fitfram, "std.error")

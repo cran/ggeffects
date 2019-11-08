@@ -1,10 +1,11 @@
 unloadNamespace("gam")
 
-if (require("testthat") && require("ggeffects") && require("mgcv")) {
+.runThisTest <- Sys.getenv("RunAllggeffectsTests") == "yes"
 
-  ## TODO remove once insight 0.5.0 is on CRAN
+if (.runThisTest) {
 
-  if (packageVersion("insight") >= "0.5.0") {
+  if (require("testthat") && require("ggeffects") && require("mgcv")) {
+
     set.seed(0)
     dat <- gamSim(6, n = 200, scale = .2, dist = "poisson")
     m1 <-
@@ -21,4 +22,5 @@ if (require("testthat") && require("ggeffects") && require("mgcv")) {
       ggpredict(m1, c("x1", "x2"))
     })
   }
+
 }

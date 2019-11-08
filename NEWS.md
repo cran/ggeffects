@@ -1,3 +1,32 @@
+# ggeffects 0.13.0
+
+## Breaking Changes
+
+* The use of `emm()` is discouraged, and so it was removed.
+
+## New supported models
+
+* `bracl`, `brmultinom` (package **brglm2**) and models from packages **bamlss** and **R2BayesX**.
+
+## General
+
+* Updated package dependencies.
+* `plot()` now uses dodge-position for raw data for categorical x-axis, to align raw data points with points and error bars geoms from predictions.
+* Updated and re-arranged internal color palette, especially to have a better behaviour when selecting colors from continuous palettes (see `show_pals()`).
+
+## New functions
+
+* Added a `vcov()` function to calculate variance-covariance matrix for marginal effects.
+
+## Changes to Functions
+
+* `ggemmeans()` now also accepts `type = "re"` and `type = "re.zi"`, to add random effects variances to prediction intervals for mixed models.
+* The ellipses-argument `...` is now passed down to the `predict()`-method for *gamlss*-objects, so predictions can be computed for sigma, nu and tau as well.
+
+## Bug fixes
+
+* Fixed issue with wrong order of plot x-axis for `ggeffect()`, when one term was a character vector.
+
 # ggeffects 0.12.0
 
 ## Breaking Changes

@@ -47,7 +47,11 @@ select_prediction_method <- function(model.class,
   } else if (model.class == "geeglm") {
     fitfram <- get_predictions_geeglm(model, expanded_frame, ...)
   } else if (model.class == "gamlss") {
-    fitfram <- get_predictions_gamlss(model, expanded_frame, ci.lvl, linv, terms, model.class, typical, condition, ...)
+    fitfram <- get_predictions_gamlss(model, expanded_frame, ci.lvl, terms, model.class, typical, condition, ...)
+  } else if (model.class == "bamlss") {
+    fitfram <- get_predictions_bamlss(model, expanded_frame, linv, ...)
+  } else if (model.class == "bayesx") {
+    fitfram <- get_predictions_bayesx(model, expanded_frame, ...)
   } else if (model.class == "gam") {
     fitfram <- get_predictions_gam(model, expanded_frame, ci.lvl, linv, type, ...)
   } else if (model.class == "Gam") {
@@ -62,7 +66,7 @@ select_prediction_method <- function(model.class,
     fitfram <- get_predictions_lme(model, expanded_frame, ci.lvl, linv, type, terms, typical, model.class, vcov.fun, vcov.type, vcov.args, condition, ...)
   } else if (model.class == "gee") {
     fitfram <- get_predictions_gee(model, terms, ...)
-  } else if (model.class == "multinom") {
+  } else if (model.class %in% c("multinom", "bracl", "brmultinom")) {
     fitfram <- get_predictions_multinom(model, expanded_frame, ci.lvl, linv, typical, terms, model.class, ...)
   } else if (model.class == "clmm") {
     fitfram <- get_predictions_clmm(model, terms, typical, condition, ci.lvl, linv, ...)
@@ -125,7 +129,7 @@ select_prediction_method <- function(model.class,
 
   # get standard errors, if computed
 
-  if (obj_has_name(prdat, "se.fit")) {
+  if (.obj_has_name(prdat, "se.fit")) {
     se.fit <- prdat$se.fit
     # reset interval, since we have normal confidence intervals already here
     if (interval == "confidence") interval <- NULL

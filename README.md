@@ -6,6 +6,8 @@
 [![DOI](http://joss.theoj.org/papers/10.21105/joss.00772/status.svg)](https://doi.org/10.21105/joss.00772)
   
 [![Documentation](https://img.shields.io/badge/documentation-ggeffects-orange.svg?colorB=E91E63)](https://strengejacke.github.io/ggeffects/)
+   [![Build
+Status](https://travis-ci.org/strengejacke/ggeffects.svg?branch=master)](https://travis-ci.org/strengejacke/ggeffects.svg)
   
 [![downloads](http://cranlogs.r-pkg.org/badges/ggeffects)](http://cranlogs.r-pkg.org/)
   
@@ -45,18 +47,19 @@ email or also file an issue.
 ## ggeffects supports many different models and is easy to use
 
 Marginal effects can be calculated for many different models. Currently
-supported model-objects are: `betabin`, `betareg`, `bglmer`, `blmer`,
-`brglm`, `brmsfit`, `clm`, `clm2`, `clmm`, `coxph`, `gam` (package
-**mgcv**), `Gam` (package **gam**), `gamlss`, `gamm`, `gamm4`, `gee`,
-`geeglm`, `glm`, `glm.nb`, `glmer`, `glmer.nb`, `glmmTMB`, `glmmPQL`,
-`glmrob`, `glmRob`, `gls`, `hurdle`, `ivreg`, `lm`, `lm_robust`, `lme`,
-`lmer`, `lmrob`, `lmRob`, `logistf`, `lrm`, `MixMod`, `MCMCglmm`,
-`multinom`, `negbin`, `nlmer`, `ols`, `plm`, `polr`, `rlm`, `rlmer`,
-`rq`, `rqss`, `stanreg`, `survreg`, `svyglm`, `svyglm.nb`, `tobit`,
-`truncreg`, `vgam`, `wbm`, `zeroinfl` and `zerotrunc`. Other models not
-listed here are passed to a generic predict-function and might work as
-well, or maybe with `ggeffect()` or `ggemmeans()`, which effectively do
-the same as `ggpredict()`.
+supported model-objects are: `bamlss`, `bayesx`, `betabin`, `betareg`,
+`bglmer`, `blmer`, `bracl`, `brglm`, `brmsfit`, `brmultinom`, `clm`,
+`clm2`, `clmm`, `coxph`, `gam` (package **mgcv**), `Gam` (package
+**gam**), `gamlss`, `gamm`, `gamm4`, `gee`, `geeglm`, `glm`, `glm.nb`,
+`glmer`, `glmer.nb`, `glmmTMB`, `glmmPQL`, `glmrob`, `glmRob`, `gls`,
+`hurdle`, `ivreg`, `lm`, `lm_robust`, `lme`, `lmer`, `lmrob`, `lmRob`,
+`logistf`, `lrm`, `MixMod`, `MCMCglmm`, `multinom`, `negbin`, `nlmer`,
+`ols`, `plm`, `polr`, `rlm`, `rlmer`, `rq`, `rqss`, `stanreg`,
+`survreg`, `svyglm`, `svyglm.nb`, `tobit`, `truncreg`, `vgam`, `wbm`,
+`zeroinfl` and `zerotrunc`. Other models not listed here are passed to a
+generic predict-function and might work as well, or maybe with
+`ggeffect()` or `ggemmeans()`, which effectively do the same as
+`ggpredict()`.
 
 Interaction terms, splines and polynomial terms are also supported. The
 main functions are `ggpredict()`, `ggemmeans()` and `ggeffect()`. There
@@ -247,4 +250,5 @@ In case you want / have to cite my package, please use
 `citation('ggeffects')` for citation information:
 
 Lüdecke D (2018). *ggeffects: Tidy Data Frames of Marginal Effects from
-Regression Models.* Journal of Open Source Software, 3(26), 772. doi: [10.21105/joss.00772](https://doi.org/10.21105/joss.00772)
+Regression Models.* Journal of Open Source Software, 3(26), 772. doi:
+[10.21105/joss.00772](https://doi.org/10.21105/joss.00772)

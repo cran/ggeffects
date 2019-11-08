@@ -1,5 +1,3 @@
-#' @importFrom dplyr bind_cols bind_rows
-#' @importFrom rlang .data
 get_predictions_polr <- function(model, fitfram, ci.lvl, linv, typical, terms, model.class, vcov.fun, vcov.type, vcov.args, condition, interval, ...) {
 
   se <- (!is.null(ci.lvl) && !is.na(ci.lvl)) || !is.null(vcov.fun)
@@ -25,7 +23,7 @@ get_predictions_polr <- function(model, fitfram, ci.lvl, linv, typical, terms, m
   # case. just return predictions
   if (nrow(prdat) > nrow(fitfram) && ncol(prdat) == 1) {
     colnames(prdat)[1] <- "predicted"
-    return(rownames_as_column(prdat, var = "response.level"))
+    return(.rownames_as_column(prdat, var = "response.level"))
   }
 
   # bind predictions to model frame

@@ -10,7 +10,7 @@
 \method{plot}{ggeffects}(x, ci = TRUE, ci.style = c("ribbon",
   "errorbar", "dash", "dot"), facets, add.data = FALSE,
   colors = "Set1", alpha = 0.15, dodge = 0.25, use.theme = TRUE,
-  dot.alpha = 0.5, jitter = 0.2, log.y = FALSE, case = NULL,
+  dot.alpha = 0.35, jitter = 0.2, log.y = FALSE, case = NULL,
   show.legend = TRUE, show.title = TRUE, show.x.title = TRUE,
   show.y.title = TRUE, dot.size = NULL, line.size = NULL,
   connect.lines = FALSE, grid, one.plot = TRUE, rawdata, ...)
@@ -42,14 +42,13 @@ predictor on the x-axis, plotted as point-geoms, is added to the plot.}
 
 \item{colors}{Character vector with color values in hex-format, valid
 color value names (see \code{demo("colors")}) or a name of a
-\href{http://colorbrewer2.org}{color brewer} palette.
+ggeffects-color-palette.
 Following options are valid for \code{colors}:
 \itemize{
   \item If not specified, the color brewer palette "Set1" will be used.
   \item If \code{"gs"}, a greyscale will be used.
   \item If \code{"bw"}, the plot is black/white and uses different line types to distinguish groups.
-  \item If \code{colors} is any valid color brewer palette name, the related palette will be used. Use \code{\link[RColorBrewer]{display.brewer.all}} to view all available palette names.
-  \item There are some pre-defined color-palettes in this package that can be used, e.g. \code{colors = "metro"}. See \code{show_pals()} to show all available palettes.
+  \item There are some pre-defined color-palettes in this package that can be used, e.g. \code{colors = "metro"}. See \code{\link[=show_pals]{show_pals()}} to show all available palettes.
   \item Else specify own color values or names as vector (e.g. \code{colors = c("#f00000", "#00ff00")}).
 }}
 
@@ -138,6 +137,7 @@ fit <- lm(barthtot ~ c12hour + neg_c_7 + c161sex + c172code, data = efc)
 dat <- ggpredict(fit, terms = "c12hour")
 plot(dat)
 
+\donttest{
 # facet by group, use pre-defined color palette
 dat <- ggpredict(fit, terms = c("c12hour", "c172code"))
 plot(dat, facet = TRUE, colors = "hero")
@@ -152,7 +152,9 @@ plot(dat)
 
 # for three variables, automatic facetting
 dat <- ggpredict(fit, terms = c("c12hour", "c172code", "c161sex"))
-plot(dat)
+plot(dat)}
 
+# show all color palettes
+show_pals()
 
 }

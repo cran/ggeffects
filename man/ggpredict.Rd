@@ -9,9 +9,9 @@
 \usage{
 ggeffect(model, terms, ci.lvl = 0.95, x.as.factor = TRUE, ...)
 
-ggemmeans(model, terms, ci.lvl = 0.95, type = c("fe", "fe.zi"),
-  typical = "mean", condition = NULL, back.transform = TRUE,
-  x.as.factor = TRUE, x.cat, ...)
+ggemmeans(model, terms, ci.lvl = 0.95, type = c("fe", "fe.zi", "re",
+  "re.zi"), typical = "mean", condition = NULL,
+  back.transform = TRUE, x.as.factor = TRUE, x.cat, ...)
 
 ggpredict(model, terms, ci.lvl = 0.95, type = c("fe", "re", "fe.zi",
   "re.zi", "sim", "surv", "cumhaz", "debug"), typical = "mean",
@@ -209,7 +209,8 @@ A data frame (with \code{ggeffects} class attribute) with consistent
 \details{
 \subsection{Supported Models}{
   Currently supported model-objects are (in alphabetical order):
-  \code{betabin}, \code{betareg}, \code{bglmer}, \code{blmer}, \code{brglm}, \code{brmsfit},
+  \code{bamlss}, \code{bayesx}, \code{betabin}, \code{betareg}, \code{bglmer},
+  \code{blmer}, \code{bracl}, \code{brglm}, \code{brmsfit}, \code{brmultinom},
   \code{clm}, \code{clm2}, \code{clmm}, \code{coxph}, \code{gam} (package \pkg{mgcv}),
   \code{Gam} (package \pkg{gam}), \code{gamlss}, \code{gamm}, \code{gamm4},
   \code{gee}, \code{geeglm}, \code{glm}, \code{glm.nb}, \code{glmer},
@@ -360,6 +361,7 @@ A data frame (with \code{ggeffects} class attribute) with consistent
   }
 }
 \examples{
+library(sjlabelled)
 data(efc)
 fit <- lm(barthtot ~ c12hour + neg_c_7 + c161sex + c172code, data = efc)
 
@@ -381,6 +383,7 @@ ggpredict(fit, terms = "c12hour [40:60]", condition = c(neg_c_7 = 20))
 # to plot ggeffects-objects, you can use the 'plot()'-function.
 # the following examples show how to build your ggplot by hand.
 
+\donttest{
 # plot predicted values, remaining covariates held constant
 library(ggplot2)
 mydf <- ggpredict(fit, terms = "c12hour")
@@ -407,7 +410,6 @@ ggplot(mydf, aes(x = x, y = predicted, colour = group)) +
 
 # level indication also works for factors with non-numeric levels
 # and in combination with numeric levels for other variables
-library(sjlabelled)
 data(efc)
 efc$c172code <- as_label(efc$c172code)
 fit <- lm(barthtot ~ c12hour + neg_c_7 + c161sex + c172code, data = efc)
@@ -443,7 +445,6 @@ ggplot(dat, aes(x = x, y = predicted, colour = group)) +
   )
 
 # or with ggeffects' plot-method
-\dontrun{
 plot(dat, ci = FALSE)}
 
 # use numeric values as x-column in returned data frame

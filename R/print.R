@@ -1,8 +1,6 @@
 #' @importFrom purrr map flatten_df
-#' @importFrom dplyr select case_when
 #' @importFrom sjmisc round_num is_empty add_variables seq_row is_num_fac
 #' @importFrom stats quantile
-#' @importFrom rlang .data
 #' @importFrom sjlabelled as_label get_labels
 #' @export
 print.ggeffects <- function(x, n = 10, digits = 3, x.lab = FALSE, ...) {
@@ -29,11 +27,11 @@ print.ggeffects <- function(x, n = 10, digits = 3, x.lab = FALSE, ...) {
 
 
   # do we have groups and facets?
-  has_groups <- obj_has_name(x, "group") && length(unique(x$group)) > 1
-  has_facets <- obj_has_name(x, "facet") && length(unique(x$facet)) > 1
-  has_panel <- obj_has_name(x, "panel") && length(unique(x$panel)) > 1
-  has_response <- obj_has_name(x, "response.level") && length(unique(x$response.level)) > 1
-  has_se <- obj_has_name(x, "std.error")
+  has_groups <- .obj_has_name(x, "group") && length(unique(x$group)) > 1
+  has_facets <- .obj_has_name(x, "facet") && length(unique(x$facet)) > 1
+  has_panel <- .obj_has_name(x, "panel") && length(unique(x$panel)) > 1
+  has_response <- .obj_has_name(x, "response.level") && length(unique(x$response.level)) > 1
+  has_se <- .obj_has_name(x, "std.error")
 
   cat("\n")
 
@@ -96,19 +94,21 @@ print.ggeffects <- function(x, n = 10, digits = 3, x.lab = FALSE, ...) {
 
   # make sure that by default not too many rows are printed
   if (missing(n)) {
-    n <- dplyr::case_when(
-      .n >= 6 ~ 4,
-      .n >= 4 & .n < 6 ~ 5,
-      .n >= 2 & .n < 4 ~ 6,
-      TRUE ~ 8
-    )
+    n <- if (.n >= 6)
+      4
+    else if (.n >= 4 & .n < 6)
+      5
+    else if (.n >= 2 & .n < 4)
+      6
+    else
+      8
   }
 
   if (!has_groups) {
 
     if (!has_response) {
       cat("\n")
-      if (obj_has_name(x, "group")) x <- .remove_column(x, "group")
+      if (.obj_has_name(x, "group")) x <- .remove_column(x, "group")
       print.data.frame(x[.get_sample_rows(x, n), ], ..., row.names = FALSE, quote = FALSE)
     } else {
       x$.nest <- tapply(x$predicted, list(x$response.level), NULL)
