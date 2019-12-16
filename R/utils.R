@@ -28,7 +28,7 @@ data_frame <- function(...) {
     tryCatch(
       {
         pv <- insight::find_predictors(model, effects = "all", component = "all", flatten = TRUE)
-        clean.terms <- .get_cleaned_terms(terms)
+        clean.terms <- .clean_terms(terms)
         for (i in clean.terms) {
           if (!(i %in% pv)) {
             insight::print_color(sprintf("`%s` was not found in model terms. Maybe misspelled?\n", i), "red")
@@ -73,7 +73,7 @@ data_frame <- function(...) {
         drop.levels = !is.numeric(mf[[terms[2]]])
       )
   } else {
-    group <- sjmisc::to_factor(1)
+    group <- as.factor(1)
   }
 
   # remove missings from model frame
@@ -91,20 +91,19 @@ data_frame <- function(...) {
 }
 
 
-#' @importFrom purrr map
 #' @importFrom stats na.omit
-.prettify_data <- function(xl.remain, fitfram, terms, use.all = FALSE, pretty.message = FALSE) {
-  purrr::map(xl.remain, function(.x) {
-    pr <- fitfram[[terms[.x]]]
+.prettify_data <- function(conditional_terms, original_model_frame, terms, use_all_values = FALSE, show_pretty_message = FALSE) {
+  lapply(conditional_terms, function(.x) {
+    pr <- original_model_frame[[terms[.x]]]
     if (is.numeric(pr)) {
       if (.x > 1 && .n_distinct(pr) >= 10)
         values_at(pr)
-      else if (.n_distinct(pr) < 20 || isTRUE(use.all)) {
+      else if (.n_distinct(pr) < 20 || isTRUE(use_all_values)) {
         sort(stats::na.omit(unique(pr)))
       } else {
-        if (pretty.message) {
+        if (show_pretty_message) {
           message(sprintf("Data were 'prettified'. Consider using `terms=\"%s [all]\"` to get smooth plots.", terms[.x]))
-          pretty.message <- FALSE
+          show_pretty_message <- FALSE
         }
         pretty_range(pr)
       }
@@ -134,72 +133,6 @@ data_frame <- function(...) {
   )
 }
 
-
-
-.has_splines <- function(model) {
-  form <- .get_pasted_formula(model)
-  if (is.null(form)) return(FALSE)
-
-  any(
-    grepl("s\\(([^,)]*)", form) | grepl("bs\\(([^,)]*)", form) |
-      grepl("ns\\(([^,)]*)", form) | grepl("pspline\\(([^,)]*)", form) |
-      grepl("poly\\(([^,)]*)", form)
-  )
-}
-
-
-
-.has_poly <- function(model) {
-  form <- .get_pasted_formula(model)
-  if (is.null(form)) return(FALSE)
-  any(grepl("I\\(.*?\\^.*?\\)", form) | grepl("poly\\(([^,)]*)", form))
-}
-
-
-
-.has_log <- function(model) {
-  any(.get_log_terms(model))
-}
-
-
-
-.get_log_terms <- function(model) {
-  form <- .get_pasted_formula(model)
-  if (is.null(form)) return(FALSE)
-  grepl("log\\(([^,)]*).*", form)
-}
-
-
-#' @importFrom insight find_terms
-.get_pasted_formula <- function(model) {
-  tryCatch(
-    {
-      unlist(.compact_list(insight::find_terms(model)[c("conditional", "random", "instruments")]))
-    },
-    error = function(x) { NULL }
-  )
-}
-
-
-
-.has_poly_term <- function(x) {
-  any(grepl("poly\\(([^,)]*)", x))
-}
-
-
-
-.uses_all_tag <- function(terms) {
-  tags <- unlist(regmatches(
-    terms,
-    gregexpr(
-      pattern = "\\[(.*)\\]",
-      text = terms,
-      perl = T
-    )
-  ))
-
-  "[all]" %in% tags
-}
 
 
 .frac_length <- function(x) {
@@ -242,7 +175,7 @@ is_brms_trial <- function(model) {
   if (inherits(model, "brmsfit") && is.null(stats::formula(model)$responses)) {
     is.trial <- tryCatch({
       rv <- .safe_deparse(stats::formula(model)$formula[[2L]])
-      sjmisc::trim(sub("(.*)\\|(.*)\\(([^,)]*).*", "\\2", rv)) %in% c("trials", "resp_trials")
+      trimws(sub("(.*)\\|(.*)\\(([^,)]*).*", "\\2", rv)) %in% c("trials", "resp_trials")
     },
     error = function(x) {
       FALSE
@@ -267,7 +200,7 @@ is_brms_trial <- function(model) {
 
 
 .safe_deparse <- function(string) {
-  paste0(sapply(deparse(string, width.cutoff = 500), sjmisc::trim, simplify = TRUE), collapse = " ")
+  paste0(sapply(deparse(string, width.cutoff = 500), trimws, simplify = TRUE), collapse = " ")
 }
 
 
@@ -297,7 +230,26 @@ is.gamm4 <- function(x) {
 
 # remove column
 .remove_column <- function(data, variables) {
+  a <- attributes(data)
   if (!length(variables) || is.null(variables)) return(data)
   if (is.numeric(variables)) variables <- colnames(data)[variables]
-  data[, -which(colnames(data) %in% variables), drop = FALSE]
+  data <- data[, -which(colnames(data) %in% variables), drop = FALSE]
+  remaining <- setdiff(names(a), names(attributes(data)))
+  if (length(remaining)) attributes(data) <- c(attributes(data), a[remaining])
+  data
+}
+
+
+.convert_numeric_factors <- function(x) {
+  num_facs <- sapply(x, .is_numeric_factor)
+  if (any(num_facs)) {
+    x[num_facs] <- lapply(x[num_facs], function(i) as.numeric(as.character(i)))
+  }
+  x
+}
+
+
+
+.is_numeric_factor <- function(x) {
+  is.factor(x) && !anyNA(suppressWarnings(as.numeric(levels(x))))
 }

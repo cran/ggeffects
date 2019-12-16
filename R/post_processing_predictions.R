@@ -1,59 +1,57 @@
-.post_processing_predictions <- function(model, fitfram, original.model.frame, cleaned.terms, x.as.factor) {
+.post_processing_predictions <- function(model, prediction_data, original_model_frame, cleaned_terms) {
   # check for correct terms specification
-  if (!all(cleaned.terms %in% colnames(fitfram))) {
+  if (!all(cleaned_terms %in% colnames(prediction_data))) {
     stop("At least one term specified in `terms` is no valid model term.", call. = FALSE)
   }
 
   # copy standard errors
-  if (!.obj_has_name(fitfram, "std.error")) {
-    fitfram$std.error <- attr(fitfram, "std.error")
+  if (!.obj_has_name(prediction_data, "std.error")) {
+    prediction_data$std.error <- attr(prediction_data, "std.error")
   } else {
-    attr(fitfram, "std.error") <- fitfram$std.error
+    attr(prediction_data, "std.error") <- prediction_data$std.error
   }
 
   # now select only relevant variables: the predictors on the x-axis,
   # the predictions and the originial response vector (needed for scatter plot)
-  mydf <- fitfram[, stats::na.omit(match(
-    c(cleaned.terms, "predicted", "std.error", "conf.low", "conf.high", "response.level"),
-    colnames(fitfram)
-  ))]
+  columns_to_keep <- c(cleaned_terms, "predicted", "std.error", "conf.low", "conf.high", "response.level")
+  result <- prediction_data[, intersect(columns_to_keep, colnames(prediction_data))]
 
   # name and sort columns, depending on groups, facet and panel
-  mydf <- .prepare_columns(mydf, cleaned.terms)
+  result <- .prepare_columns(result, cleaned_terms)
 
   # grouping variable may not be labelled
   # do this here, so we convert to labelled factor later
-  mydf <- .add_labels_to_groupvariable(mydf, original.model.frame, cleaned.terms)
+  result <- .add_labels_to_groupvariable(result, original_model_frame, cleaned_terms)
 
   # convert grouping variable to factor, for proper legend
-  mydf <- .groupvariable_to_labelled_factor(mydf)
+  result <- .groupvariable_to_labelled_factor(result)
 
   # check if we have legend labels
-  legend.labels <- sjlabelled::get_labels(mydf$group)
+  legend.labels <- sjlabelled::get_labels(result$group)
 
   # if we had numeric variable w/o labels, these still might be numeric
   # make sure we have factors here for our grouping and facet variables
-  if (is.numeric(mydf$group))
-    mydf$group <- sjmisc::to_factor(mydf$group)
-
-  # remember if x was a factor
-  x.is.factor <- ifelse(is.factor(mydf$x), "1", "0")
-
-  # x needs to be numeric
-  if (!x.as.factor) mydf$x <- sjlabelled::as_numeric(mydf$x)
-
-  # sort values
-  mydf <- sjmisc::remove_empty_cols(mydf[order(mydf$x, mydf$group), ])
-
-  if (.obj_has_name(mydf, "facet") && is.numeric(mydf$facet)) {
-    mydf$facet <- sjmisc::to_factor(mydf$facet)
-    attr(mydf, "numeric.facet") <- TRUE
+  if (is.numeric(result$group)) {
+    result$group <- as.factor(result$group)
   }
 
-  attr(mydf, "legend.labels") <- legend.labels
-  attr(mydf, "x.is.factor") <- x.is.factor
+  # remember if x was a factor
+  x.is.factor <- ifelse(is.factor(result$x), "1", "0")
 
-  mydf
+  # sort values
+  result <- sjmisc::remove_empty_cols(result[order(result$x, result$group), ])
+
+  if (.obj_has_name(result, "facet") && is.numeric(result$facet)) {
+    result$facet <- as.factor(result$facet)
+    attr(result, "numeric.facet") <- TRUE
+  }
+
+  attr(result, "legend.labels") <- legend.labels
+  attr(result, "x.is.factor") <- x.is.factor
+  attr(result, "continuous.group") <- attr(prediction_data, "continuous.group") & is.null(attr(original_model_frame[[cleaned_terms[2]]], "labels"))
+
+
+  result
 }
 
 
@@ -62,22 +60,22 @@
 
 
 # name and sort columns, depending on groups, facet and panel
-.prepare_columns <- function(mydf, cleaned.terms) {
+.prepare_columns <- function(result, cleaned_terms) {
   columns <- c("x", "predicted", "std.error", "conf.low", "conf.high", "response.level", "group", "facet", "panel")
 
   # with or w/o grouping factor?
-  if (length(cleaned.terms) == 1) {
-    colnames(mydf)[1] <- "x"
+  if (length(cleaned_terms) == 1) {
+    colnames(result)[1] <- "x"
     # convert to factor for proper legend
-    mydf$group <- sjmisc::to_factor(1)
-  } else if (length(cleaned.terms) == 2) {
-    colnames(mydf)[1:2] <- c("x", "group")
-  } else if (length(cleaned.terms) == 3) {
-    colnames(mydf)[1:3] <- c("x", "group", "facet")
-  } else if (length(cleaned.terms) == 4) {
-    colnames(mydf)[1:4] <- c("x", "group", "facet", "panel")
+    result$group <- as.factor(1)
+  } else if (length(cleaned_terms) == 2) {
+    colnames(result)[1:2] <- c("x", "group")
+  } else if (length(cleaned_terms) == 3) {
+    colnames(result)[1:3] <- c("x", "group", "facet")
+  } else if (length(cleaned_terms) == 4) {
+    colnames(result)[1:4] <- c("x", "group", "facet", "panel")
   }
 
   # sort columns
-  mydf[, columns[columns %in% colnames(mydf)]]
+  result[, columns[columns %in% colnames(result)]]
 }

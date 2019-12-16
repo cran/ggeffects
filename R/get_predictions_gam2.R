@@ -1,4 +1,4 @@
-get_predictions_Gam <- function(model, fitfram, ci.lvl, linv, typical, terms, model.class, condition, ...) {
+get_predictions_Gam <- function(model, fitfram, ci.lvl, linv, value_adjustment, terms, model_class, condition, ...) {
   se <- !is.null(ci.lvl) && !is.na(ci.lvl)
 
   # compute ci, two-ways
@@ -22,18 +22,18 @@ get_predictions_Gam <- function(model, fitfram, ci.lvl, linv, typical, terms, mo
   # did user request standard errors? if yes, compute CI
   if (se) {
     se.pred <-
-      .get_se_from_vcov(
+      .standard_error_predictions(
         model = model,
-        fitfram = fitfram,
-        typical = typical,
+        prediction_data = fitfram,
+        value_adjustment = value_adjustment,
         terms = terms,
-        model.class = model.class,
+        model_class = model_class,
         condition = condition
       )
 
     if (!is.null(se.pred)) {
       se.fit <- se.pred$se.fit
-      fitfram <- se.pred$fitfram
+      fitfram <- se.pred$prediction_data
 
       # calculate CI
       fitfram$conf.low <- linv(as.vector(prdat) - stats::qnorm(ci) * se.fit)

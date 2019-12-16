@@ -43,11 +43,10 @@ get_predictions_survival <- function(model, fitfram, ci.lvl, type, terms, ...) {
 
   # Now we need the groups, as survfit() only returns numeric indices
 
-  clean_terms <- .get_cleaned_terms(terms)
+  clean_terms <- .clean_terms(terms)
   ff <- fitfram[clean_terms]
 
-  purrr::map_df(sjmisc::seq_row(ff), function(i) {
-
+  purrr::map_df(seq_len(nrow(ff)), function(i) {
     dat <- data.frame(
       time = prdat$time,
       predicted = pr[, i],
@@ -55,7 +54,7 @@ get_predictions_survival <- function(model, fitfram, ci.lvl, type, terms, ...) {
       conf.high = upper[, i]
     )
 
-    dat2 <- purrr::map(sjmisc::seq_col(ff), ~ ff[i, .x])
+    dat2 <- lapply(seq_len(ncol(ff)), function(.x) ff[i, .x])
     names(dat2) <- clean_terms
     dat2 <- data.frame(dat2, stringsAsFactors = FALSE)
 

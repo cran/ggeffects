@@ -1,6 +1,6 @@
 #' @importFrom stats predict qnorm plogis
 #' @importFrom insight link_function print_color
-get_predictions_glmmTMB <- function(model, fitfram, ci.lvl, linv, type, terms, typical, condition, ...) {
+get_predictions_glmmTMB <- function(model, data_grid, ci.lvl, linv, type, terms, value_adjustment, condition, ...) {
   # does user want standard errors?
   se <- !is.null(ci.lvl) && !is.na(ci.lvl)
 
@@ -10,13 +10,14 @@ get_predictions_glmmTMB <- function(model, fitfram, ci.lvl, linv, type, terms, t
   else
     ci <- .975
 
+  # copy object
+  predicted_data <- data_grid
+
+  model_info <- insight::model_info(model)
+  clean_terms <- .clean_terms(terms)
 
   # check if we have zero-inflated model part
-
-  modfam <- insight::model_info(model)
-  clean_terms <- .get_cleaned_terms(terms)
-
-  if (!modfam$is_zero_inflated && type %in% c("fe.zi", "re.zi")) {
+  if (!model_info$is_zero_inflated && type %in% c("fe.zi", "re.zi")) {
     if (type == "fe.zi")
       type <- "fe"
     else
@@ -35,10 +36,10 @@ get_predictions_glmmTMB <- function(model, fitfram, ci.lvl, linv, type, terms, t
     ref <- NULL
 
 
-  add.args <- lapply(match.call(expand.dots = F)$`...`, function(x) x)
+  additional_dot_args <- lapply(match.call(expand.dots = F)$`...`, function(x) x)
 
-  if ("nsim" %in% names(add.args))
-    nsim <- eval(add.args[["nsim"]])
+  if ("nsim" %in% names(additional_dot_args))
+    nsim <- eval(additional_dot_args[["nsim"]])
   else
     nsim <- 1000
 
@@ -49,7 +50,7 @@ get_predictions_glmmTMB <- function(model, fitfram, ci.lvl, linv, type, terms, t
 
     prdat <- as.vector(stats::predict(
       model,
-      newdata = fitfram,
+      newdata = data_grid,
       type = "response",
       se.fit = FALSE,
       ## FIXME not implemented in glmmTMB <= 0.2.2
@@ -59,25 +60,35 @@ get_predictions_glmmTMB <- function(model, fitfram, ci.lvl, linv, type, terms, t
 
     if (!se) {
 
-      fitfram$predicted <- prdat
-      fitfram$conf.low <- NA
-      fitfram$conf.high <- NA
+      predicted_data$predicted <- prdat
+      predicted_data$conf.low <- NA
+      predicted_data$conf.high <- NA
 
     } else {
 
-      mf <- insight::get_data(model)
+      model_frame <- insight::get_data(model)
 
-      newdata <- .get_data_grid(
+      # we need a data grid with combination from *all* levels for
+      # all model predictors, so the data grid has the same number
+      # of rows as our simulated data from ".simulate_predictions"
+
+      newdata <- .data_grid(
         model = model,
-        mf = mf,
+        model_frame = model_frame,
         terms = terms,
-        typ.fun = typical,
-        fac.typical = FALSE,
-        pretty.message = FALSE,
+        value_adjustment = value_adjustment,
+        factor_adjustment = FALSE,
+        show_pretty_message = FALSE,
         condition = condition
       )
 
-      prdat.sim <- get_glmmTMB_predictions(model, newdata, nsim, terms, typical, condition)
+      # Since the zero inflation and the conditional model are working in "opposite
+      # directions", confidence intervals can not be derived directly  from the
+      # "predict()"-function. Thus, confidence intervals for type = "fe.zi" are
+      # based on quantiles of simulated draws from a multivariate normal distribution
+      # (see also _Brooks et al. 2017, pp.391-392_ for details).
+
+      prdat.sim <- .simulate_predictions(model, newdata, nsim, terms, value_adjustment, condition)
 
       if (is.null(prdat.sim) || inherits(prdat.sim, c("error", "simpleError"))) {
 
@@ -87,23 +98,31 @@ get_predictions_glmmTMB <- function(model, fitfram, ci.lvl, linv, type, terms, t
           cat(sprintf("* Source: %s\n", .safe_deparse(prdat.sim[[2]])))
         }
 
-        fitfram$predicted <- prdat
-        fitfram$conf.low <- NA
-        fitfram$conf.high <- NA
+        predicted_data$predicted <- prdat
+        predicted_data$conf.low <- NA
+        predicted_data$conf.high <- NA
 
       } else {
 
+        # we need two data grids here: one for all combination of levels from the
+        # model predictors ("newdata"), and one with the current combinations only
+        # for the terms in question ("data_grid"). "sims" has always the same
+        # number of rows as "newdata", but "data_grid" might be shorter. So we
+        # merge "data_grid" and "newdata", add mean and quantiles from "sims"
+        # as new variables, and then later only keep the original observations
+        # from "data_grid" - by this, we avoid unequal row-lengths.
+
         sims <- exp(prdat.sim$cond) * (1 - stats::plogis(prdat.sim$zi))
-        fitfram <- get_zeroinfl_fitfram(fitfram, newdata, prdat, sims, ci, clean_terms)
+        predicted_data <- .join_simulations(data_grid, newdata, prdat, sims, ci, clean_terms)
 
         if (type == "re.zi") {
           revar <- .get_random_effect_variance(model)
           # get link-function and back-transform fitted values
           # to original scale, so we compute proper CI
           lf <- insight::link_function(model)
-          fitfram$conf.low <- exp(lf(fitfram$conf.low) - stats::qnorm(ci) * sqrt(revar))
-          fitfram$conf.high <- exp(lf(fitfram$conf.high) + stats::qnorm(ci) * sqrt(revar))
-          fitfram$std.error <- sqrt(fitfram$std.error^2 + revar)
+          predicted_data$conf.low <- exp(lf(predicted_data$conf.low) - stats::qnorm(ci) * sqrt(revar))
+          predicted_data$conf.high <- exp(lf(predicted_data$conf.high) + stats::qnorm(ci) * sqrt(revar))
+          predicted_data$std.error <- sqrt(predicted_data$std.error^2 + revar)
         }
       }
     }
@@ -112,7 +131,7 @@ get_predictions_glmmTMB <- function(model, fitfram, ci.lvl, linv, type, terms, t
 
     # predictions conditioned on zero-inflation component and random
     # effects, based on simulations
-    fitfram <- simulate_predictions(model, nsim, clean_terms, ci)
+    predicted_data <- simulate_predictions(model, nsim, clean_terms, ci)
 
   } else {
 
@@ -120,7 +139,7 @@ get_predictions_glmmTMB <- function(model, fitfram, ci.lvl, linv, type, terms, t
 
     prdat <- stats::predict(
       model,
-      newdata = fitfram,
+      newdata = data_grid,
       type = "link",
       se.fit = se,
       ## FIXME not implemented in glmmTMB <= 0.2.2
@@ -131,7 +150,7 @@ get_predictions_glmmTMB <- function(model, fitfram, ci.lvl, linv, type, terms, t
 
     # did user request standard errors? if yes, compute CI
     if (se) {
-      fitfram$predicted <- linv(prdat$fit)
+      predicted_data$predicted <- linv(prdat$fit)
 
       # add random effect uncertainty to s.e.
       if (type %in% c("re", "re.zi")) {
@@ -140,26 +159,26 @@ get_predictions_glmmTMB <- function(model, fitfram, ci.lvl, linv, type, terms, t
       }
 
       # calculate CI
-      fitfram$conf.low <- linv(prdat$fit - stats::qnorm(ci) * prdat$se.fit)
-      fitfram$conf.high <- linv(prdat$fit + stats::qnorm(ci) * prdat$se.fit)
-      fitfram$std.error <- prdat$se.fit
+      predicted_data$conf.low <- linv(prdat$fit - stats::qnorm(ci) * prdat$se.fit)
+      predicted_data$conf.high <- linv(prdat$fit + stats::qnorm(ci) * prdat$se.fit)
+      predicted_data$std.error <- prdat$se.fit
     } else {
       # copy predictions
-      fitfram$predicted <- linv(as.vector(prdat))
+      predicted_data$predicted <- linv(as.vector(prdat))
 
       # no CI
-      fitfram$conf.low <- NA
-      fitfram$conf.high <- NA
+      predicted_data$conf.low <- NA
+      predicted_data$conf.high <- NA
     }
   }
 
-  if (.obj_has_name(fitfram, "std.error")) {
+  if (.obj_has_name(predicted_data, "std.error")) {
     # copy standard errors
-    attr(fitfram, "std.error") <- fitfram$std.error
-    fitfram <- .remove_column(fitfram, "std.error")
+    attr(predicted_data, "std.error") <- predicted_data$std.error
+    predicted_data <- .remove_column(predicted_data, "std.error")
   }
 
-  attr(fitfram, "prediction.interval") <- type %in% c("re", "re.zi")
+  attr(predicted_data, "prediction.interval") <- type %in% c("re", "re.zi")
 
-  fitfram
+  predicted_data
 }

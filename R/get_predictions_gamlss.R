@@ -1,5 +1,5 @@
 #' @importFrom insight link_inverse
-get_predictions_gamlss <- function(model, fitfram, ci.lvl, terms, model.class, typical, condition, ...) {
+get_predictions_gamlss <- function(model, fitfram, ci.lvl, terms, model_class, value_adjustment, condition, ...) {
   se <- !is.null(ci.lvl) && !is.na(ci.lvl)
 
   # compute ci, two-ways
@@ -34,19 +34,19 @@ get_predictions_gamlss <- function(model, fitfram, ci.lvl, terms, model.class, t
 
   # did user request standard errors? if yes, compute CI
   se.pred <-
-    .get_se_from_vcov(
+    .standard_error_predictions(
       model = model,
-      fitfram = fitfram,
-      typical = typical,
+      prediction_data = fitfram,
+      value_adjustment = value_adjustment,
       terms = terms,
-      model.class = model.class,
+      model_class = model_class,
       condition = condition
     )
 
   if (se && !is.null(se.pred)) {
 
     se.fit <- se.pred$se.fit
-    fitfram <- se.pred$fitfram
+    fitfram <- se.pred$prediction_data
 
     # CI
     fitfram$conf.low <- linv(fitfram$predicted - stats::qnorm(ci) * se.fit)

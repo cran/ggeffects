@@ -39,8 +39,7 @@
 #' vcov(result)
 #'
 #' @importFrom stats model.matrix terms formula
-#' @importFrom purrr map flatten_chr map_lgl map2
-#' @importFrom sjmisc is_empty
+#' @importFrom purrr flatten_chr map_lgl map2
 #' @importFrom insight find_random clean_names find_parameters get_varcov
 #' @export
 vcov.ggeffects <- function(object, vcov.fun = NULL, vcov.type = NULL, vcov.args = NULL, ...) {
@@ -55,7 +54,7 @@ vcov.ggeffects <- function(object, vcov.fun = NULL, vcov.type = NULL, vcov.args 
     return(NULL)
   }
 
-  mf <- insight::get_data(model)
+  model_frame <- insight::get_data(model)
 
   # check random effect terms. We can't compute SE if data has
   # factors with only one level, however, if user conditions on
@@ -63,43 +62,43 @@ vcov.ggeffects <- function(object, vcov.fun = NULL, vcov.type = NULL, vcov.args 
   # possible to calculate SE - so, ignore random effects for the
   # check of one-level-factors only
 
-  re.terms <- insight::find_random(model, split_nested = TRUE, flatten = TRUE)
+  random_effect_terms <- insight::find_random(model, split_nested = TRUE, flatten = TRUE)
 
 
   # we can't condition on categorical variables
   condition <- attr(object, "condition")
   if (!is.null(condition)) {
     cn <- names(condition)
-    cn.factors <- purrr::map_lgl(cn, ~ is.factor(mf[[.x]]) && !(.x %in% re.terms))
+    cn.factors <- purrr::map_lgl(cn, ~ is.factor(model_frame[[.x]]) && !(.x %in% random_effect_terms))
     condition <- condition[!cn.factors]
-    if (sjmisc::is_empty(condition)) condition <- NULL
+    if (.is_empty(condition)) condition <- NULL
   }
 
   const.values <- attr(object, "constant.values")
   const.values <- c(condition, unlist(const.values[sapply(const.values, is.numeric)]))
-  terms <- attr(object, "ori.terms")
+  terms <- attr(object, "original.terms")
 
   # copy data frame with predictions
-  newdata <- .get_data_grid(
+  newdata <- .data_grid(
     model,
-    mf,
+    model_frame,
     terms,
-    typ.fun = "mean",
-    fac.typical = FALSE,
-    pretty.message = FALSE,
+    value_adjustment = "mean",
+    factor_adjustment = FALSE,
+    show_pretty_message = FALSE,
     condition = const.values
   )
 
   # make sure we have enough values to compute CI
   nlevels_terms <- purrr::map_lgl(
     colnames(newdata),
-    ~ !(.x %in% re.terms) &&
+    ~ !(.x %in% random_effect_terms) &&
       is.factor(newdata[[.x]]) && nlevels(newdata[[.x]]) == 1
   )
 
   if (any(nlevels_terms)) {
     not_enough <- colnames(newdata)[which(nlevels_terms)[1]]
-    remove_lvl <- paste0("[", gsub(pattern = "(.*)\\[(.*)\\]", replacement = "\\2", x = terms[which(.get_cleaned_terms(terms) == not_enough)]), "]", collapse = "")
+    remove_lvl <- paste0("[", gsub(pattern = "(.*)\\[(.*)\\]", replacement = "\\2", x = terms[which(.clean_terms(terms) == not_enough)]), "]", collapse = "")
     stop(sprintf("`%s` does not have enough factor levels. Try to remove `%s`.", not_enough, remove_lvl), call. = TRUE)
   }
 
@@ -108,19 +107,19 @@ vcov.ggeffects <- function(object, vcov.fun = NULL, vcov.type = NULL, vcov.args 
   # the response variable is renamed internally to "zz".
 
   if (inherits(model, "glmmPQL")) {
-    new.resp <- 0
-    names(new.resp) <- "zz"
+    new_response <- 0
+    names(new_response) <- "zz"
   } else {
     fr <- insight::find_response(model, combine = FALSE)
-    new.resp <- rep(0, length.out = length(fr))
-    names(new.resp) <- fr
+    new_response <- rep(0, length.out = length(fr))
+    names(new_response) <- fr
   }
 
-  new.resp <- new.resp[setdiff(names(new.resp), colnames(newdata))]
-  newdata <- sjmisc::add_variables(newdata, as.list(new.resp), .after = -1)
+  new_response <- new_response[setdiff(names(new_response), colnames(newdata))]
+  newdata <- sjmisc::add_variables(newdata, as.list(new_response), .after = -1)
 
   # clean terms from brackets
-  terms <- .get_cleaned_terms(terms)
+  terms <- .clean_terms(terms)
 
   # sort data by grouping levels, so we have the correct order
   # to slice data afterwards
@@ -165,7 +164,7 @@ vcov.ggeffects <- function(object, vcov.fun = NULL, vcov.type = NULL, vcov.args 
 
   contrs <- attr(mm, "contrasts")
 
-  if (!sjmisc::is_empty(contrs)) {
+  if (!.is_empty(contrs)) {
 
     # check which contrasts are actually in terms-argument,
     # and which terms also appear in contrasts
@@ -177,7 +176,7 @@ vcov.ggeffects <- function(object, vcov.fun = NULL, vcov.type = NULL, vcov.args 
     terms <- terms[!rem.t]
 
     add.terms <- purrr::map2(contrs, names(contrs), function(.x, .y) {
-      f <- mf[[.y]]
+      f <- model_frame[[.y]]
       if (.x %in% c("contr.sum", "contr.helmert"))
         sprintf("%s%s", .y, 1:(nlevels(f) - 1))
       else if (.x == "contr.poly")
@@ -197,22 +196,22 @@ vcov.ggeffects <- function(object, vcov.fun = NULL, vcov.type = NULL, vcov.args 
   # the matrix that should be kept, and only take those columns of the
   # matrix for which terms we need standard errors.
 
-  mmdf <- as.data.frame(mm)
-  mm.rows <- as.numeric(rownames(unique(mmdf[intersect(colnames(mmdf), terms)])))
+  model_matrix_data <- as.data.frame(mm)
+  rows_to_keep <- as.numeric(rownames(unique(model_matrix_data[intersect(colnames(model_matrix_data), terms)])))
 
   # for poly-terms, we have no match, so fix this here
-  if (sjmisc::is_empty(mm.rows) || !all(terms %in% colnames(mmdf))) {
-    inters <- which(insight::clean_names(colnames(mmdf)) %in% terms)
-    mm.rows <- as.numeric(rownames(unique(mmdf[inters])))
+  if (.is_empty(rows_to_keep) || !all(terms %in% colnames(model_matrix_data))) {
+    inters <- which(insight::clean_names(colnames(model_matrix_data)) %in% terms)
+    rows_to_keep <- as.numeric(rownames(unique(model_matrix_data[inters])))
   }
 
-  mm <- mm[mm.rows, ]
+  mm <- mm[rows_to_keep, ]
 
   # check class of fitted model, to make sure we have just one class-attribute
   # (while "inherits()" may return multiple attributes)
-  model.class <- get_predict_function(model)
+  model_class <- get_predict_function(model)
 
-  if (!is.null(model.class) && model.class %in% c("polr", "multinom", "brmultinom", "bracl")) {
+  if (!is.null(model_class) && model_class %in% c("polr", "multinom", "brmultinom", "bracl")) {
     keep <- intersect(colnames(mm), colnames(vcm))
     vcm <- vcm[keep, keep]
     mm <- mm[, keep]

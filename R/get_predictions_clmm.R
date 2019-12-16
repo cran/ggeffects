@@ -1,19 +1,19 @@
 #' @importFrom stats confint
 #' @importFrom sjmisc var_rename
 #' @importFrom insight find_random find_predictors print_color
-get_predictions_clmm <- function(model, terms, typical, condition, ci.lvl, linv, ...) {
+get_predictions_clmm <- function(model, terms, value_adjustment, condition, ci.lvl, linv, ...) {
 
   if (!requireNamespace("emmeans")) {
     stop("Package `emmeans` required to compute marginal effects for clmm-models.", call. = FALSE)
   }
 
-  values.at <- .get_data_grid(
+  values.at <- .data_grid(
     model = model,
-    mf = insight::get_data(model),
+    model_frame = insight::get_data(model),
     terms = terms,
-    typ.fun = typical,
+    value_adjustment = value_adjustment,
     condition = condition,
-    pretty.message = FALSE,
+    show_pretty_message = FALSE,
     emmeans.only = TRUE
   )
 
@@ -29,7 +29,7 @@ get_predictions_clmm <- function(model, terms, typical, condition, ci.lvl, linv,
 
   fitfram <- emmeans::emmeans(
     object = model,
-    spec = c(insight::find_response(model, combine = FALSE), .get_cleaned_terms(terms)),
+    spec = c(insight::find_response(model, combine = FALSE), .clean_terms(terms)),
     at = values.at,
     mode = "prob"
   ) %>%

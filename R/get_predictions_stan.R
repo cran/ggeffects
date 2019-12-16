@@ -1,7 +1,7 @@
 #' @importFrom sjmisc rotate_df
 #' @importFrom purrr map_dbl map_df
 #' @importFrom stats median formula
-get_predictions_stan <- function(model, fitfram, ci.lvl, type, faminfo, ppd, terms = NULL, ...) {
+get_predictions_stan <- function(model, fitfram, ci.lvl, type, model_info, ppd, terms = NULL, ...) {
   # check if pkg is available
   if (!requireNamespace("rstantools", quietly = TRUE)) {
     stop("Package `rstantools` is required to compute predictions.", call. = F)
@@ -27,7 +27,7 @@ get_predictions_stan <- function(model, fitfram, ci.lvl, type, faminfo, ppd, ter
     vo <- names(which(sapply(mf, is.ordered)))
     fac2ord <- which(terms %in% vo)
 
-    if (!sjmisc::is_empty(fac2ord)) {
+    if (!.is_empty(fac2ord)) {
       for (i in fac2ord) fitfram[[terms[i]]] <- as.ordered(fitfram[[terms[i]]])
     }
   }
@@ -37,7 +37,7 @@ get_predictions_stan <- function(model, fitfram, ci.lvl, type, faminfo, ppd, ter
   if (ppd) {
     # for binomial models, "newdata" also needs a response
     # value. we take the value for a successful event
-    if (faminfo$is_binomial) {
+    if (model_info$is_binomial) {
       resp.name <- insight::find_response(model)
       # successfull events
       fitfram[[resp.name]] <- factor(1)
@@ -63,7 +63,7 @@ get_predictions_stan <- function(model, fitfram, ci.lvl, type, faminfo, ppd, ter
       ...
     )
 
-    if (faminfo$is_mixed) {
+    if (model_info$is_mixed) {
       # tell user
       message("Note: uncertainty of error terms are not taken into account. You may want to use `rstantools::posterior_predict()`.")
     }
@@ -75,7 +75,7 @@ get_predictions_stan <- function(model, fitfram, ci.lvl, type, faminfo, ppd, ter
 
   # handle cumulative link models
 
-  if (inherits(model, "brmsfit") && faminfo$family %in% c("cumulative", "categorical")) {
+  if (inherits(model, "brmsfit") && model_info$family %in% c("cumulative", "categorical")) {
 
     tmp <- prdat %>%
       purrr::map_df(stats::median) %>%
@@ -103,7 +103,7 @@ get_predictions_stan <- function(model, fitfram, ci.lvl, type, faminfo, ppd, ter
     for (i in resp.vars) {
       pos <- string_ends_with(pattern = i, x = tmp$grp)
 
-      if (sjmisc::is_empty(pos)) {
+      if (.is_empty(pos)) {
         i <- gsub(pattern = "[\\_\\.]", replacement = "", x = i)
         # same as
         # i <- gsub(pattern = "(\\_|\\.)", replacement = "", x = i)

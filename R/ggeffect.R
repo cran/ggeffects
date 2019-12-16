@@ -1,16 +1,15 @@
 #' @rdname ggpredict
 #'
-#' @importFrom purrr map map2
-#' @importFrom sjmisc is_empty str_contains
+#' @importFrom purrr map2
 #' @importFrom stats na.omit
 #' @importFrom sjlabelled as_numeric
 #' @importFrom insight find_predictors link_inverse print_color
 #' @export
-ggeffect <- function(model, terms, ci.lvl = .95, x.as.factor = TRUE, ...) {
+ggeffect <- function(model, terms, ci.lvl = .95, ...) {
 
   if (!requireNamespace("effects", quietly = TRUE)) {
     message("Package `effects` is not available, but needed for `ggeffect()`. Either install package `effects`, or use `ggpredict()`. Calling `ggpredict()` now.", call. = FALSE)
-    return(ggpredict(model = model, terms = terms, ci.lvl = ci.lvl, x.as.factor = x.as.factor))
+    return(ggpredict(model = model, terms = terms, ci.lvl = ci.lvl))
   }
 
   # check if terms are a formula
@@ -19,28 +18,28 @@ ggeffect <- function(model, terms, ci.lvl = .95, x.as.factor = TRUE, ...) {
   }
 
   if (inherits(model, "list"))
-    res <- purrr::map(model, ~ggeffect_helper(.x, terms, ci.lvl, x.as.factor, ...))
+    res <- lapply(model, function(.x) ggeffect_helper(.x, terms, ci.lvl, ...))
   else {
     if (missing(terms) || is.null(terms)) {
       predictors <- insight::find_predictors(model, effects = "fixed", component = "conditional", flatten = TRUE)
-      res <- purrr::map(
+      res <- lapply(
         predictors,
         function(.x) {
-          tmp <- ggeffect_helper(model, terms = .x, ci.lvl, x.as.factor,...)
+          tmp <- ggeffect_helper(model, terms = .x, ci.lvl, ...)
           if (!is.null(tmp)) tmp$group <- .x
           tmp
         }
       )
       no_results <- sapply(res, is.null)
       res <- .compact_list(res)
-      if (!is.null(res) && !sjmisc::is_empty(res)) {
+      if (!is.null(res) && !.is_empty(res)) {
         names(res) <- predictors[!no_results]
         class(res) <- c("ggalleffects", class(res))
       } else {
         res <- NULL
       }
     } else {
-      res <- ggeffect_helper(model, terms, ci.lvl, x.as.factor, ...)
+      res <- ggeffect_helper(model, terms, ci.lvl, ...)
     }
   }
 
@@ -48,53 +47,53 @@ ggeffect <- function(model, terms, ci.lvl = .95, x.as.factor = TRUE, ...) {
 }
 
 
-ggeffect_helper <- function(model, terms, ci.lvl, x.as.factor, ...) {
+ggeffect_helper <- function(model, terms, ci.lvl, ...) {
 
   # check terms argument
-  ori.terms <- terms <- .check_vars(terms, model)
-  cleaned.terms <- .get_cleaned_terms(terms)
+  original_terms <- terms <- .check_vars(terms, model)
+  cleaned_terms <- .clean_terms(terms)
 
   # get model frame
-  fitfram <- insight::get_data(model)
+  original_model_frame <- insight::get_data(model)
 
   # get model family
-  faminfo <- .get_model_info(model)
+  model_info <- .get_model_info(model)
 
   # check whether we have an argument "transformation" for effects()-function
   # in this case, we need another default title, since we have
   # non-transformed effects
-  add.args <- lapply(match.call(expand.dots = F)$`...`, function(x) x)
+  additional_dot_args <- lapply(match.call(expand.dots = F)$`...`, function(x) x)
   # check whether we have a "transformation" argument
-  t.add <- which(names(add.args) == "transformation")
+  t.add <- which(names(additional_dot_args) == "transformation")
   # if we have a "transformation" argument, and it's NULL,
   # no transformation of scale
-  no.transform <- !sjmisc::is_empty(t.add) && is.null(eval(add.args[[t.add]]))
+  no.transform <- !.is_empty(t.add) && is.null(eval(additional_dot_args[[t.add]]))
 
 
   # check if we have specific levels in square brackets
-  x.levels <- .get_representative_values(terms, fitfram)
+  at_values <- .get_representative_values(terms, original_model_frame)
 
   # clear argument from brackets
-  terms <- .get_cleaned_terms(terms)
+  terms <- .clean_terms(terms)
 
   # check for character vectors, transform to factor
-  is_char <- sapply(terms, function(.i) is.character(fitfram[[.i]]))
+  is_char <- sapply(terms, function(.i) is.character(original_model_frame[[.i]]))
   if (any(is_char)) {
     for (.i in terms[is_char]) {
-      fitfram[[.i]] <- as.factor(fitfram[[.i]])
+      original_model_frame[[.i]] <- as.factor(original_model_frame[[.i]])
     }
   }
 
   # fix remaining x-levels
-  xl.remain <- which(!(terms %in% names(x.levels)))
-  if (!sjmisc::is_empty(xl.remain)) {
-    xl <- .prettify_data(xl.remain, fitfram, terms)
-    names(xl) <- terms[xl.remain]
-    x.levels <- c(x.levels, xl)
+  conditional_terms <- which(!(terms %in% names(at_values)))
+  if (!.is_empty(conditional_terms)) {
+    xl <- .prettify_data(conditional_terms, original_model_frame, terms)
+    names(xl) <- terms[conditional_terms]
+    at_values <- c(at_values, xl)
   }
 
   # restore inital order of focal predictors
-  x.levels <- x.levels[match(terms, names(x.levels))]
+  at_values <- at_values[match(terms, names(at_values))]
 
   # compute marginal effects for each model term
   eff <- tryCatch(
@@ -103,7 +102,7 @@ ggeffect_helper <- function(model, terms, ci.lvl, x.as.factor, ...) {
         effects::Effect(
           focal.predictors = terms,
           mod = model,
-          xlevels = x.levels,
+          xlevels = at_values,
           confidence.level = ci.lvl,
           ...
         )
@@ -213,10 +212,10 @@ ggeffect_helper <- function(model, terms, ci.lvl, x.as.factor, ...) {
 
   # get axis titles and labels
   all.labels <- .get_axis_titles_and_labels(
-    fitfram,
+    original_model_frame,
     terms,
     .get_model_function(model),
-    faminfo = faminfo,
+    model_info = model_info,
     no.transform,
     type = NULL
   )
@@ -227,23 +226,23 @@ ggeffect_helper <- function(model, terms, ci.lvl, x.as.factor, ...) {
 
   # for numeric values with many decimal places, we need to round
   if (.frac_length(tmp$x) > 5)
-    filter.keep <- round(tmp$x, 5) %in% round(x.levels[[1]], 5)
+    filter.keep <- round(tmp$x, 5) %in% round(at_values[[1]], 5)
   else
-    filter.keep <- tmp$x %in% x.levels[[1]]
+    filter.keep <- tmp$x %in% at_values[[1]]
 
   tmp <- tmp[filter.keep, , drop = FALSE]
 
   # slice data, only select observations that have specified
   # levels for the facet variables
-  if (length(x.levels) > 1) {
-    filter.keep <- tmp$group %in% x.levels[[2]]
+  if (length(at_values) > 1) {
+    filter.keep <- tmp$group %in% at_values[[2]]
     tmp <- tmp[filter.keep, , drop = FALSE]
   }
 
   # slice data, only select observations that have specified
   # levels for the facet variables
-  if (length(x.levels) > 2) {
-    filter.keep <- tmp$facet %in% x.levels[[3]]
+  if (length(at_values) > 2) {
+    filter.keep <- tmp$facet %in% at_values[[3]]
     tmp <- tmp[filter.keep, , drop = FALSE]
   }
 
@@ -252,7 +251,7 @@ ggeffect_helper <- function(model, terms, ci.lvl, x.as.factor, ...) {
   if (length(terms) > 1) {
     # grouping variable may not be labelled
     # do this here, so we convert to labelled factor later
-    tmp <- .add_labels_to_groupvariable(tmp, fitfram, terms)
+    tmp <- .add_labels_to_groupvariable(tmp, original_model_frame, terms)
 
     # convert to factor for proper legend
     tmp <- .groupvariable_to_labelled_factor(tmp)
@@ -263,41 +262,41 @@ ggeffect_helper <- function(model, terms, ci.lvl, x.as.factor, ...) {
 
 
   # convert to data frame
-  mydf <- as.data.frame(tmp, stringsAsFactors = FALSE)
+  result <- as.data.frame(tmp, stringsAsFactors = FALSE)
+
+  if(length(terms) > 1) {
+    attr(result, "continuous.group") <- is.numeric(original_model_frame[[terms[2]]]) & is.null(attr(original_model_frame[[terms[2]]], "labels"))
+  } else {
+    attr(result, "continuous.group") <- FALSE
+  }
 
   # add raw data as well
-  attr(mydf, "rawdata") <- .get_raw_data(model, fitfram, terms)
+  attr(result, "rawdata") <- .get_raw_data(model, original_model_frame, terms)
 
 
-  x_v <- fitfram[[fx.term]]
+  x_v <- original_model_frame[[fx.term]]
   if (is.null(x_v))
     xif <- ifelse(is.factor(tmp$x), "1", "0")
   else
     xif <- ifelse(is.factor(x_v), "1", "0")
 
-  attr(mydf, "x.is.factor") <- xif
+  attr(result, "x.is.factor") <- xif
 
   # set attributes with necessary information
-  mydf <-
-    .set_attributes_and_class(
-      data = mydf,
-      model = model,
-      t.title = all.labels$t.title,
-      x.title = all.labels$x.title,
-      y.title = all.labels$y.title,
-      l.title = all.labels$l.title,
-      legend.labels = legend.labels,
-      x.axis.labels = all.labels$axis.labels,
-      faminfo = faminfo,
-      terms = cleaned.terms,
-      ori.terms = ori.terms,
-    )
-
-
-  # make x numeric
-  if (!x.as.factor) mydf$x <- sjlabelled::as_numeric(mydf$x, keep.labels = FALSE)
-
-  mydf
+  .set_attributes_and_class(
+    data = result,
+    model = model,
+    t.title = all.labels$t.title,
+    x.title = all.labels$x.title,
+    y.title = all.labels$y.title,
+    l.title = all.labels$l.title,
+    legend.labels = legend.labels,
+    x.axis.labels = all.labels$axis.labels,
+    model_info = model_info,
+    terms = cleaned_terms,
+    original_terms = original_terms,
+    ci.lvl = ci.lvl
+  )
 }
 
 
@@ -312,12 +311,12 @@ ggeffect_helper <- function(model, terms, ci.lvl, x.as.factor, ...) {
   # with or w/o grouping factor?
   if (length(terms) == 1) {
     # convert to factor for proper legend
-    tmp$group <- sjmisc::to_factor(1)
+    tmp$group <- as.factor(1)
   } else if (length(terms) == 2) {
-    tmp$group <- sjmisc::to_factor(fx$x[[terms[2]]])
+    tmp$group <-  as.factor(fx$x[[terms[2]]])
   } else {
-    tmp$group <- sjmisc::to_factor(fx$x[[terms[2]]])
-    tmp$facet <- sjmisc::to_factor(fx$x[[terms[3]]])
+    tmp$group <-  as.factor(fx$x[[terms[2]]])
+    tmp$facet <-  as.factor(fx$x[[terms[3]]])
   }
 
   tmp

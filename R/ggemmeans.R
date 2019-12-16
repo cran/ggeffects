@@ -1,4 +1,4 @@
-#' @importFrom sjmisc var_rename to_factor remove_empty_cols
+#' @importFrom sjmisc var_rename remove_empty_cols
 #' @importFrom stats confint na.omit
 #' @importFrom sjlabelled get_labels as_numeric
 #' @importFrom insight find_response get_data model_info
@@ -7,12 +7,10 @@
 ggemmeans <- function(model,
                       terms,
                       ci.lvl = .95,
-                      type = c("fe", "fe.zi", "re", "re.zi"),
+                      type = "fe",
                       typical = "mean",
                       condition = NULL,
                       back.transform = TRUE,
-                      x.as.factor = TRUE,
-                      x.cat,
                       ...) {
 
   if (!requireNamespace("emmeans")) {
@@ -20,10 +18,8 @@ ggemmeans <- function(model,
   }
 
   # check arguments
-  type <- match.arg(type)
-  model.name <- deparse(substitute(model))
-
-  if (!missing(x.cat)) x.as.factor <- x.cat
+  type <- match.arg(type, choices = c("fe", "fe.zi", "re", "re.zi"))
+  model_name <- deparse(substitute(model))
 
   # check if terms are a formula
   if (!missing(terms) && !is.null(terms) && inherits(terms, "formula")) {
@@ -35,49 +31,44 @@ ggemmeans <- function(model,
   if (is.gamm(model) || is.gamm4(model)) model <- model$gam
 
   # check model family, do we have count model?
-  faminfo <- .get_model_info(model)
+  model_info <- .get_model_info(model)
 
   # get model frame
-  ori.fram <- fitfram <- insight::get_data(model)
+  original_model_frame <- model_frame <- insight::get_data(model)
 
   # check terms argument
   terms <- .check_vars(terms, model)
-  cleaned.terms <- .get_cleaned_terms(terms)
+  cleaned_terms <- .clean_terms(terms)
 
-  expanded_frame <- .get_data_grid(
-    model = model, mf = fitfram, terms = terms, typ.fun = typical,
+  data_grid <- .data_grid(
+    model = model, model_frame = model_frame, terms = terms, value_adjustment = typical,
     condition = condition, emmeans.only = TRUE
   )
 
 
   # for zero-inflated mixed models, we need some extra handling
 
-  if (faminfo$is_zero_inflated && inherits(model, c("glmmTMB", "MixMod")) && type == "fe.zi") {
+  if (model_info$is_zero_inflated && inherits(model, c("glmmTMB", "MixMod")) && type == "fe.zi") {
 
-    if (inherits(model, "MixMod")) {
-      preds <- .ggemmeans_MixMod(model, expanded_frame, cleaned.terms, ...)
-    } else {
-      preds <- .ggemmeans_glmmTMB(model, expanded_frame, cleaned.terms, ...)
-    }
+    preds <- .emmeans_mixed_zi(model, data_grid, cleaned_terms, ...)
+    additional_dot_args <- lapply(match.call(expand.dots = F)$`...`, function(x) x)
 
-    add.args <- lapply(match.call(expand.dots = F)$`...`, function(x) x)
-
-    if ("nsim" %in% names(add.args))
-      nsim <- eval(add.args[["nsim"]])
+    if ("nsim" %in% names(additional_dot_args))
+      nsim <- eval(additional_dot_args[["nsim"]])
     else
       nsim <- 1000
 
-    fitfram <- .ggemmeans_zi_predictions(
-      model,
-      fitfram,
-      preds,
-      ci.lvl,
-      terms,
-      cleaned.terms,
-      typical,
-      condition,
-      nsim,
-      type
+    prediction_data <- .ggemmeans_zi_predictions(
+      model = model,
+      model_frame = model_frame,
+      preds = preds,
+      ci.lvl = ci.lvl,
+      terms = terms,
+      cleaned_terms = cleaned_terms,
+      value_adjustment = typical,
+      condition = condition,
+      nsim = nsim,
+      type = type
     )
     pmode <- "response"
 
@@ -85,72 +76,70 @@ ggemmeans <- function(model,
 
     # get prediction mode, i.e. at which scale predicted
     # values should be returned
-    pmode <- .get_prediction_mode_argument(model, faminfo, type)
-
-    if (faminfo$is_ordinal | faminfo$is_categorical) {
-      fitfram <- .ggemmeans_predict_ordinal(model, expanded_frame, cleaned.terms, ci.lvl, type, ...)
-    } else if (inherits(model, "MCMCglmm")) {
-      fitfram <- .ggemmeans_predict_MCMCglmm(model, expanded_frame, cleaned.terms, ci.lvl, pmode, type, ...)
-    } else {
-      fitfram <- .ggemmeans_predict_generic(model, expanded_frame, cleaned.terms, ci.lvl, pmode, type, ...)
-    }
+    pmode <- .get_prediction_mode_argument(model, model_info, type)
+    prediction_data <- .emmeans_prediction_data(model, data_grid, cleaned_terms, ci.lvl, pmode, type, model_info, ...)
 
     # fix gam here
-    if (inherits(model, "gam") && faminfo$is_zero_inflated) {
-      fitfram$predicted <- exp(fitfram$predicted)
-      fitfram$conf.low <- exp(fitfram$conf.low)
-      fitfram$conf.high <- exp(fitfram$conf.high)
+    if (inherits(model, "gam") && model_info$is_zero_inflated) {
+      prediction_data$predicted <- exp(prediction_data$predicted)
+      prediction_data$conf.low <- exp(prediction_data$conf.low)
+      prediction_data$conf.high <- exp(prediction_data$conf.high)
     }
   }
 
   # return NULL on error
-  if (is.null(fitfram)) return(NULL)
+  if (is.null(prediction_data)) return(NULL)
 
-  if (faminfo$is_ordinal | faminfo$is_categorical) {
-    colnames(fitfram)[1] <- "response.level"
+  attr(prediction_data, "continuous.group") <- attr(data_grid, "continuous.group")
+
+  if (model_info$is_ordinal | model_info$is_categorical) {
+    colnames(prediction_data)[1] <- "response.level"
   }
 
-  mydf <- .post_processing_predictions(
+  result <- .post_processing_predictions(
     model = model,
-    fitfram = fitfram,
-    original.model.frame = ori.fram,
-    cleaned.terms = cleaned.terms,
-    x.as.factor = x.as.factor
+    prediction_data = prediction_data,
+    original_model_frame = original_model_frame,
+    cleaned_terms = cleaned_terms
   )
 
   # apply link inverse function
   linv <- insight::link_inverse(model)
   if (!is.null(linv) && (inherits(model, "lrm") || pmode == "link" || (inherits(model, "MixMod") && type != "fe.zi"))) {
-    mydf$predicted <- linv(mydf$predicted)
-    mydf$conf.low <- linv(mydf$conf.low)
-    mydf$conf.high <- linv(mydf$conf.high)
+    result$predicted <- linv(result$predicted)
+    result$conf.low <- linv(result$conf.low)
+    result$conf.high <- linv(result$conf.high)
   }
 
   # check if outcome is log-transformed, and if so,
   # back-transform predicted values to response scale
-  mydf <- .back_transform_response(model, mydf, back.transform)
+  result <- .back_transform_response(model, result, back.transform)
 
-  attr(mydf, "model.name") <- model.name
+  attr(result, "model.name") <- model_name
+
+  # add raw data as well
+  attr(result, "rawdata") <- .get_raw_data(model, original_model_frame, cleaned_terms)
 
   .post_processing_labels(
     model = model,
-    mydf = mydf,
-    original.model.frame = ori.fram,
-    expanded_frame = expanded_frame,
-    cleaned.terms = cleaned.terms,
-    original.terms = terms,
-    faminfo = faminfo,
+    result = result,
+    original_model_frame = original_model_frame,
+    data_grid = data_grid,
+    cleaned_terms = cleaned_terms,
+    original_terms = terms,
+    model_info = model_info,
     type = type,
-    prediction.interval = attr(fitfram, "prediction.interval", exact = TRUE),
-    at.list = .get_data_grid(
-      model = model, mf = ori.fram, terms = terms, typ.fun = typical,
-      condition = condition, pretty.message = FALSE, emmeans.only = TRUE
-    )
+    prediction.interval = attr(prediction_data, "prediction.interval", exact = TRUE),
+    at_list = .data_grid(
+      model = model, model_frame = original_model_frame, terms = terms, value_adjustment = typical,
+      condition = condition, show_pretty_message = FALSE, emmeans.only = TRUE
+    ),
+    ci.lvl = ci.lvl
   )
 }
 
 
-.get_prediction_mode_argument <- function(model, faminfo, type) {
+.get_prediction_mode_argument <- function(model, model_info, type) {
   if (inherits(model, "betareg"))
     "response"
   else if (inherits(model, c("polr", "clm", "clmm", "clm2", "rms")))
@@ -161,13 +150,13 @@ ggemmeans <- function(model,
     "fixed-effects"
   else if (inherits(model, "gls"))
     "satterthwaite"
-  else if (faminfo$is_ordinal | faminfo$is_categorical)
+  else if (model_info$is_ordinal | model_info$is_categorical)
     "prob"
-  else if (faminfo$is_zero_inflated && type %in% c("fe", "re") && inherits(model, "glmmTMB"))
+  else if (model_info$is_zero_inflated && type %in% c("fe", "re") && inherits(model, "glmmTMB"))
     "link"
-  else if (faminfo$is_zero_inflated && type %in% c("fe.zi", "re.zi"))
+  else if (model_info$is_zero_inflated && type %in% c("fe.zi", "re.zi"))
     "response"
-  else if (faminfo$is_zero_inflated && type %in% c("fe", "re"))
+  else if (model_info$is_zero_inflated && type %in% c("fe", "re"))
     "count"
   else
     "link"

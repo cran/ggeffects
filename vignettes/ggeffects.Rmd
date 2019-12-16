@@ -18,7 +18,7 @@ options(width = 800)
 
 Results of regression models are typically presented as tables that are easy to understand. For more complex models that include interaction or quadratic / spline terms, tables with numbers are less helpful and more difficult to interpret. In such cases, the visualization of _marginal effects_ is far easier to understand and allows to intuitively get the idea of how predictors and outcome are associated, even for complex models. 
 
-**ggeffects** computes marginal effects at the mean (MEM) or at representative values (MER) from statistical models and returns the result as tidy data frame, especially for further use with [ggplot](https://cran.r-project.org/package=ggplot2). Definitions [can be found here](https://stats.stackexchange.com/tags/marginal-effect/info).
+**ggeffects** computes marginal effects (or: _estimated marginal means_) at the mean (MEM) or at representative values (MER) from statistical models and returns the result as tidy data frame, especially for further use with [ggplot](https://cran.r-project.org/package=ggplot2). Definitions [can be found here](https://stats.stackexchange.com/tags/marginal-effect/info).
 
 Since the focus lies on plotting the data (the marginal effects), at least one model term needs to be specified for which the effects are computed. It is also possible to compute marginal effects for model terms, grouped by the levels of another model's predictor. The package also allows plotting marginal effects for two-, three- or four-way-interactions, or for specific values of a model term only. Examples are shown below.
 
@@ -60,7 +60,7 @@ mydf <- ggpredict(fit, terms = "c12hour")
 ggplot(mydf, aes(x, predicted)) + geom_line()
 ```
 
-# Marginal effects at the mean for different groups
+# Marginal effects at the mean by other predictors' levels
 
 The `terms`-argument accepts up to four model terms, where the second to fourth terms indicate grouping levels. This allows predictions for the term in question at different levels for other model terms:
 
@@ -68,7 +68,7 @@ The `terms`-argument accepts up to four model terms, where the second to fourth 
 ggpredict(fit, terms = c("c12hour", "c172code"))
 ```
 
-Creating a ggplot is pretty straightforward: the colour-aesthetics is mapped with the `group`-column:
+Creating a ggplot is pretty straightforward: the `colour`-aesthetics is mapped with the `group`-column:
 
 ```{r}
 mydf <- ggpredict(fit, terms = c("c12hour", "c172code"))
@@ -85,7 +85,7 @@ ggplot(mydf, aes(x, predicted, colour = group)) +
   facet_wrap(~facet)
 ```
 
-Finally, a third grouping structure can be defined, creating another column named `panel`. In such cases, you may create multiple plots (for each value in `panel`). **ggeffects** takes care of this when you use `plot()` and automatically creates an integrated plot with all panels in one figure.
+Finally, a third differentation can be defined, creating another column named `panel`. In such cases, you may create multiple plots (for each value in `panel`). **ggeffects** takes care of this when you use `plot()` and automatically creates an integrated plot with all panels in one figure.
 
 ```{r fig.height = 8}
 mydf <- ggpredict(fit, terms = c("c12hour", "c172code", "c161sex", "neg_c_7"))
@@ -188,32 +188,6 @@ ggpredict(m, c("sex", "ph.ecog"))
 ```{r}
 # probability of survival
 ggpredict(m, c("sex", "ph.ecog"), type = "surv")
-```
-
-# Printing factor levels instead of numeric values
-
-By default, to quickly create plot where data points can be connected with lines (i.e. to use a continuous x-axis-scale), the `x`-value is numeric, even if the first variable in `terms` (which is represented by the `x`-column in the returned data frame) is categorical. Since **ggeffects** supports labelled data (see also next section), plots are always correctly annotated, and a discrete scale is automatically used (see vignette [Plotting Marginal Effects](introduction_plotmethod.html)).
-
-If numeric values instead of factor levels for `x` are required, use the argument `x.as.factor = FALSE` (or its alias, `x.cat = FALSE`). This will print numeric values instead of the factor levels in the console.
-
-Here are some examples, first we fit a model where two variables are factors with character factor levels (we use `sjmisc::to_label()` to convert the labelled data into factors):
-
-```{r}
-data(efc)
-efc <- to_label(efc, c172code, c161sex)
-m <- lm(barthtot ~ c12hour + neg_c_7 + c161sex + c172code, data = efc)
-```
-
-By default, `x` is numeric, or put differently, printing the results will cause factors as `x` to become numeric...
-
-```{r}
-ggpredict(m, "c172code")
-```
-
-... unless you change this behaviour with `x.as.factor = TRUE`.
-
-```{r}
-ggpredict(m, "c172code", x.as.factor = FALSE)
 ```
 
 # Labelling the data

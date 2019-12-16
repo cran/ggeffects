@@ -3,9 +3,6 @@ if (suppressWarnings(
   require("ggeffects") &&
   require("logistf")
 )) {
-
-  context("ggeffects, logistf regression")
-
   data(sex2)
   m1 <- logistf(case ~ age + oc, data = sex2)
 

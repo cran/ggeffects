@@ -4,23 +4,36 @@
 \alias{ggeffect}
 \alias{ggemmeans}
 \alias{ggpredict}
-\alias{ggaverage}
 \title{Get marginal effects from model terms}
 \usage{
-ggeffect(model, terms, ci.lvl = 0.95, x.as.factor = TRUE, ...)
+ggeffect(model, terms, ci.lvl = 0.95, ...)
 
-ggemmeans(model, terms, ci.lvl = 0.95, type = c("fe", "fe.zi", "re",
-  "re.zi"), typical = "mean", condition = NULL,
-  back.transform = TRUE, x.as.factor = TRUE, x.cat, ...)
+ggemmeans(
+  model,
+  terms,
+  ci.lvl = 0.95,
+  type = "fe",
+  typical = "mean",
+  condition = NULL,
+  back.transform = TRUE,
+  ...
+)
 
-ggpredict(model, terms, ci.lvl = 0.95, type = c("fe", "re", "fe.zi",
-  "re.zi", "sim", "surv", "cumhaz", "debug"), typical = "mean",
-  condition = NULL, back.transform = TRUE, ppd = FALSE,
-  x.as.factor = TRUE, vcov.fun = NULL, vcov.type = NULL,
-  vcov.args = NULL, interval = c("confidence", "prediction"), x.cat,
-  ...)
-
-ggaverage(...)
+ggpredict(
+  model,
+  terms,
+  ci.lvl = 0.95,
+  type = "fe",
+  typical = "mean",
+  condition = NULL,
+  back.transform = TRUE,
+  ppd = FALSE,
+  vcov.fun = NULL,
+  vcov.type = NULL,
+  vcov.args = NULL,
+  interval = "confidence",
+  ...
+)
 }
 \arguments{
 \item{model}{A fitted model object, or a list of model objects. Any model
@@ -33,7 +46,7 @@ that is supported by \CRANpkg{effects} should work, and for
 from \code{model}, for which marginal effects should be displayed. At least
 one term is required to calculate effects for certain terms, maximum length is
 four terms, where the second to fourth term indicate the groups, i.e.
-predictions of first term are grouped by the values of the remaining
+predictions of first term are grouped at the values or levels of the remaining
 terms. If \code{terms} is missing or \code{NULL}, marginal effects for each
 model term are calculated. It is also possible to define specific values for
 terms, at which marginal effects should be calculated (see 'Details').
@@ -47,17 +60,6 @@ based on the standard errors as returned by the \code{predict()} function
 are returned, assuming normal distribution (i.e. \code{+/- 1.96 * SE}).
 See introduction of \href{https://strengejacke.github.io/ggeffects/articles/ggeffects.html}{this vignette}
 for more details.}
-
-\item{x.as.factor, x.cat}{Logical, if \code{TRUE}, preserves factor-class as
-\code{x}-column in the returned data frame (only applies if first variable
-in \code{terms} is a factor). If \code{FALSE}, the \code{x}-column is always
-numeric. This argument is useful when building own plots from the data,
-based on ggplot, so you don't need to coerce \code{x} to numeric. The
-\code{plot()}-method, however, automatically uses continuous or discrete
-x-scales, depending on the variable-type. For more details, see
-\href{https://strengejacke.github.io/ggeffects/articles/introduction_plotmethod.html}{the plot-vignette} and the
-\href{https://strengejacke.github.io/ggeffects/articles/ggeffects.html}{the vignette on package-basics}.
-\code{x.cat} is an alias for \code{x.as.factor}.}
 
 \item{...}{For \code{ggpredict()}, further arguments passed down to
 \code{predict()}; for \code{ggeffect()}, further arguments passed
@@ -76,7 +78,7 @@ the zero-inflation part of the model (see 'Details').
   \item{\code{"fe"}}{
   Predicted values are conditioned on the fixed effects or conditional
   model only (for mixed models: predicted values are on the population-level
-  and _confidence intervals_ are returned). For instance, for models
+  and \emph{confidence intervals} are returned). For instance, for models
   fitted with \code{zeroinfl} from \pkg{pscl}, this would return the
   predicted mean from the count component (without zero-inflation).
   For models with zero-inflation component, this type calls
@@ -89,7 +91,7 @@ the zero-inflation part of the model (see 'Details').
   still returns population-level predictions, however, unlike \code{type = "fe"},
   intervals also consider the uncertainty in the variance parameters (the
   mean random effect variance, see \cite{Johnson et al. 2014} for details)
-  and hence can be considered as _prediction intervals_. For models
+  and hence can be considered as \emph{prediction intervals}. For models
   with zero-inflation component, this type calls
   \code{predict(..., type = "link")} (however, predicted values are
   back-transformed to the response scale).
@@ -126,9 +128,6 @@ the zero-inflation part of the model (see 'Details').
   \item{\code{"surv"} and \code{"cumhaz"}}{
   Applies only to \code{coxph}-objects from the \pkg{survial}-package and
   calculates the survival probability or the cumulative hazard of an event.
-  }
-  \item{\code{"debug"}}{
-  Only used internally.
   }
 }}
 
@@ -168,7 +167,8 @@ for details).}
 \item{vcov.args}{List of named vectors, used as additional arguments that
 are passed down to \code{vcov.fun}.}
 
-\item{interval}{Type of interval calculation. Can be abbreviated. Unlike
+\item{interval}{Type of interval calculation, can either be \code{"confidence"}
+(default) or \code{"prediction"}. May be abbreviated. Unlike
 \emph{confidence intervals}, \emph{prediction intervals} include the
 residual variance (sigma^2). This argument is ignored for mixed models,
 as \code{interval = "prediction"} is equivalent to \code{type = "re"}
@@ -187,7 +187,8 @@ A data frame (with \code{ggeffects} class attribute) with consistent
           \item{\code{group}}{the grouping level from the second term in \code{terms}, used as grouping-aesthetics in plots.}
           \item{\code{facet}}{the grouping level from the third term in \code{terms}, used to indicate facets in plots.}
         }
-        The predicted values are always on the response scale! \cr \cr
+        The estimated marginal means (predicted values) are always on the
+        response scale! \cr \cr
         For proportional odds logistic regression (see \code{\link[MASS]{polr}})
         resp. cumulative link models (e.g., see \code{\link[ordinal]{clm}}),
         an additional column \code{response.level} is returned, which indicates
@@ -198,9 +199,8 @@ A data frame (with \code{ggeffects} class attribute) with consistent
         are returned.
 }
 \description{
-\code{ggpredict()} computes predicted (fitted) values for the
-  response, at the margin of specific values from certain model terms,
-  where additional model terms indicate the grouping structure.
+\code{ggpredict()} computes estimated marginal means (predicted values) for the
+  response, at the margin of specific values from certain model terms.
   \code{ggeffect()} computes marginal effects by internally calling
   \code{\link[effects]{Effect}}, while \code{ggemmeans()} computes marginal
   effects by internally calling \code{\link[emmeans]{emmeans}}.
@@ -208,27 +208,15 @@ A data frame (with \code{ggeffects} class attribute) with consistent
 }
 \details{
 \subsection{Supported Models}{
-  Currently supported model-objects are (in alphabetical order):
-  \code{bamlss}, \code{bayesx}, \code{betabin}, \code{betareg}, \code{bglmer},
-  \code{blmer}, \code{bracl}, \code{brglm}, \code{brmsfit}, \code{brmultinom},
-  \code{clm}, \code{clm2}, \code{clmm}, \code{coxph}, \code{gam} (package \pkg{mgcv}),
-  \code{Gam} (package \pkg{gam}), \code{gamlss}, \code{gamm}, \code{gamm4},
-  \code{gee}, \code{geeglm}, \code{glm}, \code{glm.nb}, \code{glmer},
-  \code{glmer.nb}, \code{glmmTMB}, \code{glmmPQL}, \code{glmrob}, \code{glmRob},
-  \code{gls}, \code{hurdle}, \code{ivreg}, \code{lm}, \code{lm_robust}, \code{lme},
-  \code{lmer}, \code{lmrob}, \code{lmRob}, \code{logistf}, \code{lrm},
-  \code{MixMod}, \code{MCMCglmm}, \code{multinom}, \code{negbin}, \code{nlmer}, \code{ols}, \code{plm},
-  \code{polr}, \code{rlm}, \code{rlmer}, \code{rq}, \code{rqss},
-  \code{stanreg}, \code{survreg}, \code{svyglm}, \code{svyglm.nb},
-  \code{tobit}, \code{truncreg}, \code{vgam}, \code{wbm}, \code{zeroinfl} and \code{zerotrunc}.
-  Other models not listed here are passed to a generic predict-function
-  and might work as well, or maybe with \code{ggeffect()} or \code{ggemmeans()},
-  which effectively do the same as \code{ggpredict()}. The main difference
-  is that \code{ggpredict()} calls \code{predict()}, while \code{ggeffect()}
-  calls \code{\link[effects]{Effect}} and \code{ggemmeans()} calls
-  \code{\link[emmeans]{emmeans}} to compute marginal effects.
+  A list of supported models can be found at \url{https://github.com/strengejacke/ggeffects}.
+  Support for models varies by function, i.e. although \code{ggpredict()},
+  \code{ggemmeans()} and \code{ggeffect()} support most models, some models
+  are only supported exclusively by one of the three functions.
   }
   \subsection{Difference between \code{ggpredict()} and \code{ggeffect()} or \code{ggemmeans()}}{
+  \code{ggpredict()} calls \code{predict()}, while \code{ggeffect()}
+  calls \code{\link[effects]{Effect}} and \code{ggemmeans()} calls
+  \code{\link[emmeans]{emmeans}} to compute marginal effects. Therefore,
   \code{ggpredict()} and \code{ggeffect()} resp. \code{ggemmeans()} differ in
   how factors are held constant: \code{ggpredict()} uses the reference level, while
   \code{ggeffect()} and \code{ggemmeans()} compute a kind of "average" value,
@@ -446,12 +434,6 @@ ggplot(dat, aes(x = x, y = predicted, colour = group)) +
 
 # or with ggeffects' plot-method
 plot(dat, ci = FALSE)}
-
-# use numeric values as x-column in returned data frame
-data(efc)
-efc$c161sex <- as_label(efc$c161sex)
-fit <- lm(neg_c_7 ~ c12hour + c161sex, data = efc)
-ggpredict(fit, terms = "c161sex", x.as.factor = FALSE)
 
 # marginal effects for polynomial terms
 data(efc)

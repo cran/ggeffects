@@ -2,9 +2,8 @@
 #' @name ggpredict
 #'
 #' @description
-#'   \code{ggpredict()} computes predicted (fitted) values for the
-#'   response, at the margin of specific values from certain model terms,
-#'   where additional model terms indicate the grouping structure.
+#'   \code{ggpredict()} computes estimated marginal means (predicted values) for the
+#'   response, at the margin of specific values from certain model terms.
 #'   \code{ggeffect()} computes marginal effects by internally calling
 #'   \code{\link[effects]{Effect}}, while \code{ggemmeans()} computes marginal
 #'   effects by internally calling \code{\link[emmeans]{emmeans}}.
@@ -19,7 +18,7 @@
 #'   from \code{model}, for which marginal effects should be displayed. At least
 #'   one term is required to calculate effects for certain terms, maximum length is
 #'   four terms, where the second to fourth term indicate the groups, i.e.
-#'   predictions of first term are grouped by the values of the remaining
+#'   predictions of first term are grouped at the values or levels of the remaining
 #'   terms. If \code{terms} is missing or \code{NULL}, marginal effects for each
 #'   model term are calculated. It is also possible to define specific values for
 #'   terms, at which marginal effects should be calculated (see 'Details').
@@ -42,7 +41,7 @@
 #'     \item{\code{"fe"}}{
 #'     Predicted values are conditioned on the fixed effects or conditional
 #'     model only (for mixed models: predicted values are on the population-level
-#'     and _confidence intervals_ are returned). For instance, for models
+#'     and \emph{confidence intervals} are returned). For instance, for models
 #'     fitted with \code{zeroinfl} from \pkg{pscl}, this would return the
 #'     predicted mean from the count component (without zero-inflation).
 #'     For models with zero-inflation component, this type calls
@@ -55,7 +54,7 @@
 #'     still returns population-level predictions, however, unlike \code{type = "fe"},
 #'     intervals also consider the uncertainty in the variance parameters (the
 #'     mean random effect variance, see \cite{Johnson et al. 2014} for details)
-#'     and hence can be considered as _prediction intervals_. For models
+#'     and hence can be considered as \emph{prediction intervals}. For models
 #'     with zero-inflation component, this type calls
 #'     \code{predict(..., type = "link")} (however, predicted values are
 #'     back-transformed to the response scale).
@@ -93,9 +92,6 @@
 #'     Applies only to \code{coxph}-objects from the \pkg{survial}-package and
 #'     calculates the survival probability or the cumulative hazard of an event.
 #'     }
-#'     \item{\code{"debug"}}{
-#'     Only used internally.
-#'     }
 #'   }
 #' @param typical Character vector, naming the function to be applied to the
 #'   covariates over which the effect is "averaged". The default is "mean".
@@ -108,23 +104,14 @@
 #'   (\code{\link[rstantools]{posterior_predict}}). If \code{FALSE} (the
 #'   default), predictions are based on posterior draws of the linear
 #'   predictor (\code{\link[rstantools]{posterior_linpred}}).
-#' @param x.as.factor,x.cat Logical, if \code{TRUE}, preserves factor-class as
-#'   \code{x}-column in the returned data frame (only applies if first variable
-#'   in \code{terms} is a factor). If \code{FALSE}, the \code{x}-column is always
-#'   numeric. This argument is useful when building own plots from the data,
-#'   based on ggplot, so you don't need to coerce \code{x} to numeric. The
-#'   \code{plot()}-method, however, automatically uses continuous or discrete
-#'   x-scales, depending on the variable-type. For more details, see
-#'   \href{https://strengejacke.github.io/ggeffects/articles/introduction_plotmethod.html}{the plot-vignette} and the
-#'   \href{https://strengejacke.github.io/ggeffects/articles/ggeffects.html}{the vignette on package-basics}.
-#'   \code{x.cat} is an alias for \code{x.as.factor}.
 #' @param condition Named character vector, which indicates covariates that
 #'   should be held constant at specific values. Unlike \code{typical}, which
 #'   applies a function to the covariates to determine the value that is used
 #'   to hold these covariates constant, \code{condition} can be used to define
 #'   exact values, for instance \code{condition = c(covariate1 = 20, covariate2 = 5)}.
 #'   See 'Examples'.
-#' @param interval Type of interval calculation. Can be abbreviated. Unlike
+#' @param interval Type of interval calculation, can either be \code{"confidence"}
+#'   (default) or \code{"prediction"}. May be abbreviated. Unlike
 #'   \emph{confidence intervals}, \emph{prediction intervals} include the
 #'   residual variance (sigma^2). This argument is ignored for mixed models,
 #'   as \code{interval = "prediction"} is equivalent to \code{type = "re"}
@@ -151,27 +138,15 @@
 #'
 #' @details
 #'   \subsection{Supported Models}{
-#'   Currently supported model-objects are (in alphabetical order):
-#'   \code{bamlss}, \code{bayesx}, \code{betabin}, \code{betareg}, \code{bglmer},
-#'   \code{blmer}, \code{bracl}, \code{brglm}, \code{brmsfit}, \code{brmultinom},
-#'   \code{clm}, \code{clm2}, \code{clmm}, \code{coxph}, \code{gam} (package \pkg{mgcv}),
-#'   \code{Gam} (package \pkg{gam}), \code{gamlss}, \code{gamm}, \code{gamm4},
-#'   \code{gee}, \code{geeglm}, \code{glm}, \code{glm.nb}, \code{glmer},
-#'   \code{glmer.nb}, \code{glmmTMB}, \code{glmmPQL}, \code{glmrob}, \code{glmRob},
-#'   \code{gls}, \code{hurdle}, \code{ivreg}, \code{lm}, \code{lm_robust}, \code{lme},
-#'   \code{lmer}, \code{lmrob}, \code{lmRob}, \code{logistf}, \code{lrm},
-#'   \code{MixMod}, \code{MCMCglmm}, \code{multinom}, \code{negbin}, \code{nlmer}, \code{ols}, \code{plm},
-#'   \code{polr}, \code{rlm}, \code{rlmer}, \code{rq}, \code{rqss},
-#'   \code{stanreg}, \code{survreg}, \code{svyglm}, \code{svyglm.nb},
-#'   \code{tobit}, \code{truncreg}, \code{vgam}, \code{wbm}, \code{zeroinfl} and \code{zerotrunc}.
-#'   Other models not listed here are passed to a generic predict-function
-#'   and might work as well, or maybe with \code{ggeffect()} or \code{ggemmeans()},
-#'   which effectively do the same as \code{ggpredict()}. The main difference
-#'   is that \code{ggpredict()} calls \code{predict()}, while \code{ggeffect()}
-#'   calls \code{\link[effects]{Effect}} and \code{ggemmeans()} calls
-#'   \code{\link[emmeans]{emmeans}} to compute marginal effects.
+#'   A list of supported models can be found at \url{https://github.com/strengejacke/ggeffects}.
+#'   Support for models varies by function, i.e. although \code{ggpredict()},
+#'   \code{ggemmeans()} and \code{ggeffect()} support most models, some models
+#'   are only supported exclusively by one of the three functions.
 #'   }
 #'   \subsection{Difference between \code{ggpredict()} and \code{ggeffect()} or \code{ggemmeans()}}{
+#'   \code{ggpredict()} calls \code{predict()}, while \code{ggeffect()}
+#'   calls \code{\link[effects]{Effect}} and \code{ggemmeans()} calls
+#'   \code{\link[emmeans]{emmeans}} to compute marginal effects. Therefore,
 #'   \code{ggpredict()} and \code{ggeffect()} resp. \code{ggemmeans()} differ in
 #'   how factors are held constant: \code{ggpredict()} uses the reference level, while
 #'   \code{ggeffect()} and \code{ggemmeans()} compute a kind of "average" value,
@@ -319,7 +294,8 @@
 #'           \item{\code{group}}{the grouping level from the second term in \code{terms}, used as grouping-aesthetics in plots.}
 #'           \item{\code{facet}}{the grouping level from the third term in \code{terms}, used to indicate facets in plots.}
 #'         }
-#'         The predicted values are always on the response scale! \cr \cr
+#'         The estimated marginal means (predicted values) are always on the
+#'         response scale! \cr \cr
 #'         For proportional odds logistic regression (see \code{\link[MASS]{polr}})
 #'         resp. cumulative link models (e.g., see \code{\link[ordinal]{clm}}),
 #'         an additional column \code{response.level} is returned, which indicates
@@ -416,12 +392,6 @@
 #' # or with ggeffects' plot-method
 #' plot(dat, ci = FALSE)}
 #'
-#' # use numeric values as x-column in returned data frame
-#' data(efc)
-#' efc$c161sex <- as_label(efc$c161sex)
-#' fit <- lm(neg_c_7 ~ c12hour + c161sex, data = efc)
-#' ggpredict(fit, terms = "c161sex", x.as.factor = FALSE)
-#'
 #' # marginal effects for polynomial terms
 #' data(efc)
 #' fit <- glm(
@@ -432,33 +402,26 @@
 #' ggeffect(fit, terms = "e17age")
 #'
 #' @importFrom stats predict predict.glm na.omit
-#' @importFrom dplyr mutate
-#' @importFrom sjmisc to_factor is_num_fac remove_empty_cols
-#' @importFrom purrr map
-#' @importFrom sjlabelled as_numeric
+#' @importFrom sjmisc remove_empty_cols
 #' @importFrom insight find_random find_predictors model_info find_formula
 #' @export
 ggpredict <- function(model,
                       terms,
                       ci.lvl = .95,
-                      type = c("fe", "re", "fe.zi", "re.zi", "sim", "surv", "cumhaz", "debug"),
+                      type = "fe",
                       typical = "mean",
                       condition = NULL,
                       back.transform = TRUE,
                       ppd = FALSE,
-                      x.as.factor = TRUE,
                       vcov.fun = NULL,
                       vcov.type = NULL,
                       vcov.args = NULL,
-                      interval = c("confidence", "prediction"),
-                      x.cat,
+                      interval = "confidence",
                       ...) {
   # check arguments
-  type <- match.arg(type)
-  interval <- match.arg(interval)
+  type <- match.arg(type, choices = c("fe", "re", "fe.zi", "re.zi", "sim", "surv", "cumhaz", "debug"))
+  interval <- match.arg(interval, choices = c("confidence", "prediction"))
   model.name <- deparse(substitute(model))
-
-  if (!missing(x.cat)) x.as.factor <- x.cat
 
   # check if terms are a formula
   if (!missing(terms) && !is.null(terms) && inherits(terms, "formula")) {
@@ -470,27 +433,28 @@ ggpredict <- function(model,
   if (is.gamm(model) || is.gamm4(model)) model <- model$gam
 
   if (inherits(model, "list") && !inherits(model, "bamlss")) {
-    res <- purrr::map(model, ~ggpredict_helper(
-      model = .x,
-      terms = terms,
-      ci.lvl = ci.lvl,
-      type = type,
-      typical = typical,
-      ppd = ppd,
-      x.as.factor = x.as.factor,
-      condition = condition,
-      back.transform = back.transform,
-      vcov.fun = vcov.fun,
-      vcov.type = vcov.type,
-      vcov.args = vcov.args,
-      interval = interval,
-      ...
-    ))
+    res <- lapply(model, function(.x) {
+      ggpredict_helper(
+        model = .x,
+        terms = terms,
+        ci.lvl = ci.lvl,
+        type = type,
+        typical = typical,
+        ppd = ppd,
+        condition = condition,
+        back.transform = back.transform,
+        vcov.fun = vcov.fun,
+        vcov.type = vcov.type,
+        vcov.args = vcov.args,
+        interval = interval,
+        ...
+      )
+    })
     class(res) <- c("ggalleffects", class(res))
   } else {
     if (missing(terms) || is.null(terms)) {
       predictors <- insight::find_predictors(model, effects = "fixed", component = "conditional", flatten = TRUE)
-      res <- purrr::map(
+      res <- lapply(
         predictors,
         function(.x) {
           tmp <- ggpredict_helper(
@@ -500,7 +464,6 @@ ggpredict <- function(model,
             type = type,
             typical = typical,
             ppd = ppd,
-            x.as.factor = x.as.factor,
             condition = condition,
             back.transform = back.transform,
             vcov.fun = vcov.fun,
@@ -524,7 +487,6 @@ ggpredict <- function(model,
         type = type,
         typical = typical,
         ppd = ppd,
-        x.as.factor = x.as.factor,
         condition = condition,
         back.transform = back.transform,
         vcov.fun = vcov.fun,
@@ -549,7 +511,6 @@ ggpredict_helper <- function(model,
                              type,
                              typical,
                              ppd,
-                             x.as.factor,
                              condition,
                              back.transform,
                              vcov.fun,
@@ -560,107 +521,102 @@ ggpredict_helper <- function(model,
 
   # check class of fitted model, to make sure we have just one class-attribute
   # (while "inherits()" may return multiple attributes)
-  model.class <- get_predict_function(model)
+  model_class <- get_predict_function(model)
 
   # check terms argument, to make sure that terms were not misspelled
   # and are indeed existing in the data
   terms <- .check_vars(terms, model)
-  cleaned.terms <- .get_cleaned_terms(terms)
+  cleaned_terms <- .clean_terms(terms)
 
   # check if predictions should be made for each group level in
   # random effects models
-  if (model.class %in% c("lmer", "glmer", "glmmTMB", "nlmer")) {
-    re.terms <- insight::find_random(model, split_nested = TRUE, flatten = TRUE)
-    if (!is.null(re.terms) && any(cleaned.terms %in% re.terms)) ci.lvl <- NA
+  if (model_class %in% c("lmer", "glmer", "glmmTMB", "nlmer")) {
+    random_effect_terms <- insight::find_random(model, split_nested = TRUE, flatten = TRUE)
+    if (!is.null(random_effect_terms) && any(cleaned_terms %in% random_effect_terms)) ci.lvl <- NA
   }
 
   # check model family
-  faminfo <- .get_model_info(model)
+  model_info <- .get_model_info(model)
 
-  if (model.class == "coxph" && type == "surv") faminfo$is_binomial <- TRUE
+  if (model_class == "coxph" && type == "surv") model_info$is_binomial <- TRUE
 
   # get model frame
-  fitfram <- insight::get_data(model)
+  model_frame <- insight::get_data(model)
 
   # expand model frame to data grid of unique combinations
-  expanded_frame <- .get_data_grid(
-    model = model, mf = fitfram, terms = terms, typ.fun = typical,
+  data_grid <- .data_grid(
+    model = model, model_frame = model_frame, terms = terms, value_adjustment = typical,
     condition = condition
   )
 
   # save original frame, for labels, and original terms
-  ori.mf <- fitfram
-  ori.terms <- terms
+  original_model_frame <- model_frame
+  original_terms <- terms
 
   # clear argument from brackets
-  terms <- cleaned.terms
-
+  terms <- cleaned_terms
 
   # compute predictions here -----
-  fitfram <- select_prediction_method(
-    model.class,
-    model,
-    expanded_frame,
-    ci.lvl,
-    type,
-    faminfo,
-    ppd,
-    terms = ori.terms,
-    typical,
-    vcov.fun,
-    vcov.type,
-    vcov.args,
+  prediction_data <- select_prediction_method(
+    model_class = model_class,
+    model = model,
+    data_grid = data_grid,
+    ci.lvl = ci.lvl,
+    type = type,
+    model_info = model_info,
+    ppd = ppd,
+    terms = original_terms,
+    value_adjustment = typical,
+    vcov.fun = vcov.fun,
+    vcov.type = vcov.type,
+    vcov.args = vcov.args,
     condition = condition,
     interval = interval,
     ...
   )
 
   # return if no predicted values have been computed
-  if (is.null(fitfram)) return(NULL)
+  if (is.null(prediction_data)) return(NULL)
+
+  # remember if grouping variable was numeric, possibly needed for plotting
+  attr(prediction_data, "continuous.group") <- attr(data_grid, "continuous.group")
 
   # for survival probabilities or cumulative hazards, we need
   # the "time" variable
-  if (model.class == "coxph" && type %in% c("surv", "cumhaz")) {
+  if (model_class == "coxph" && type %in% c("surv", "cumhaz")) {
     terms <- c("time", terms)
-    cleaned.terms <- c("time", cleaned.terms)
+    cleaned_terms <- c("time", cleaned_terms)
   }
 
-  mydf <- .post_processing_predictions(
+  result <- .post_processing_predictions(
     model = model,
-    fitfram = fitfram,
-    original.model.frame = ori.mf,
-    cleaned.terms = cleaned.terms,
-    x.as.factor = x.as.factor
+    prediction_data = prediction_data,
+    original_model_frame = original_model_frame,
+    cleaned_terms = cleaned_terms
   )
 
   # check if outcome is log-transformed, and if so,
   # back-transform predicted values to response scale
-  mydf <- .back_transform_response(model, mydf, back.transform)
+  result <- .back_transform_response(model, result, back.transform)
 
   # add raw data as well
-  attr(mydf, "rawdata") <- .get_raw_data(model, ori.mf, terms)
+  attr(result, "rawdata") <- .get_raw_data(model, original_model_frame, terms)
 
   .post_processing_labels(
     model = model,
-    mydf = mydf,
-    original.model.frame = ori.mf,
-    expanded_frame = expanded_frame,
-    cleaned.terms = cleaned.terms,
-    original.terms = ori.terms,
-    faminfo = faminfo,
+    result = result,
+    original_model_frame = original_model_frame,
+    data_grid = data_grid,
+    cleaned_terms = cleaned_terms,
+    original_terms = original_terms,
+    model_info = model_info,
     type = type,
-    prediction.interval = attr(fitfram, "prediction.interval", exact = TRUE),
-    at.list = .get_data_grid(
-      model = model, mf = ori.mf, terms = ori.terms, typ.fun = typical,
-      condition = condition, pretty.message = FALSE, emmeans.only = TRUE
+    prediction.interval = attr(prediction_data, "prediction.interval", exact = TRUE),
+    at_list = .data_grid(
+      model = model, model_frame = original_model_frame, terms = original_terms, value_adjustment = typical,
+      condition = condition, show_pretty_message = FALSE, emmeans.only = TRUE
     ),
-    condition = condition
+    condition = condition,
+    ci.lvl = ci.lvl
   )
-}
-
-
-#' @rdname ggpredict
-#' @export
-ggaverage <- function(...) {
-  stop("'ggaverage()' was removed. Please use ' ggpredict()', 'ggemmeans()' or 'ggeffect()' instead.", call. = FALSE)
 }

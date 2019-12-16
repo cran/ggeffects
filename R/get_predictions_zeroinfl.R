@@ -1,17 +1,17 @@
 #' @importFrom stats qlogis predict qnorm
-get_predictions_zeroinfl <- function(model, fitfram, ci.lvl, linv, type, model.class, typical, terms, vcov.fun, vcov.type, vcov.args, condition, ...) {
+get_predictions_zeroinfl <- function(model, data_grid, ci.lvl, linv, type, model_class, value_adjustment, terms, vcov.fun, vcov.type, vcov.args, condition, ...) {
   # get prediction type.
-  pt <- if (model.class == "zeroinfl" && type == "fe")
+  pt <- if (model_class == "zeroinfl" && type == "fe")
     "count"
-  else if (model.class == "zeroinfl" && type == "fe.zi")
+  else if (model_class == "zeroinfl" && type == "fe.zi")
     "response"
-  else if (model.class == "zerotrunc" && type == "fe")
+  else if (model_class == "zerotrunc" && type == "fe")
     "count"
-  else if (model.class == "zerotrunc" && type == "fe.zi")
+  else if (model_class == "zerotrunc" && type == "fe.zi")
     "response"
-  else if (model.class == "hurdle" && type == "fe")
+  else if (model_class == "hurdle" && type == "fe")
     "count"
-  else if (model.class == "hurdle" && type == "fe.zi")
+  else if (model_class == "hurdle" && type == "fe.zi")
     "response"
   else
     "response"
@@ -22,6 +22,8 @@ get_predictions_zeroinfl <- function(model, fitfram, ci.lvl, linv, type, model.c
   else
     ci <- .975
 
+  # copy object
+  predicted_data <- data_grid
 
   add.args <- lapply(match.call(expand.dots = F)$`...`, function(x) x)
 
@@ -35,50 +37,64 @@ get_predictions_zeroinfl <- function(model, fitfram, ci.lvl, linv, type, model.c
   prdat <-
     stats::predict(
       model,
-      newdata = fitfram,
+      newdata = data_grid,
       type = pt,
       ...
     )
 
   # need back-transformation
-  fitfram$predicted <- log(as.vector(prdat))
+  predicted_data$predicted <- log(as.vector(prdat))
 
 
   if (type == "fe.zi") {
 
-    mf <- insight::get_data(model)
-    clean_terms <- .get_cleaned_terms(terms)
+    model_frame <- insight::get_data(model)
+    clean_terms <- .clean_terms(terms)
 
-    newdata <- .get_data_grid(
+    newdata <- .data_grid(
       model,
-      mf,
+      model_frame,
       terms,
-      typ.fun = typical,
-      fac.typical = FALSE,
-      pretty.message = FALSE,
+      value_adjustment = value_adjustment,
+      factor_adjustment = FALSE,
+      show_pretty_message = FALSE,
       condition = condition
     )
 
-    prdat.sim <- get_zeroinfl_predictions(model, newdata, nsim, terms, typical, condition)
+    # Since the zero inflation and the conditional model are working in "opposite
+    # directions", confidence intervals can not be derived directly  from the
+    # "predict()"-function. Thus, confidence intervals for type = "fe.zi" are
+    # based on quantiles of simulated draws from a multivariate normal distribution
+    # (see also _Brooks et al. 2017, pp.391-392_ for details).
+
+    prdat.sim <- .simulate_predictions(model, newdata, nsim, terms, value_adjustment, condition)
 
     if (is.null(prdat.sim) || inherits(prdat.sim, c("error", "simpleError"))) {
 
       insight::print_color("Error: Confidence intervals could not be computed.\n", "red")
       cat("Possibly a polynomial term is held constant (and does not appear in the `terms`-argument). Or try reducing number of simulation, using argument `nsim` (e.g. `nsim = 100`).\n")
 
-      fitfram$predicted <- as.vector(prdat)
-      fitfram$conf.low <- NA
-      fitfram$conf.high <- NA
+      predicted_data$predicted <- as.vector(prdat)
+      predicted_data$conf.low <- NA
+      predicted_data$conf.high <- NA
 
     } else {
 
-      sims <- exp(prdat.sim$cond) * (1 - stats::plogis(prdat.sim$zi))
-      fitfram <- get_zeroinfl_fitfram(fitfram, newdata, as.vector(prdat), sims, ci, clean_terms)
+      # we need two data grids here: one for all combination of levels from the
+      # model predictors ("newdata"), and one with the current combinations only
+      # for the terms in question ("data_grid"). "sims" has always the same
+      # number of rows as "newdata", but "data_grid" might be shorter. So we
+      # merge "data_grid" and "newdata", add mean and quantiles from "sims"
+      # as new variables, and then later only keep the original observations
+      # from "data_grid" - by this, we avoid unequal row-lengths.
 
-      if (.obj_has_name(fitfram, "std.error")) {
+      sims <- exp(prdat.sim$cond) * (1 - stats::plogis(prdat.sim$zi))
+      predicted_data <- .join_simulations(data_grid, newdata, as.vector(prdat), sims, ci, clean_terms)
+
+      if (.obj_has_name(predicted_data, "std.error")) {
         # copy standard errors
-        attr(fitfram, "std.error") <- fitfram$std.error
-        fitfram <- .remove_column(fitfram, "std.error")
+        attr(predicted_data, "std.error") <- predicted_data$std.error
+        predicted_data <- .remove_column(predicted_data, "std.error")
       }
 
     }
@@ -87,13 +103,13 @@ get_predictions_zeroinfl <- function(model, fitfram, ci.lvl, linv, type, model.c
 
     # get standard errors from variance-covariance matrix
     se.pred <-
-      .get_se_from_vcov(
+      .standard_error_predictions(
         model = model,
-        fitfram = fitfram,
-        typical = typical,
+        prediction_data = data_grid,
+        value_adjustment = value_adjustment,
         type = type,
         terms = terms,
-        model.class = model.class,
+        model_class = model_class,
         vcov.fun = vcov.fun,
         vcov.type = vcov.type,
         vcov.args = vcov.args,
@@ -104,24 +120,24 @@ get_predictions_zeroinfl <- function(model, fitfram, ci.lvl, linv, type, model.c
     if (!is.null(se.pred)) {
 
       se.fit <- se.pred$se.fit
-      fitfram <- se.pred$fitfram
+      predicted_data <- se.pred$prediction_data
 
       # CI
-      fitfram$conf.low <- linv(fitfram$predicted - stats::qnorm(ci) * se.fit)
-      fitfram$conf.high <- linv(fitfram$predicted + stats::qnorm(ci) * se.fit)
+      predicted_data$conf.low <- linv(predicted_data$predicted - stats::qnorm(ci) * se.fit)
+      predicted_data$conf.high <- linv(predicted_data$predicted + stats::qnorm(ci) * se.fit)
 
       # copy standard errors
-      attr(fitfram, "std.error") <- se.fit
+      attr(predicted_data, "std.error") <- se.fit
 
     } else {
       # CI
-      fitfram$conf.low <- NA
-      fitfram$conf.high <- NA
+      predicted_data$conf.low <- NA
+      predicted_data$conf.high <- NA
     }
 
-    fitfram$predicted <- linv(fitfram$predicted)
+    predicted_data$predicted <- linv(predicted_data$predicted)
 
   }
 
-  fitfram
+  predicted_data
 }

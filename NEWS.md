@@ -1,3 +1,27 @@
+# ggeffects 0.14.0
+
+## Breaking Changes
+
+* The argument `x.as.factor` is considered as less useful and was removed.
+
+## New supported models
+
+* `fixest` (package **fixest**), `glmx` (package **glmx**).
+
+## General
+
+* Reduce package dependencies.
+* `plot(rawdata = TRUE)` now also works for objects from `ggemmeans()`.
+* `ggpredict()` now computes confidence intervals for predictions from `geeglm` models.
+* For *brmsfit* models with `trials()` as response variable, `ggpredict()` used to choose the median value of trials were the response was hold constant. Now, you can use the `condition`-argument to hold the number of trials constant at different values.
+* Improve `print()`.
+
+## Bug fixes
+
+* Fixed issue with `clmm`-models, when group factor in random effects was numeric.
+* Raw data is no longer omitted in plots when grouping variable is continuous and added raw data doesn't numerically match the grouping levels (e.g., mean +/- one standard deviation).
+* Fix CRAN check issues due to latest *geepack* update.
+
 # ggeffects 0.13.0
 
 ## Breaking Changes

@@ -1,25 +1,26 @@
 # get standard errors of predictions from model matrix and vcov ----
 
-.get_se_from_vcov <- function(model,
-                             fitfram,
-                             typical,
-                             terms,
-                             model.class = NULL,
-                             type = "fe",
-                             vcov.fun = NULL,
-                             vcov.type = NULL,
-                             vcov.args = NULL,
-                             condition = NULL,
-                             interval = NULL) {
+.standard_error_predictions <- function(
+  model,
+  prediction_data,
+  value_adjustment,
+  terms,
+  model_class = NULL,
+  type = "fe",
+  vcov.fun = NULL,
+  vcov.type = NULL,
+  vcov.args = NULL,
+  condition = NULL,
+  interval = NULL) {
 
   se <- tryCatch(
     {
       .safe_se_from_vcov(
         model,
-        fitfram,
-        typical,
+        prediction_data,
+        value_adjustment,
         terms,
-        model.class,
+        model_class,
         type,
         vcov.fun,
         vcov.type,
@@ -49,14 +50,13 @@
 }
 
 #' @importFrom stats model.matrix terms formula
-#' @importFrom purrr map flatten_chr map_lgl map2
-#' @importFrom sjmisc is_empty
-#' @importFrom insight find_random clean_names find_parameters get_varcov
+#' @importFrom purrr flatten_chr map_lgl map2
+#' @importFrom insight find_random clean_names find_parameters get_varcov find_formula
 .safe_se_from_vcov <- function(model,
-                              fitfram,
-                              typical,
+                              prediction_data,
+                              value_adjustment,
                               terms,
-                              model.class,
+                              model_class,
                               type,
                               vcov.fun,
                               vcov.type,
@@ -64,7 +64,7 @@
                               condition,
                               interval) {
 
-  mf <- insight::get_data(model)
+  model_frame <- insight::get_data(model)
 
   # check random effect terms. We can't compute SE if data has
   # factors with only one level, however, if user conditions on
@@ -79,20 +79,20 @@
 
   if (!is.null(condition)) {
     cn <- names(condition)
-    cn.factors <- purrr::map_lgl(cn, ~ is.factor(mf[[.x]]) && !(.x %in% re.terms))
+    cn.factors <- purrr::map_lgl(cn, ~ is.factor(model_frame[[.x]]) && !(.x %in% re.terms))
     condition <- condition[!cn.factors]
-    if (sjmisc::is_empty(condition)) condition <- NULL
+    if (.is_empty(condition)) condition <- NULL
   }
 
 
   # copy data frame with predictions
-  newdata <- .get_data_grid(
+  newdata <- .data_grid(
     model,
-    mf,
+    model_frame,
     terms,
-    typ.fun = typical,
-    fac.typical = FALSE,
-    pretty.message = FALSE,
+    value_adjustment = value_adjustment,
+    factor_adjustment = FALSE,
+    show_pretty_message = FALSE,
     condition = condition
   )
 
@@ -105,7 +105,7 @@
 
   if (any(nlevels_terms)) {
     not_enough <- colnames(newdata)[which(nlevels_terms)[1]]
-    remove_lvl <- paste0("[", gsub(pattern = "(.*)\\[(.*)\\]", replacement = "\\2", x = terms[which(.get_cleaned_terms(terms) == not_enough)]), "]", collapse = "")
+    remove_lvl <- paste0("[", gsub(pattern = "(.*)\\[(.*)\\]", replacement = "\\2", x = terms[which(.clean_terms(terms) == not_enough)]), "]", collapse = "")
     stop(sprintf("`%s` does not have enough factor levels. Try to remove `%s`.", not_enough, remove_lvl), call. = TRUE)
   }
 
@@ -126,29 +126,29 @@
   newdata <- sjmisc::add_variables(newdata, as.list(new.resp), .after = -1)
 
   # clean terms from brackets
-  terms <- .get_cleaned_terms(terms)
+  terms <- .clean_terms(terms)
 
   # sort data by grouping levels, so we have the correct order
   # to slice data afterwards
   if (length(terms) > 2) {
     trms <- terms[3]
     newdata <- newdata[order(newdata[[trms]]), ]
-    fitfram <- fitfram[order(fitfram[[trms]]), ]
+    prediction_data <- prediction_data[order(prediction_data[[trms]]), ]
   }
 
   if (length(terms) > 1) {
     trms <- terms[2]
     newdata <- newdata[order(newdata[[trms]]), ]
-    fitfram <- fitfram[order(fitfram[[trms]]), ]
+    prediction_data <- prediction_data[order(prediction_data[[trms]]), ]
   }
 
   trms <- terms[1]
   newdata <- newdata[order(newdata[[trms]]), ]
-  fitfram <- fitfram[order(fitfram[[trms]]), ]
+  prediction_data <- prediction_data[order(prediction_data[[trms]]), ]
 
   # rownames were resorted as well, which causes troubles in model.matrix
   rownames(newdata) <- NULL
-  rownames(fitfram) <- NULL
+  rownames(prediction_data) <- NULL
 
   # check if robust vcov-matrix is requested
   if (!is.null(vcov.fun)) {
@@ -163,9 +163,16 @@
   }
 
 
+  model_terms <- tryCatch({
+    stats::terms(model)
+  },
+  error = function(e) {
+    insight::find_formula(model)$conditional
+  })
+
   # code to compute se of prediction taken from
   # http://bbolker.github.io/mixedmodels-misc/glmmFAQ.html#predictions-andor-confidence-or-prediction-intervals-on-predictions
-  mm <- stats::model.matrix(stats::terms(model), newdata)
+  mm <- stats::model.matrix(model_terms, newdata)
 
   # here we need to fix some term names, so variable names match the column
   # names from the model matrix. NOTE that depending on the type of contrasts,
@@ -175,7 +182,7 @@
 
   contrs <- attr(mm, "contrasts")
 
-  if (!sjmisc::is_empty(contrs)) {
+  if (!.is_empty(contrs)) {
 
     # check which contrasts are actually in terms-argument,
     # and which terms also appear in contrasts
@@ -187,7 +194,7 @@
     terms <- terms[!rem.t]
 
     add.terms <- purrr::map2(contrs, names(contrs), function(.x, .y) {
-      f <- mf[[.y]]
+      f <- model_frame[[.y]]
       if (.x %in% c("contr.sum", "contr.helmert"))
         sprintf("%s%s", .y, 1:(nlevels(f) - 1))
       else if (.x == "contr.poly")
@@ -211,14 +218,14 @@
   mm.rows <- as.numeric(rownames(unique(mmdf[intersect(colnames(mmdf), terms)])))
 
   # for poly-terms, we have no match, so fix this here
-  if (sjmisc::is_empty(mm.rows) || !all(terms %in% colnames(mmdf))) {
+  if (.is_empty(mm.rows) || !all(terms %in% colnames(mmdf))) {
     inters <- which(insight::clean_names(colnames(mmdf)) %in% terms)
     mm.rows <- as.numeric(rownames(unique(mmdf[inters])))
   }
 
   mm <- mm[mm.rows, ]
 
-  if (!is.null(model.class) && model.class %in% c("polr", "multinom", "brmultinom", "bracl")) {
+  if (!is.null(model_class) && model_class %in% c("polr", "multinom", "brmultinom", "bracl", "fixest")) {
     keep <- intersect(colnames(mm), colnames(vcm))
     vcm <- vcm[keep, keep]
     mm <- mm[, keep]
@@ -238,13 +245,13 @@
 
   se.fit <- sqrt(pvar)
 
-  # shorten to length of fitfram
-  if (!is.null(model.class) && model.class %in% c("polr", "multinom"))
-    se.fit <- rep(se.fit, each = .n_distinct(fitfram$response.level))
+  # shorten to length of prediction_data
+  if (!is.null(model_class) && model_class %in% c("polr", "multinom"))
+    se.fit <- rep(se.fit, each = .n_distinct(prediction_data$response.level))
   else
-    se.fit <- se.fit[1:nrow(fitfram)]
+    se.fit <- se.fit[1:nrow(prediction_data)]
 
-  std_error <- list(fitfram = fitfram, se.fit = se.fit)
+  std_error <- list(prediction_data = prediction_data, se.fit = se.fit)
   attr(std_error, "prediction_interval") <- pr_int
 
   std_error

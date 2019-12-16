@@ -11,7 +11,7 @@ if (suppressWarnings(
 
   test_that("ggpredict, tobit", {
     pr <- ggpredict(m1, "yearsmarried")
-    expect_equal(pr$predicted[1], -10.45399, tolerance = 1e-4)
+    expect_equal(pr$predicted[1], -10.15089, tolerance = 1e-4)
   })
 
   test_that("ggeffect, tobit", {
@@ -20,6 +20,6 @@ if (suppressWarnings(
 
   test_that("ggemmeans, tobit", {
     pr <- ggemmeans(m1, "yearsmarried")
-    expect_equal(pr$predicted[1], -10.45399, tolerance = 1e-4)
+    expect_equal(pr$predicted[1], -10.15089, tolerance = 1e-4)
   })
 }

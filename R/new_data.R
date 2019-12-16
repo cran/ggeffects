@@ -30,13 +30,13 @@
 #'
 #' @export
 new_data <- function(model, terms, typical = "mean", condition = NULL) {
-  .get_data_grid(
+  .data_grid(
     model = model,
-    mf = insight::get_data(model),
+    model_frame = insight::get_data(model),
     terms = terms,
-    typ.fun = typical,
-    fac.typical = TRUE,
-    pretty.message = TRUE,
+    value_adjustment = typical,
+    factor_adjustment = TRUE,
+    show_pretty_message = TRUE,
     condition = condition,
     emmeans.only = FALSE
   )
