@@ -111,7 +111,6 @@
 #' show_pals()
 #'
 #' @importFrom stats binomial poisson gaussian Gamma inverse.gaussian quasi quasibinomial quasipoisson
-#' @importFrom sjmisc empty_cols zap_inf
 #' @importFrom sjlabelled as_numeric
 #' @export
 plot.ggeffects <- function(x,
@@ -176,8 +175,10 @@ plot.ggeffects <- function(x,
 
   add.args <- lapply(match.call(expand.dots = F)$`...`, function(x) x)
   if (!("breaks" %in% names(add.args)) && isTRUE(log.y)) {
-    y.breaks <- 2 ^ sjmisc::zap_inf(unique(round(log2(pretty(c(min(x$conf.low), max(x$conf.high)))))))
-    y.breaks <- y.breaks[!is.na(y.breaks)]
+    y.breaks <- unique(round(log2(pretty(c(min(x$conf.low), max(x$conf.high))))))
+    y.breaks[is.nan(y.breaks)] <- NA
+    y.breaks[is.infinite(y.breaks)] <- NA
+    y.breaks <- 2^y.breaks[!is.na(y.breaks)]
     y.limits <- c(min(y.breaks), max(y.breaks))
 
     # this is a REALLY sloppy hack to avoid that axis limits are not 0 for
@@ -224,7 +225,7 @@ plot.ggeffects <- function(x,
   facets_grp <- facets && !has_facets
 
   # set CI to false if we don't have SE and CI
-  if ("conf.low" %in% names(sjmisc::empty_cols(x)) || !.obj_has_name(x, "conf.low"))
+  if ("conf.low" %in% names(which(colSums(is.na(x)) == nrow(x))) || !.obj_has_name(x, "conf.low"))
     ci <- FALSE
 
 
@@ -715,7 +716,6 @@ plot_panel <- function(x,
 
 
 
-#' @importFrom purrr map_df
 #' @importFrom graphics plot
 #' @export
 plot.ggalleffects <- function(x,
@@ -754,11 +754,11 @@ plot.ggalleffects <- function(x,
     dat <- get_complete_df(x)
 
     rawdat <- suppressWarnings(
-      purrr::map_df(x, function(d) {
+      do.call(rbind, lapply(x, function(d) {
         tmp <- attr(d, "rawdata")
         tmp$group <- d$group[1]
         tmp
-      })
+      }))
     )
 
     # copy raw data

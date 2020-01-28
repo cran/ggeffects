@@ -8,11 +8,11 @@
 <meta name="generator" content="pandoc" />
 <meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
 
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1" />
 
 <meta name="author" content="Daniel Lüdecke" />
 
-<meta name="date" content="2019-12-15" />
+<meta name="date" content="2020-01-28" />
 
 <title>Practical example: Logistic Mixed Effects Model with Interaction Term</title>
 
@@ -117,9 +117,6 @@ padding-right: 2em;
 font-family: "Open Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
 font-size: 14px;
 line-height: 1.35;
-}
-#header {
-text-align: center;
 }
 #TOC {
 clear: both;
@@ -288,7 +285,8 @@ code > span.st { color: #d14; }
 code > span.co { color: #888888; font-style: italic; } 
 code > span.ot { color: #007020; } 
 code > span.al { color: #ff0000; font-weight: bold; } 
-code > span.fu { color: #900; font-weight: bold; }  code > span.er { color: #a61717; background-color: #e3d2d2; } 
+code > span.fu { color: #900; font-weight: bold; } 
+code > span.er { color: #a61717; background-color: #e3d2d2; } 
 </style>
 
 
@@ -303,27 +301,28 @@ code > span.fu { color: #900; font-weight: bold; }  code > span.er { color: #a61
 
 <h1 class="title toc-ignore">Practical example: Logistic Mixed Effects Model with Interaction Term</h1>
 <h4 class="author">Daniel Lüdecke</h4>
-<h4 class="date">2019-12-15</h4>
+<h4 class="date">2020-01-28</h4>
 
 
 
 <p>This vignette demonstrate how to use <em>ggeffects</em> to compute and plot marginal effects of a logistic regression model. To cover some frequently asked questions by users, we’ll fit a mixed model, inlcuding an interaction term and a quadratic resp. spline term. A general introduction into the package usage can be found in the vignette <a href="ggeffects.html">marginal effects of regression model</a>.</p>
 <p>First, we load the required packages and create a sample data set with a binomial and continuous variable as predictor as well as a group factor. To avoid convergence warnings, the continuous variable is standardized.</p>
-<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb1-1" title="1"><span class="kw">library</span>(ggeffects)</a>
-<a class="sourceLine" id="cb1-2" title="2"><span class="kw">library</span>(sjmisc)</a>
-<a class="sourceLine" id="cb1-3" title="3"><span class="kw">library</span>(lme4)</a>
-<a class="sourceLine" id="cb1-4" title="4"><span class="kw">library</span>(splines)</a>
-<a class="sourceLine" id="cb1-5" title="5"></a>
-<a class="sourceLine" id="cb1-6" title="6"><span class="kw">set.seed</span>(<span class="dv">123</span>)</a>
-<a class="sourceLine" id="cb1-7" title="7"></a>
-<a class="sourceLine" id="cb1-8" title="8">dat &lt;-<span class="st"> </span><span class="kw">data.frame</span>(</a>
-<a class="sourceLine" id="cb1-9" title="9">  <span class="dt">outcome =</span> <span class="kw">rbinom</span>(<span class="dt">n =</span> <span class="dv">100</span>, <span class="dt">size =</span> <span class="dv">1</span>, <span class="dt">prob =</span> <span class="fl">0.35</span>),</a>
-<a class="sourceLine" id="cb1-10" title="10">  <span class="dt">var_binom =</span> <span class="kw">as.factor</span>(<span class="kw">rbinom</span>(<span class="dt">n =</span> <span class="dv">100</span>, <span class="dt">size =</span> <span class="dv">1</span>, <span class="dt">prob =</span> <span class="fl">0.2</span>)),</a>
-<a class="sourceLine" id="cb1-11" title="11">  <span class="dt">var_cont =</span> <span class="kw">rnorm</span>(<span class="dt">n =</span> <span class="dv">100</span>, <span class="dt">mean =</span> <span class="dv">10</span>, <span class="dt">sd =</span> <span class="dv">7</span>),</a>
-<a class="sourceLine" id="cb1-12" title="12">  <span class="dt">group =</span> <span class="kw">sample</span>(letters[<span class="dv">1</span><span class="op">:</span><span class="dv">4</span>], <span class="dt">size =</span> <span class="dv">100</span>, <span class="dt">replace =</span> <span class="ot">TRUE</span>)</a>
-<a class="sourceLine" id="cb1-13" title="13">)</a>
-<a class="sourceLine" id="cb1-14" title="14"></a>
-<a class="sourceLine" id="cb1-15" title="15">dat<span class="op">$</span>var_cont &lt;-<span class="st"> </span>sjmisc<span class="op">::</span><span class="kw">std</span>(dat<span class="op">$</span>var_cont)</a></code></pre></div>
+<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb1-1" title="1"><span class="kw">library</span>(magrittr)</a>
+<a class="sourceLine" id="cb1-2" title="2"><span class="kw">library</span>(ggeffects)</a>
+<a class="sourceLine" id="cb1-3" title="3"><span class="kw">library</span>(sjmisc)</a>
+<a class="sourceLine" id="cb1-4" title="4"><span class="kw">library</span>(lme4)</a>
+<a class="sourceLine" id="cb1-5" title="5"><span class="kw">library</span>(splines)</a>
+<a class="sourceLine" id="cb1-6" title="6"></a>
+<a class="sourceLine" id="cb1-7" title="7"><span class="kw">set.seed</span>(<span class="dv">123</span>)</a>
+<a class="sourceLine" id="cb1-8" title="8"></a>
+<a class="sourceLine" id="cb1-9" title="9">dat &lt;-<span class="st"> </span><span class="kw">data.frame</span>(</a>
+<a class="sourceLine" id="cb1-10" title="10">  <span class="dt">outcome =</span> <span class="kw">rbinom</span>(<span class="dt">n =</span> <span class="dv">100</span>, <span class="dt">size =</span> <span class="dv">1</span>, <span class="dt">prob =</span> <span class="fl">0.35</span>),</a>
+<a class="sourceLine" id="cb1-11" title="11">  <span class="dt">var_binom =</span> <span class="kw">as.factor</span>(<span class="kw">rbinom</span>(<span class="dt">n =</span> <span class="dv">100</span>, <span class="dt">size =</span> <span class="dv">1</span>, <span class="dt">prob =</span> <span class="fl">0.2</span>)),</a>
+<a class="sourceLine" id="cb1-12" title="12">  <span class="dt">var_cont =</span> <span class="kw">rnorm</span>(<span class="dt">n =</span> <span class="dv">100</span>, <span class="dt">mean =</span> <span class="dv">10</span>, <span class="dt">sd =</span> <span class="dv">7</span>),</a>
+<a class="sourceLine" id="cb1-13" title="13">  <span class="dt">group =</span> <span class="kw">sample</span>(letters[<span class="dv">1</span><span class="op">:</span><span class="dv">4</span>], <span class="dt">size =</span> <span class="dv">100</span>, <span class="dt">replace =</span> <span class="ot">TRUE</span>)</a>
+<a class="sourceLine" id="cb1-14" title="14">)</a>
+<a class="sourceLine" id="cb1-15" title="15"></a>
+<a class="sourceLine" id="cb1-16" title="16">dat<span class="op">$</span>var_cont &lt;-<span class="st"> </span>sjmisc<span class="op">::</span><span class="kw">std</span>(dat<span class="op">$</span>var_cont)</a></code></pre></div>
 <div id="simple-logistic-mixed-effects-model" class="section level2">
 <h2>Simple Logistic Mixed Effects Model</h2>
 <p>We start by fitting a simple mixed effects model.</p>

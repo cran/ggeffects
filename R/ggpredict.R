@@ -1,12 +1,14 @@
-#' @title Get marginal effects from model terms
+#' @title Marginal effects and estimated marginal means from regression models
 #' @name ggpredict
 #'
 #' @description
-#'   \code{ggpredict()} computes estimated marginal means (predicted values) for the
-#'   response, at the margin of specific values from certain model terms.
-#'   \code{ggeffect()} computes marginal effects by internally calling
-#'   \code{\link[effects]{Effect}}, while \code{ggemmeans()} computes marginal
-#'   effects by internally calling \code{\link[emmeans]{emmeans}}.
+#'   The \pkg{ggeffects} package computes estimated marginal means (predicted values) for the
+#'   response, at the margin of specific values or levels from certain model terms,
+#'   i.e. it generates predictions by a model by holding the non-focal variables
+#'   constant and varying the focal variable(s). \cr \cr
+#'   \code{ggpredict()} uses \code{predict()} for generating predictions,
+#'   while \code{ggeffect()} computes marginal effects by internally calling
+#'   \code{\link[effects]{Effect}} and \code{ggemmeans()} uses \code{\link[emmeans]{emmeans}}.
 #'   The result is returned as consistent data frame.
 #'
 #' @param model A fitted model object, or a list of model objects. Any model
@@ -118,15 +120,16 @@
 #'   (and \code{interval = "confidence"} is equivalent to \code{type = "fe"}).
 #'   Note that prediction intervals are not available for all models.
 #' @param vcov.fun String, indicating the name of the \code{vcov*()}-function
-#'    from the \pkg{sandwich}-package, e.g. \code{vcov.fun = "vcovCL"},
-#'    which is used to compute robust standard errors for predictions.
-#'    If \code{NULL}, standard errors (and confidence intervals) for predictions
-#'    are based on the standard errors as returned by the \code{predict()}-function.
-#'    \strong{Note} that probably not all model objects that work with \code{ggpredict()}
-#'    are also supported by the \pkg{sandwich}-package.
+#'    from the \pkg{sandwich} or \pkg{clubSandwich}-package, e.g.
+#'    \code{vcov.fun = "vcovCL"}, which is used to compute (cluster) robust
+#'    standard errors for predictions. If \code{NULL}, standard errors (and
+#'    confidence intervals) for predictions are based on the standard errors as
+#'    returned by the \code{predict()}-function. \strong{Note} that probably not
+#'    all model objects that work with \code{ggpredict()} are also supported
+#'    by the \pkg{sandwich} or \pkg{clubSandwich}-package.
 #' @param vcov.type Character vector, specifying the estimation type for the
 #'    robust covariance matrix estimation (see \code{\link[sandwich]{vcovHC}}
-#'    for details).
+#'    or \code{\link[clubSandwich]{vcovCR}} for details).
 #' @param vcov.args List of named vectors, used as additional arguments that
 #'    are passed down to \code{vcov.fun}.
 #' @param ... For \code{ggpredict()}, further arguments passed down to
@@ -402,7 +405,6 @@
 #' ggeffect(fit, terms = "e17age")
 #'
 #' @importFrom stats predict predict.glm na.omit
-#' @importFrom sjmisc remove_empty_cols
 #' @importFrom insight find_random find_predictors model_info find_formula
 #' @export
 ggpredict <- function(model,
@@ -432,7 +434,7 @@ ggpredict <- function(model,
   # extract just the mer-part then
   if (is.gamm(model) || is.gamm4(model)) model <- model$gam
 
-  if (inherits(model, "list") && !inherits(model, "bamlss")) {
+  if (inherits(model, "list") && !inherits(model, c("bamlss", "maxLik"))) {
     res <- lapply(model, function(.x) {
       ggpredict_helper(
         model = .x,

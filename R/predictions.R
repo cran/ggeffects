@@ -1,5 +1,4 @@
 # select prediction method, based on model-object
-#' @importFrom sjmisc add_variables
 #' @importFrom insight find_response get_response get_data model_info link_inverse is_multivariate
 select_prediction_method <- function(model_class,
                                      model,
@@ -52,6 +51,8 @@ select_prediction_method <- function(model_class,
     prediction_data <- get_predictions_bamlss(model, data_grid, linv, ...)
   } else if (model_class == "bayesx") {
     prediction_data <- get_predictions_bayesx(model, data_grid, ...)
+  } else if (model_class == "cgam") {
+    prediction_data <- get_predictions_cgam(model, data_grid, ci.lvl, linv, value_adjustment, model_class, terms, condition, ...)
   } else if (model_class == "gam") {
     prediction_data <- get_predictions_gam(model, data_grid, ci.lvl, linv, type, ...)
   } else if (model_class == "Gam") {
@@ -76,6 +77,8 @@ select_prediction_method <- function(model_class,
     prediction_data <- get_predictions_clm2(model, data_grid, ci.lvl, linv, ...)
   } else if (model_class == "Zelig-relogit") {
     prediction_data <- get_predictions_zelig(model, data_grid, ci.lvl, linv, ...)
+  } else if (model_class == "mixor") {
+    prediction_data <- get_predictions_mixor(model, data_grid, ci.lvl, linv, value_adjustment, terms, model_class, condition, ...)
   } else if (model_class == "polr") {
     prediction_data <- get_predictions_polr(model, data_grid, ci.lvl, linv, value_adjustment, terms, model_class, vcov.fun, vcov.type, vcov.args, condition, interval, ...)
   } else if (model_class %in% c("betareg", "truncreg", "ivreg", "vgam", "fixest", "feglm", "glmx")) {

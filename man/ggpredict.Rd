@@ -4,7 +4,7 @@
 \alias{ggeffect}
 \alias{ggemmeans}
 \alias{ggpredict}
-\title{Get marginal effects from model terms}
+\title{Marginal effects and estimated marginal means from regression models}
 \usage{
 ggeffect(model, terms, ci.lvl = 0.95, ...)
 
@@ -153,16 +153,17 @@ default), predictions are based on posterior draws of the linear
 predictor (\code{\link[rstantools]{posterior_linpred}}).}
 
 \item{vcov.fun}{String, indicating the name of the \code{vcov*()}-function
-from the \pkg{sandwich}-package, e.g. \code{vcov.fun = "vcovCL"},
-which is used to compute robust standard errors for predictions.
-If \code{NULL}, standard errors (and confidence intervals) for predictions
-are based on the standard errors as returned by the \code{predict()}-function.
-\strong{Note} that probably not all model objects that work with \code{ggpredict()}
-are also supported by the \pkg{sandwich}-package.}
+from the \pkg{sandwich} or \pkg{clubSandwich}-package, e.g.
+\code{vcov.fun = "vcovCL"}, which is used to compute (cluster) robust
+standard errors for predictions. If \code{NULL}, standard errors (and
+confidence intervals) for predictions are based on the standard errors as
+returned by the \code{predict()}-function. \strong{Note} that probably not
+all model objects that work with \code{ggpredict()} are also supported
+by the \pkg{sandwich} or \pkg{clubSandwich}-package.}
 
 \item{vcov.type}{Character vector, specifying the estimation type for the
 robust covariance matrix estimation (see \code{\link[sandwich]{vcovHC}}
-for details).}
+or \code{\link[clubSandwich]{vcovCR}} for details).}
 
 \item{vcov.args}{List of named vectors, used as additional arguments that
 are passed down to \code{vcov.fun}.}
@@ -199,11 +200,13 @@ A data frame (with \code{ggeffects} class attribute) with consistent
         are returned.
 }
 \description{
-\code{ggpredict()} computes estimated marginal means (predicted values) for the
-  response, at the margin of specific values from certain model terms.
-  \code{ggeffect()} computes marginal effects by internally calling
-  \code{\link[effects]{Effect}}, while \code{ggemmeans()} computes marginal
-  effects by internally calling \code{\link[emmeans]{emmeans}}.
+The \pkg{ggeffects} package computes estimated marginal means (predicted values) for the
+  response, at the margin of specific values or levels from certain model terms,
+  i.e. it generates predictions by a model by holding the non-focal variables
+  constant and varying the focal variable(s). \cr \cr
+  \code{ggpredict()} uses \code{predict()} for generating predictions,
+  while \code{ggeffect()} computes marginal effects by internally calling
+  \code{\link[effects]{Effect}} and \code{ggemmeans()} uses \code{\link[emmeans]{emmeans}}.
   The result is returned as consistent data frame.
 }
 \details{

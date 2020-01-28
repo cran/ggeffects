@@ -50,7 +50,6 @@
 }
 
 #' @importFrom stats model.matrix terms formula
-#' @importFrom purrr flatten_chr map_lgl map2
 #' @importFrom insight find_random clean_names find_parameters get_varcov find_formula
 .safe_se_from_vcov <- function(model,
                               prediction_data,
@@ -79,7 +78,7 @@
 
   if (!is.null(condition)) {
     cn <- names(condition)
-    cn.factors <- purrr::map_lgl(cn, ~ is.factor(model_frame[[.x]]) && !(.x %in% re.terms))
+    cn.factors <- sapply(cn, function(.x) is.factor(model_frame[[.x]]) && !(.x %in% re.terms))
     condition <- condition[!cn.factors]
     if (.is_empty(condition)) condition <- NULL
   }
@@ -97,10 +96,9 @@
   )
 
   # make sure we have enough values to compute CI
-  nlevels_terms <- purrr::map_lgl(
+  nlevels_terms <- sapply(
     colnames(newdata),
-    ~ !(.x %in% re.terms) &&
-      is.factor(newdata[[.x]]) && nlevels(newdata[[.x]]) == 1
+    function(.x) !(.x %in% re.terms) && is.factor(newdata[[.x]]) && nlevels(newdata[[.x]]) == 1
   )
 
   if (any(nlevels_terms)) {
@@ -123,7 +121,7 @@
   }
 
   new.resp <- new.resp[setdiff(names(new.resp), colnames(newdata))]
-  newdata <- sjmisc::add_variables(newdata, as.list(new.resp), .after = -1)
+  newdata <- cbind(as.list(new.resp), newdata)
 
   # clean terms from brackets
   terms <- .clean_terms(terms)
@@ -150,88 +148,8 @@
   rownames(newdata) <- NULL
   rownames(prediction_data) <- NULL
 
-  # check if robust vcov-matrix is requested
-  if (!is.null(vcov.fun)) {
-    if (!requireNamespace("sandwich", quietly = TRUE)) {
-      stop("Package `sandwich` needed for this function. Please install and try again.")
-    }
-    vcov.fun <- get(vcov.fun, asNamespace("sandwich"))
-    vcm <- as.matrix(do.call(vcov.fun, c(list(x = model, type = vcov.type), vcov.args)))
-  } else {
-    # get variance-covariance-matrix, depending on model type
-    vcm <- insight::get_varcov(model, component = "conditional")
-  }
-
-
-  model_terms <- tryCatch({
-    stats::terms(model)
-  },
-  error = function(e) {
-    insight::find_formula(model)$conditional
-  })
-
-  # code to compute se of prediction taken from
-  # http://bbolker.github.io/mixedmodels-misc/glmmFAQ.html#predictions-andor-confidence-or-prediction-intervals-on-predictions
-  mm <- stats::model.matrix(model_terms, newdata)
-
-  # here we need to fix some term names, so variable names match the column
-  # names from the model matrix. NOTE that depending on the type of contrasts,
-  # the naming column names for factors differs: for "contr.sum", column names
-  # of factors are named "Species1", "Species2", etc., while for "contr.treatment",
-  # column names are "Speciesversicolor", "Speciesvirginica", etc.
-
-  contrs <- attr(mm, "contrasts")
-
-  if (!.is_empty(contrs)) {
-
-    # check which contrasts are actually in terms-argument,
-    # and which terms also appear in contrasts
-    keep.c <- names(contrs) %in% terms
-    rem.t <- terms %in% names(contrs)
-
-    # only iterate required terms and contrasts
-    contrs <- contrs[keep.c]
-    terms <- terms[!rem.t]
-
-    add.terms <- purrr::map2(contrs, names(contrs), function(.x, .y) {
-      f <- model_frame[[.y]]
-      if (.x %in% c("contr.sum", "contr.helmert"))
-        sprintf("%s%s", .y, 1:(nlevels(f) - 1))
-      else if (.x == "contr.poly")
-        sprintf("%s%s", .y, c(".L", ".Q", ".C"))
-      else
-        sprintf("%s%s", .y, levels(f)[2:nlevels(f)])
-    }) %>%
-      purrr::flatten_chr()
-
-    terms <- c(terms, add.terms)
-  }
-
-
-  # we need all this intersection-stuff to reduce the model matrix and remove
-  # duplicated entries. Else, especially for mixed models, we often run into
-  # memory allocation problems. The problem is to find the correct rows of
-  # the matrix that should be kept, and only take those columns of the
-  # matrix for which terms we need standard errors.
-
-  mmdf <- as.data.frame(mm)
-  mm.rows <- as.numeric(rownames(unique(mmdf[intersect(colnames(mmdf), terms)])))
-
-  # for poly-terms, we have no match, so fix this here
-  if (.is_empty(mm.rows) || !all(terms %in% colnames(mmdf))) {
-    inters <- which(insight::clean_names(colnames(mmdf)) %in% terms)
-    mm.rows <- as.numeric(rownames(unique(mmdf[inters])))
-  }
-
-  mm <- mm[mm.rows, ]
-
-  if (!is.null(model_class) && model_class %in% c("polr", "multinom", "brmultinom", "bracl", "fixest")) {
-    keep <- intersect(colnames(mm), colnames(vcm))
-    vcm <- vcm[keep, keep]
-    mm <- mm[, keep]
-  }
-
-  pvar <- diag(mm %*% vcm %*% t(mm))
+  vmatrix <- .vcov_helper(model, model_frame, model_class, newdata, vcov.fun, vcov.type, vcov.args, terms)
+  pvar <- diag(vmatrix)
   pr_int <- FALSE
 
   # condition on random effect variances
@@ -246,7 +164,7 @@
   se.fit <- sqrt(pvar)
 
   # shorten to length of prediction_data
-  if (!is.null(model_class) && model_class %in% c("polr", "multinom"))
+  if (!is.null(model_class) && model_class %in% c("polr", "multinom", "mixor"))
     se.fit <- rep(se.fit, each = .n_distinct(prediction_data$response.level))
   else
     se.fit <- se.fit[1:nrow(prediction_data)]

@@ -1,5 +1,4 @@
 #' @importFrom stats confint
-#' @importFrom sjmisc var_rename
 .ggemmeans_add_confint <- function(model, tmp, ci.lvl, type = "fe", pmode) {
   # compute ci, two-ways
   if (!is.null(ci.lvl) && !is.na(ci.lvl))
@@ -8,21 +7,21 @@
     ci <- .975
 
   if (type %in% c("re", "re.zi")) {
+
       fitfram <- suppressWarnings(
-        tmp %>%
-          as.data.frame() %>%
-          sjmisc::var_rename(
-            SE = "std.error",
-            emmean = "predicted",
-            lower.CL = "conf.low",
-            upper.CL = "conf.high",
-            prob = "predicted",
-            asymp.LCL = "conf.low",
-            asymp.UCL = "conf.high",
-            lower.HPD = "conf.low",
-            upper.HPD = "conf.high"
-          )
+        .var_rename(
+          as.data.frame(tmp),
+          SE = "std.error",
+          emmean = "predicted",
+          lower.CL = "conf.low",
+          upper.CL = "conf.high",
+          prob = "predicted",
+          asymp.LCL = "conf.low",
+          asymp.UCL = "conf.high",
+          lower.HPD = "conf.low",
+          upper.HPD = "conf.high"
         )
+      )
 
     revar <- .get_random_effect_variance(model)
     # get link-function and back-transform fitted values
@@ -40,20 +39,18 @@
     fitfram
   } else {
     suppressWarnings(
-      tmp %>%
-        stats::confint(level = ci.lvl) %>%
-        as.data.frame() %>%
-        sjmisc::var_rename(
-          SE = "std.error",
-          emmean = "predicted",
-          lower.CL = "conf.low",
-          upper.CL = "conf.high",
-          prob = "predicted",
-          asymp.LCL = "conf.low",
-          asymp.UCL = "conf.high",
-          lower.HPD = "conf.low",
-          upper.HPD = "conf.high"
-        )
+      .var_rename(
+        as.data.frame(stats::confint(tmp, level = ci.lvl)),
+        SE = "std.error",
+        emmean = "predicted",
+        lower.CL = "conf.low",
+        upper.CL = "conf.high",
+        prob = "predicted",
+        asymp.LCL = "conf.low",
+        asymp.UCL = "conf.high",
+        lower.HPD = "conf.low",
+        upper.HPD = "conf.high"
+      )
     )
   }
 }

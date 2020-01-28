@@ -1,3 +1,18 @@
+# ggeffects 0.14.1
+
+## General
+
+* Reduce package dependencies.
+* New package-vignette _(Cluster) Robust Standard Errors_.
+
+## New supported models
+
+* `mixor` (package **mixor**), `cgam`, `cgamm` (package **cgam**)
+
+## Bug fixes
+
+* Fix CRAN check issues due to latest *emmeans* update.
+
 # ggeffects 0.14.0
 
 ## Breaking Changes

@@ -1,4 +1,3 @@
-#' @importFrom sjmisc var_rename remove_empty_cols
 #' @importFrom stats confint na.omit
 #' @importFrom sjlabelled get_labels as_numeric
 #' @importFrom insight find_response get_data model_info
@@ -14,7 +13,7 @@ ggemmeans <- function(model,
                       ...) {
 
   if (!requireNamespace("emmeans")) {
-    stop("Package `emmeans` required to compute marginal effects for clmm-models.", call. = FALSE)
+    stop("Package `emmeans` required to compute marginal effects with `ggemmeans()`.", call. = FALSE)
   }
 
   # check arguments

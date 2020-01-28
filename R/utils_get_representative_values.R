@@ -1,7 +1,6 @@
 # return levels, as list
 # c("age", "edu [1,3]", "sex [2]") would return a list:
 # $edu [1] 1 3; $sex [1] 2
-#' @importFrom purrr possibly
 #' @importFrom stats setNames sd
 #' @importFrom sjlabelled as_numeric
 .get_representative_values <- function(x, model_frame = NULL) {
@@ -28,7 +27,7 @@
   at_pattern <- c("minmax", "meansd", "zeromax", "quart2", "all", "quart")
 
   # now check for ranges
-  at_levels <- purrr::map2(at_levels, at_terms, function(x, y) {
+  at_levels <- mapply(function(x, y) {
 
     # Here we may have a range of values. we then create the
     # sequence with all values from this range
@@ -90,16 +89,15 @@
       } else if (x %in% at_pattern) {
         x <- values_at(model_frame[[y]], values = x)
       } else {
-        at_function <- purrr::possibly(match.fun, NULL)
-        funtrans <- at_function(x)
-        if (!is.null(funtrans) && !is.null(model_frame)) {
+        funtrans <- try(match.fun(x), silent = TRUE)
+        if (!inherits(funtrans, "try-error") && !is.null(model_frame)) {
           x <- funtrans(sort(unique(model_frame[[y]])))
         }
       }
     }
 
     x
-  })
+  }, at_levels, at_terms, SIMPLIFY = FALSE)
 
   # check if levels were numeric or not...
   suppressWarnings(

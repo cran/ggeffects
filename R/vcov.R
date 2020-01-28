@@ -39,7 +39,6 @@
 #' vcov(result)
 #'
 #' @importFrom stats model.matrix terms formula
-#' @importFrom purrr flatten_chr map_lgl map2
 #' @importFrom insight find_random clean_names find_parameters get_varcov
 #' @export
 vcov.ggeffects <- function(object, vcov.fun = NULL, vcov.type = NULL, vcov.args = NULL, ...) {
@@ -69,7 +68,7 @@ vcov.ggeffects <- function(object, vcov.fun = NULL, vcov.type = NULL, vcov.args 
   condition <- attr(object, "condition")
   if (!is.null(condition)) {
     cn <- names(condition)
-    cn.factors <- purrr::map_lgl(cn, ~ is.factor(model_frame[[.x]]) && !(.x %in% random_effect_terms))
+    cn.factors <- sapply(cn, function(.x) is.factor(model_frame[[.x]]) && !(.x %in% random_effect_terms))
     condition <- condition[!cn.factors]
     if (.is_empty(condition)) condition <- NULL
   }
@@ -90,10 +89,9 @@ vcov.ggeffects <- function(object, vcov.fun = NULL, vcov.type = NULL, vcov.args 
   )
 
   # make sure we have enough values to compute CI
-  nlevels_terms <- purrr::map_lgl(
+  nlevels_terms <- sapply(
     colnames(newdata),
-    ~ !(.x %in% random_effect_terms) &&
-      is.factor(newdata[[.x]]) && nlevels(newdata[[.x]]) == 1
+    function(.x) !(.x %in% random_effect_terms) && is.factor(newdata[[.x]]) && nlevels(newdata[[.x]]) == 1
   )
 
   if (any(nlevels_terms)) {
@@ -116,7 +114,7 @@ vcov.ggeffects <- function(object, vcov.fun = NULL, vcov.type = NULL, vcov.args 
   }
 
   new_response <- new_response[setdiff(names(new_response), colnames(newdata))]
-  newdata <- sjmisc::add_variables(newdata, as.list(new_response), .after = -1)
+  newdata <- cbind(as.list(new_response), newdata)
 
   # clean terms from brackets
   terms <- .clean_terms(terms)
@@ -138,23 +136,49 @@ vcov.ggeffects <- function(object, vcov.fun = NULL, vcov.type = NULL, vcov.args 
 
   # rownames were resorted as well, which causes troubles in model.matrix
   rownames(newdata) <- NULL
+  .vcov_helper(model, model_frame, get_predict_function(model), newdata, vcov.fun, vcov.type, vcov.args, terms)
+}
 
+
+
+.vcov_helper <- function(model, model_frame, model_class, newdata, vcov.fun, vcov.type, vcov.args, terms) {
   # check if robust vcov-matrix is requested
   if (!is.null(vcov.fun)) {
-    if (!requireNamespace("sandwich", quietly = TRUE)) {
-      stop("Package `sandwich` needed for this function. Please install and try again.")
+    if (vcov.type %in% c("CR0", "CR1", "CR1p", "CR1S", "CR2", "CR3")) {
+      if (!requireNamespace("clubSandwich", quietly = TRUE)) {
+        stop("Package `clubSandwich` needed for this function. Please install and try again.")
+      }
+      robust_package <- "clubSandwich"
+    } else {
+      if (!requireNamespace("sandwich", quietly = TRUE)) {
+        stop("Package `sandwich` needed for this function. Please install and try again.")
+      }
+      robust_package <- "sandwich"
     }
-    vcov.fun <- get(vcov.fun, asNamespace("sandwich"))
-    vcm <- as.matrix(do.call(vcov.fun, c(list(x = model, type = vcov.type), vcov.args)))
+    # compute robust standard errors based on vcov
+    if (robust_package == "sandwich") {
+      vcov.fun <- get(vcov.fun, asNamespace("sandwich"))
+      vcm <- as.matrix(do.call(vcov.fun, c(list(x = model, type = vcov.type), vcov.args)))
+    } else {
+      vcov.fun <- clubSandwich::vcovCR
+      vcm <- as.matrix(do.call(vcov.fun, c(list(obj = model, type = vcov.type), vcov.args)))
+    }
   } else {
     # get variance-covariance-matrix, depending on model type
     vcm <- insight::get_varcov(model, component = "conditional")
   }
 
 
+  model_terms <- tryCatch({
+    stats::terms(model)
+  },
+  error = function(e) {
+    insight::find_formula(model)$conditional
+  })
+
   # code to compute se of prediction taken from
   # http://bbolker.github.io/mixedmodels-misc/glmmFAQ.html#predictions-andor-confidence-or-prediction-intervals-on-predictions
-  mm <- stats::model.matrix(stats::terms(model), newdata)
+  mm <- stats::model.matrix(model_terms, newdata)
 
   # here we need to fix some term names, so variable names match the column
   # names from the model matrix. NOTE that depending on the type of contrasts,
@@ -175,7 +199,7 @@ vcov.ggeffects <- function(object, vcov.fun = NULL, vcov.type = NULL, vcov.args 
     contrs <- contrs[keep.c]
     terms <- terms[!rem.t]
 
-    add.terms <- purrr::map2(contrs, names(contrs), function(.x, .y) {
+    add.terms <- unlist(mapply(function(.x, .y) {
       f <- model_frame[[.y]]
       if (.x %in% c("contr.sum", "contr.helmert"))
         sprintf("%s%s", .y, 1:(nlevels(f) - 1))
@@ -183,12 +207,10 @@ vcov.ggeffects <- function(object, vcov.fun = NULL, vcov.type = NULL, vcov.args 
         sprintf("%s%s", .y, c(".L", ".Q", ".C"))
       else
         sprintf("%s%s", .y, levels(f)[2:nlevels(f)])
-    }) %>%
-      purrr::flatten_chr()
+    }, contrs, names(contrs), SIMPLIFY = FALSE))
 
     terms <- c(terms, add.terms)
   }
-
 
   # we need all this intersection-stuff to reduce the model matrix and remove
   # duplicated entries. Else, especially for mixed models, we often run into
@@ -211,7 +233,7 @@ vcov.ggeffects <- function(object, vcov.fun = NULL, vcov.type = NULL, vcov.args 
   # (while "inherits()" may return multiple attributes)
   model_class <- get_predict_function(model)
 
-  if (!is.null(model_class) && model_class %in% c("polr", "multinom", "brmultinom", "bracl")) {
+  if (!is.null(model_class) && model_class %in% c("polr", "mixor", "multinom", "brmultinom", "bracl", "fixest")) {
     keep <- intersect(colnames(mm), colnames(vcm))
     vcm <- vcm[keep, keep]
     mm <- mm[, keep]

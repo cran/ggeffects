@@ -1,5 +1,4 @@
 #' @importFrom stats terms median
-#' @importFrom purrr map_lgl map_df modify_if compact
 #' @importFrom sjlabelled as_numeric
 #' @importFrom insight find_predictors find_response find_random find_weights get_weights
 # factor_adjustment indicates if factors should be held constant or not
@@ -14,10 +13,10 @@
   model_info <- .get_model_info(model)
 
   # make sure we don't have arrays as variables
-  model_frame <- purrr::modify_if(model_frame, is.array, as.data.frame)
+  model_frame[] <- lapply(model_frame, function(i) if (is.array(i)) as.data.frame(i) else i)
 
   # check for logical variables, might not work
-  if (any(purrr::map_lgl(model_frame, is.logical))) {
+  if (any(sapply(model_frame, is.logical))) {
     stop("Variables of type 'logical' do not work, please coerce to factor and fit the model again.", call. = FALSE)
   }
 
@@ -131,7 +130,7 @@
   # remove NA from values, so we don't have expanded data grid
   # with missing values. this causes an error with predict()
 
-  if (any(purrr::map_lgl(focal_terms, ~ anyNA(.x)))) {
+  if (any(sapply(focal_terms, anyNA))) {
     focal_terms <- lapply(focal_terms, function(.x) as.vector(stats::na.omit(.x)))
   }
 
@@ -202,7 +201,7 @@
       }
     })
     names(constant_values) <- model_predictors
-    constant_values <- purrr::compact(constant_values)
+    constant_values <- .compact_list(constant_values)
   } else if (factor_adjustment) {
     # adjust constant values, factors set to reference level
     constant_values <- lapply(model_frame[model_predictors], function(x) {
