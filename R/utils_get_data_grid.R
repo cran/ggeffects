@@ -48,11 +48,30 @@
   tryCatch(
     {
       if (!inherits(model, "brmsfit") && show_pretty_message && .has_log(model)) {
-        clean.term <- insight::find_predictors(model, effects = "all", component = "all", flatten = FALSE)
-        clean.term <- unlist(clean.term[c("conditional", "random", "instruments")])[.get_log_terms(model)]
-        exp.term <- string_ends_with(pattern = "[exp]", x = terms)
+        check1 <- .get_offset_log_terms(model)
+        check2 <- .get_log_terms(model)
 
-        if (any(.is_empty(exp.term)) || any(.clean_terms(terms)[exp.term] != clean.term)) {
+        # check if we have offset() in formula, with transformed variable
+        if (any(check1)) {
+          clean.term <- insight::find_predictors(model, effects = "all", component = "all", flatten = FALSE)
+          clean.term <- unlist(clean.term[c("conditional", "random", "instruments")])[check1]
+
+          # try to back-transform
+          offset_function <- .get_offset_transformation(model)
+          if (identical(offset_function, "log")) {
+            model_frame[[clean.term]] <- exp(model_frame[[clean.term]])
+          } else {
+            insight::print_color(sprintf("Model uses a transformed offset term. Predictions may not be correct. Please apply transformation of offset term to the data before fitting the model and use 'offset=%s' in the model formula.\n", clean.term), "red")
+          }
+
+          check2 <- check2 & !check1
+        }
+
+        # check for log-terms
+        clean.term <- insight::find_predictors(model, effects = "all", component = "all", flatten = FALSE)
+        clean.term <- unlist(clean.term[c("conditional", "random", "instruments")])[check2]
+        exp.term <- string_ends_with(pattern = "[exp]", x = terms)
+        if (length(clean.term) > 0 && (any(.is_empty(exp.term)) || any(.clean_terms(terms)[exp.term] != clean.term))) {
           message(sprintf("Model has log-transformed predictors. Consider using `terms=\"%s [exp]\"` to back-transform scale.", clean.term[1]))
         }
       }
@@ -118,7 +137,8 @@
   #   model_predictors <- insight::find_predictors(model, effects = "all", component = "all", flatten = TRUE)
   # }
 
-  model_predictors <- insight::find_predictors(model, effects = "all", component = "all", flatten = TRUE)
+  offset_term <- .offset_term(model, show_pretty_message)
+  model_predictors <- c(insight::find_predictors(model, effects = "all", component = "all", flatten = TRUE), offset_term)
   if (inherits(model, "wbm")) {
     model_predictors <- unique(c(insight::find_response(model), model_predictors, model@call_info$id, model@call_info$wave))
   }
@@ -194,20 +214,22 @@
 
   if (isTRUE(emmeans.only)) {
     # adjust constant values, special handling for emmeans only
-    constant_values <- lapply(model_predictors, function(.x) {
-      x <- model_frame[[.x]]
-      if (!is.factor(x) && !.x %in% random_effect_terms) {
-        .typical_value(x, fun = value_adjustment, weights = w)
+    constant_values <- lapply(model_predictors, function(x) {
+      pred <- model_frame[[x]]
+      if (!is.factor(pred) && !x %in% random_effect_terms) {
+        .typical_value(pred, fun = value_adjustment, weights = w, predictor = x, log_terms = .which_log_terms(model))
       }
     })
     names(constant_values) <- model_predictors
     constant_values <- .compact_list(constant_values)
   } else if (factor_adjustment) {
     # adjust constant values, factors set to reference level
-    constant_values <- lapply(model_frame[model_predictors], function(x) {
-      if (is.factor(x)) x <- droplevels(x)
-      .typical_value(x, fun = value_adjustment, weights = w)
+    constant_values <- lapply(model_predictors, function(x) {
+      pred <- model_frame[[x]]
+      if (is.factor(pred)) pred <- droplevels(pred)
+      .typical_value(pred, fun = value_adjustment, weights = w, predictor = x, log_terms = .which_log_terms(model))
     })
+    names(constant_values) <- model_predictors
   } else {
     # adjust constant values, use all factor levels
     re.grp <- insight::find_random(model, split_nested = TRUE, flatten = TRUE)

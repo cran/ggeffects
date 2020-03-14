@@ -28,18 +28,52 @@
 .get_log_terms <- function(model) {
   form <- .get_pasted_formula(model)
   if (is.null(form)) return(FALSE)
-  grepl("log\\(([^,)]*).*", form)
+  grepl("(log|log1|log10|log1p|log2)\\(([^,)]*).*", form)
 }
+
+
+.get_offset_log_terms <- function(model) {
+  form <- .get_pasted_formula(model)
+  if (is.null(form)) return(FALSE)
+  grepl("offset\\((log|log1|log10|log1p|log2)\\(([^,)]*).*", form)
+}
+
+
+.get_offset_transformation <- function(model) {
+  form <- .get_pasted_formula(model)
+  log_offset <- .get_offset_log_terms(model)
+  unname(gsub("offset\\((log|log1|log10|log1p|log2)\\(([^,)]*).*", "\\1", form[log_offset]))
+}
+
 
 
 #' @importFrom insight find_terms
 .get_pasted_formula <- function(model) {
   tryCatch(
     {
-      unlist(.compact_list(insight::find_terms(model)[c("conditional", "random", "instruments")]))
+      model_terms <- unlist(.compact_list(insight::find_terms(model)[c("conditional", "random", "instruments")]))
+      if (model_terms[1] %in% c("0", "1")) {
+        model_terms <- model_terms[-1]
+      }
+      model_terms
     },
     error = function(x) { NULL }
   )
+}
+
+
+
+#' @importFrom insight clean_names
+.which_log_terms <- function(model) {
+  form <- .get_pasted_formula(model)
+  if (is.null(form)) return(NULL)
+  log_terms <- form[grepl("(log|log1|log10|log1p|log2)\\(([^,)]*).*", form)]
+  if (length(log_terms) > 0) {
+    log_terms <- insight::clean_names(log_terms)
+  } else {
+    log_terms <- NULL
+  }
+  log_terms
 }
 
 

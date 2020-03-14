@@ -199,8 +199,9 @@ plot.ggeffects <- function(x,
 
   # convert x back to numeric
   if (!is.numeric(x$x)) {
-    if (x_is_factor && .is_numeric_factor(x$x))
+    if (x_is_factor && !.is_numeric_factor(x$x)) {
       levels(x$x) <- seq_len(nlevels(x$x))
+    }
     x$x <- sjlabelled::as_numeric(x$x)
   }
 
@@ -587,21 +588,38 @@ plot_panel <- function(x,
         )
       } else {
         if (ci.style == "errorbar") {
-          p <- p + ggplot2::geom_point(
-            data = rawdat,
-            mapping = mp,
-            alpha = dot.alpha,
-            size = dot.size,
-            position = ggplot2::position_jitterdodge(
-              jitter.width = jitter[1],
-              jitter.height = jitter[2],
-              dodge.width = dodge
-            ),
-            show.legend = FALSE,
-            inherit.aes = FALSE,
-            shape = 16
-          )
-
+          if (grps) {
+            p <- p + ggplot2::geom_point(
+              data = rawdat,
+              mapping = ggplot2::aes_string(x = "x", y = "response", colour = "group_col"),
+              alpha = dot.alpha,
+              size = dot.size,
+              position = ggplot2::position_jitterdodge(
+                jitter.width = jitter[1],
+                jitter.height = jitter[2],
+                dodge.width = dodge
+              ),
+              show.legend = FALSE,
+              inherit.aes = FALSE,
+              shape = 16
+            )
+          } else {
+            p <- p + ggplot2::geom_point(
+              data = rawdat,
+              mapping = ggplot2::aes_string(x = "x", y = "response", fill = "group_col"),
+              alpha = dot.alpha,
+              size = dot.size,
+              position = ggplot2::position_jitterdodge(
+                jitter.width = jitter[1],
+                jitter.height = jitter[2],
+                dodge.width = dodge
+              ),
+              show.legend = FALSE,
+              inherit.aes = FALSE,
+              shape = 16,
+              color = colors[1]
+            )
+          }
         } else {
           p <- p + ggplot2::geom_jitter(
             data = rawdat,
@@ -622,7 +640,7 @@ plot_panel <- function(x,
   }
 
   # set colors
-  if(isTRUE(rawdata) && isTRUE(attr(x, "continuous.group"))) {
+  if (isTRUE(rawdata) && isTRUE(attr(x, "continuous.group"))) {
     p <- p +
       ggplot2::scale_color_gradientn(colors = colors, aesthetics = c("colour", "fill"), guide = "legend", breaks = as.numeric(levels(x$group)), limits = range(c(rawdat$group_col, x$group_col)))
   } else {
@@ -676,24 +694,13 @@ plot_panel <- function(x,
   # for binomial family, fix coord
 
   if (attr(x, "logistic", exact = TRUE) == "1" && attr(x, "is.trial", exact = TRUE) == "0") {
-
-    if (!requireNamespace("scales", quietly = FALSE)) {
-      warning("Package `scales` needed to use percentage values for the y-axis. Install it by typing `install.packages(\"scales\", dependencies = TRUE)` into the console.", call. = FALSE)
-      if (log.y) {
-        if (is.null(y.breaks))
-          p <- p + ggplot2::scale_y_log10(...)
-        else
-          p <- p + ggplot2::scale_y_log10(breaks = y.breaks, limits = y.limits, ...)
-      } else
-        p <- p + ggplot2::scale_y_continuous(...)
+    if (log.y) {
+      if (is.null(y.breaks))
+        p <- p + ggplot2::scale_y_log10(labels = .percents, ...)
+      else
+        p <- p + ggplot2::scale_y_log10(labels = .percents, breaks = y.breaks, limits = y.limits, ...)
     } else {
-      if (log.y) {
-        if (is.null(y.breaks))
-          p <- p + ggplot2::scale_y_log10(labels = scales::percent, ...)
-        else
-          p <- p + ggplot2::scale_y_log10(labels = scales::percent, breaks = y.breaks, limits = y.limits, ...)
-      } else
-        p <- p + ggplot2::scale_y_continuous(labels = scales::percent, ...)
+      p <- p + ggplot2::scale_y_continuous(labels = .percents, ...)
     }
   } else if (log.y) {
     if (is.null(y.breaks))
@@ -818,4 +825,11 @@ plot.ggalleffects <- function(x,
       )
     })
   }
+}
+
+
+
+#' @importFrom insight format_value
+.percents <- function(x) {
+  insight::format_value(x = x, as_percent = TRUE, digits = 0)
 }
