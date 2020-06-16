@@ -144,11 +144,20 @@ vcov.ggeffects <- function(object, vcov.fun = NULL, vcov.type = NULL, vcov.args 
 .vcov_helper <- function(model, model_frame, model_class, newdata, vcov.fun, vcov.type, vcov.args, terms) {
   # check if robust vcov-matrix is requested
   if (!is.null(vcov.fun)) {
-    if (vcov.type %in% c("CR0", "CR1", "CR1p", "CR1S", "CR2", "CR3")) {
+    # check for existing vcov-prefix
+    if (!grepl("^vcov", vcov.fun)) {
+      vcov.fun <- paste0("vcov", vcov.fun)
+    }
+    # set default for clubSandwich
+    if (vcov.fun == "vcovCR" && is.null(vcov.type)) {
+      vcov.type <- "CR0"
+    }
+    if (!is.null(vcov.type) && vcov.type %in% c("CR0", "CR1", "CR1p", "CR1S", "CR2", "CR3")) {
       if (!requireNamespace("clubSandwich", quietly = TRUE)) {
         stop("Package `clubSandwich` needed for this function. Please install and try again.")
       }
       robust_package <- "clubSandwich"
+      vcov.fun <- "vcovCR"
     } else {
       if (!requireNamespace("sandwich", quietly = TRUE)) {
         stop("Package `sandwich` needed for this function. Please install and try again.")
@@ -201,6 +210,9 @@ vcov.ggeffects <- function(object, vcov.fun = NULL, vcov.type = NULL, vcov.args 
 
     add.terms <- unlist(mapply(function(.x, .y) {
       f <- model_frame[[.y]]
+      if (!is.factor(f)) {
+        f <- as.factor(f)
+      }
       if (.x %in% c("contr.sum", "contr.helmert"))
         sprintf("%s%s", .y, 1:(nlevels(f) - 1))
       else if (.x == "contr.poly")
@@ -235,7 +247,7 @@ vcov.ggeffects <- function(object, vcov.fun = NULL, vcov.type = NULL, vcov.args 
 
   if (!is.null(model_class) && model_class %in% c("polr", "mixor", "multinom", "brmultinom", "bracl", "fixest")) {
     keep <- intersect(colnames(mm), colnames(vcm))
-    vcm <- vcm[keep, keep]
+    vcm <- vcm[keep, keep, drop = FALSE]
     mm <- mm[, keep]
   }
 

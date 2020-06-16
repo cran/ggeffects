@@ -6,8 +6,6 @@
 [![DOI](http://joss.theoj.org/papers/10.21105/joss.00772/status.svg)](https://doi.org/10.21105/joss.00772)
   
 [![Documentation](https://img.shields.io/badge/documentation-ggeffects-orange.svg?colorB=E91E63)](https://strengejacke.github.io/ggeffects/)
-   [![Build
-Status](https://travis-ci.org/strengejacke/ggeffects.svg?branch=master)](https://travis-ci.org/strengejacke/ggeffects.svg)
   
 [![downloads](http://cranlogs.r-pkg.org/badges/ggeffects)](http://cranlogs.r-pkg.org/)
   
@@ -55,11 +53,8 @@ to use with the **ggplot2**-package, however, there is also a
 ## Documentation and Support
 
 Please visit <https://strengejacke.github.io/ggeffects/> for
-documentation and vignettes. In case you want to file an issue or
-contribute in another way to the package, please follow [this
-guide](https://github.com/strengejacke/ggeffects/blob/master/.github/CONTRIBUTING.md).
-For questions about the functionality, you may either contact me via
-email or also file an issue.
+documentation and vignettes. For questions about the functionality, you
+may either contact me via email or also file an issue.
 
 ## ggeffects supports many different models and is easy to use
 

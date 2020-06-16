@@ -17,7 +17,7 @@ ggemmeans <- function(model,
   }
 
   # check arguments
-  type <- match.arg(type, choices = c("fe", "fixed", "count", "re", "random", "fe.zi", "zero_inflated", "re.zi", "zero_inflated_random"))
+  type <- match.arg(type, choices = c("fe", "fixed", "count", "re", "random", "fe.zi", "zero_inflated", "re.zi", "zero_inflated_random", "zi.prob", "zi_prob"))
   model_name <- deparse(substitute(model))
 
   type <- switch(
@@ -29,6 +29,7 @@ ggemmeans <- function(model,
     "zero_inflated" = "fe.zi",
     "zi_random" = ,
     "zero_inflated_random" = "re.zi",
+    "zi_prob" = "zi.prob",
     "survival" = "surv",
     "cumulative_hazard" = "cumhaz"    ,
     type
@@ -131,7 +132,7 @@ ggemmeans <- function(model,
   attr(result, "model.name") <- model_name
 
   # add raw data as well
-  attr(result, "rawdata") <- .get_raw_data(model, original_model_frame, cleaned_terms)
+  attr(result, "rawdata") <- .get_raw_data(model, original_model_frame, cleaned_terms, back.transform)
 
   .post_processing_labels(
     model = model,
@@ -173,6 +174,8 @@ ggemmeans <- function(model,
     "response"
   else if (model_info$is_zero_inflated && type %in% c("fe", "re"))
     "count"
+  else if (model_info$is_zero_inflated && type %in% c("zi.prob"))
+    "prob0"
   else
     "link"
 }

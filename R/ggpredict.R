@@ -8,7 +8,7 @@
 #'   constant and varying the focal variable(s). \cr \cr
 #'   \code{ggpredict()} uses \code{predict()} for generating predictions,
 #'   while \code{ggeffect()} computes marginal effects by internally calling
-#'   \code{\link[effects]{Effect}} and \code{ggemmeans()} uses \code{\link[emmeans]{emmeans}}.
+#'   \code{effects::Effect()} and \code{ggemmeans()} uses \code{emmeans::emmeans()}.
 #'   The result is returned as consistent data frame.
 #'
 #' @param model A fitted model object, or a list of model objects. Any model
@@ -83,6 +83,12 @@
 #'     also consider the uncertainty in the random effects variances. This
 #'     type calls \code{predict(..., type = "response")}. See 'Details'.
 #'     }
+#'     \item{\code{"zi.prob"} (or \code{"zi_prob"})}{
+#'     Predicted zero-inflation probability. For \pkg{glmmTMB} models with
+#'     zero-inflation component, this type calls \code{predict(..., type = "zlink")};
+#'     models from \pkg{pscl} call \code{predict(..., type = "zero")} and for
+#'     \pkg{GLMMadaptive}, \code{predict(..., type = "zero_part")} is called.
+#'     }
 #'     \item{\code{"sim"}}{
 #'     Predicted values and confidence resp. prediction intervals are
 #'     based on simulations, i.e. calls to \code{simulate()}. This type
@@ -97,15 +103,15 @@
 #'   }
 #' @param typical Character vector, naming the function to be applied to the
 #'   covariates over which the effect is "averaged". The default is "mean".
-#'   See \code{\link[sjmisc]{typical_value}} for options.
+#'   See \code{?sjmisc::typical_value} for options.
 #' @param back.transform Logical, if \code{TRUE} (the default), predicted values
 #'   for log- or log-log transformed responses will be back-transformed to
 #'   original response-scale.
 #' @param ppd Logical, if \code{TRUE}, predictions for Stan-models are
 #'   based on the posterior predictive distribution
-#'   (\code{\link[rstantools]{posterior_predict}}). If \code{FALSE} (the
+#'   (\code{rstantools::posterior_predict()}). If \code{FALSE} (the
 #'   default), predictions are based on posterior draws of the linear
-#'   predictor (\code{\link[rstantools]{posterior_linpred}}).
+#'   predictor (\code{rstantools::posterior_linpred()}).
 #' @param condition Named character vector, which indicates covariates that
 #'   should be held constant at specific values. Unlike \code{typical}, which
 #'   applies a function to the covariates to determine the value that is used
@@ -128,14 +134,14 @@
 #'    all model objects that work with \code{ggpredict()} are also supported
 #'    by the \pkg{sandwich} or \pkg{clubSandwich}-package.
 #' @param vcov.type Character vector, specifying the estimation type for the
-#'    robust covariance matrix estimation (see \code{\link[sandwich]{vcovHC}}
-#'    or \code{\link[clubSandwich]{vcovCR}} for details).
+#'    robust covariance matrix estimation (see \code{?sandwich::vcovHC}
+#'    or \code{?clubSandwich::vcovCR} for details).
 #' @param vcov.args List of named vectors, used as additional arguments that
 #'    are passed down to \code{vcov.fun}.
 #' @param ... For \code{ggpredict()}, further arguments passed down to
 #'    \code{predict()}; for \code{ggeffect()}, further arguments passed
-#'    down to \code{\link[effects]{Effect}}; and for \code{ggemmeans()},
-#'    further arguments passed down to \code{\link[emmeans]{emmeans}}.
+#'    down to \code{effects::Effect()}; and for \code{ggemmeans()},
+#'    further arguments passed down to \code{emmeans::emmeans()}.
 #'    If \code{type = "sim"}, \code{...} may also be used to set the number of
 #'    simulation, e.g. \code{nsim = 500}.
 #'
@@ -148,8 +154,8 @@
 #'   }
 #'   \subsection{Difference between \code{ggpredict()} and \code{ggeffect()} or \code{ggemmeans()}}{
 #'   \code{ggpredict()} calls \code{predict()}, while \code{ggeffect()}
-#'   calls \code{\link[effects]{Effect}} and \code{ggemmeans()} calls
-#'   \code{\link[emmeans]{emmeans}} to compute marginal effects. Therefore,
+#'   calls \code{effects::Effect()} and \code{ggemmeans()} calls
+#'   \code{emmeans::emmeans()} to compute marginal effects. Therefore,
 #'   \code{ggpredict()} and \code{ggeffect()} resp. \code{ggemmeans()} differ in
 #'   how factors are held constant: \code{ggpredict()} uses the reference level, while
 #'   \code{ggeffect()} and \code{ggemmeans()} compute a kind of "average" value,
@@ -164,6 +170,8 @@
 #'   the levels in brackets must be separated by a whitespace character, e.g.
 #'   \code{terms = c("age", "education [1,3]")}. Numeric ranges, separated
 #'   with colon, are also allowed: \code{terms = c("education", "age [30:60]")}.
+#'   The stepsize for range can be adjusted using `by`, e.g.
+#'   \code{terms = "age [30:60 by=5]"}.
 #'   \cr \cr
 #'   The \code{terms}-argument also supports the same shortcuts as the
 #'   \code{values}-argument in \code{values_at()}. So
@@ -178,6 +186,10 @@
 #'   model and should be back-transformed to the original scale for predictions.
 #'   It is also possible to define own functions (see
 #'   \href{https://strengejacke.github.io/ggeffects/articles/introduction_effectsatvalues.html}{this vignette}).
+#'   \cr \cr
+#'   Instead of a function, it is also possible to define the name of a variable
+#'   with specific values, e.g. to define a vector \code{v = c(1000, 2000, 3000)} and
+#'   then use \code{terms = "income [v]"}.
 #'   \cr \cr
 #'   You can take a random sample of any size with \code{sample=n}, e.g
 #'   \code{terms = "income [sample=8]"}, which will sample eight values from
@@ -223,10 +235,10 @@
 #'   values are the median value of all drawn posterior samples. The
 #'   confidence intervals for Stan-models are Bayesian predictive intervals.
 #'   By default (i.e. \code{ppd = FALSE}), the predictions are based on
-#'   \code{\link[rstantools]{posterior_linpred}} and hence have some
+#'   \code{rstantools::posterior_linpred()} and hence have some
 #'   limitations: the uncertainty of the error term is not taken into
 #'   account. The recommendation is to use the posterior predictive
-#'   distribution (\code{\link[rstantools]{posterior_predict}}).
+#'   distribution (\code{rstantools::posterior_predict()}).
 #'   }
 #'   \subsection{Zero-Inflated and Zero-Inflated Mixed Models with brms}{
 #'   Models of class \code{brmsfit} always condition on the zero-inflation
@@ -238,7 +250,7 @@
 #'   \subsection{Zero-Inflated and Zero-Inflated Mixed Models with glmmTMB}{
 #'   If \code{model} is of class \code{glmmTMB}, \code{hurdle}, \code{zeroinfl}
 #'   or \code{zerotrunc}, simulations from a multivariate normal distribution
-#'   (see \code{\link[MASS]{mvrnorm}}) are drawn to calculate \code{mu*(1-p)}.
+#'   (see \code{?MASS::mvrnorm}) are drawn to calculate \code{mu*(1-p)}.
 #'   Confidence intervals are then based on quantiles of these results. For
 #'   \code{type = "re.zi"}, prediction intervals also take the uncertainty in
 #'   the random-effect paramters into account (see also Brooks et al. 2017,
@@ -257,7 +269,7 @@
 #'   (see \code{?GLMMadaptive::predict.MixMod} for details). The latter option
 #'   requires the response variable to be defined in the \code{newdata}-argument
 #'   of \code{predict()}, which will be set to its typical value (see
-#'   \code{\link[sjmisc]{typical_value}}).
+#'   \code{?sjmisc::typical_value}).
 #'   }
 #'
 #' @references \itemize{
@@ -299,8 +311,8 @@
 #'         }
 #'         The estimated marginal means (predicted values) are always on the
 #'         response scale! \cr \cr
-#'         For proportional odds logistic regression (see \code{\link[MASS]{polr}})
-#'         resp. cumulative link models (e.g., see \code{\link[ordinal]{clm}}),
+#'         For proportional odds logistic regression (see \code{?MASS::polr})
+#'         resp. cumulative link models (e.g., see \code{?ordinal::clm}),
 #'         an additional column \code{response.level} is returned, which indicates
 #'         the grouping of predictions based on the level of the model's response.
 #'         \cr \cr Note that for convenience reasons, the columns for the intervals
@@ -421,7 +433,7 @@ ggpredict <- function(model,
                       interval = "confidence",
                       ...) {
   # check arguments
-  type <- match.arg(type, choices = c("fe", "fixed", "count", "re", "random", "fe.zi", "zero_inflated", "re.zi", "zero_inflated_random", "sim", "surv", "survival", "cumhaz", "cumulative_hazard", "debug"))
+  type <- match.arg(type, choices = c("fe", "fixed", "count", "re", "random", "fe.zi", "zero_inflated", "re.zi", "zero_inflated_random", "zi.prob", "zi_prob", "sim", "surv", "survival", "cumhaz", "cumulative_hazard", "debug"))
   interval <- match.arg(interval, choices = c("confidence", "prediction"))
   model.name <- deparse(substitute(model))
 
@@ -434,6 +446,7 @@ ggpredict <- function(model,
     "zero_inflated" = "fe.zi",
     "zi_random" = ,
     "zero_inflated_random" = "re.zi",
+    "zi_prob" = "zi.prob",
     "survival" = "surv",
     "cumulative_hazard" = "cumhaz"    ,
     type
@@ -616,7 +629,7 @@ ggpredict_helper <- function(model,
   result <- .back_transform_response(model, result, back.transform)
 
   # add raw data as well
-  attr(result, "rawdata") <- .get_raw_data(model, original_model_frame, terms)
+  attr(result, "rawdata") <- .get_raw_data(model, original_model_frame, terms, back.transform)
 
   .post_processing_labels(
     model = model,
