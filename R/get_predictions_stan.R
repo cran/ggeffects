@@ -86,7 +86,16 @@ get_predictions_stan <- function(model, fitfram, ci.lvl, type, model_info, ppd, 
     rownames(tmp) <- NULL
     tmp$grp <- gsub("X", "", tmp$grp, fixed = TRUE)
 
-    resp.vals <- levels(insight::get_response(model)[[1]])
+    resp <- insight::get_response(model)
+    if (is.data.frame(resp))
+      resp <- resp[[1]] # Model must have been using weights
+
+    # Response could be a factor or numeric
+    if (is.factor(resp))
+      resp.vals <- levels(resp)
+    else
+      resp.vals <- sort(unique(resp))
+
     term.cats <- nrow(fitfram)
 
     fitfram <- do.call(rbind, rep(list(fitfram), time = length(resp.vals)))
@@ -137,9 +146,13 @@ get_predictions_stan <- function(model, fitfram, ci.lvl, type, model_info, ppd, 
     # instead of matrix - get CIs for each response
 
     if (inherits(prdat2, "array")) {
-      tmp <- do.call(rbind, lapply(1:dim(prdat2)[3], function(.x) {
-        as.data.frame(rstantools::predictive_interval(as.matrix(prdat2[, , .x]), prob = ci.lvl))
-      }))
+      if (length(dim(prdat2)) == 3) {
+        tmp <- do.call(rbind, lapply(1:dim(prdat2)[3], function(.x) {
+          as.data.frame(rstantools::predictive_interval(as.matrix(prdat2[, , .x]), prob = ci.lvl))
+        }))
+      } else {
+        tmp <- as.data.frame(rstantools::predictive_interval(prdat2), prob = ci.lvl)
+      }
     } else {
       tmp <- rstantools::predictive_interval(prdat2, prob = ci.lvl)
     }

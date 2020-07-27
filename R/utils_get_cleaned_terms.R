@@ -1,7 +1,8 @@
 .clean_terms <- function(x) {
   # get positions of variable names and see if we have
   # a suffix for certain values
-  cleaned.pos <- regexpr(pattern = "(\\s|\\[)", x)
+  cleaned.pos <- regexpr(pattern = "\\[", x)
+  # cleaned.pos <- regexpr(pattern = "(\\s|\\[)", x)
 
   # position "-1" means we only had variable name, no suffix
   replacers <- which(cleaned.pos == -1)
@@ -12,5 +13,5 @@
   x <- trimws(substr(x, 0, cleaned.pos))
 
   # be sure to remove any brackets
-  sub("[", "", x, fixed = TRUE)
+  trimws(sub("[", "", x, fixed = TRUE))
 }

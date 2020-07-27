@@ -17,7 +17,7 @@ ggemmeans <- function(model,
   }
 
   # check arguments
-  type <- match.arg(type, choices = c("fe", "fixed", "count", "re", "random", "fe.zi", "zero_inflated", "re.zi", "zero_inflated_random", "zi.prob", "zi_prob"))
+  type <- match.arg(type, choices = c("fe", "fixed", "count", "re", "random", "fe.zi", "zero_inflated", "re.zi", "zi_random", "zero_inflated_random", "zi.prob", "zi_prob"))
   model_name <- deparse(substitute(model))
 
   type <- switch(
@@ -38,6 +38,10 @@ ggemmeans <- function(model,
   # check if terms are a formula
   if (!missing(terms) && !is.null(terms) && inherits(terms, "formula")) {
     terms <- all.vars(terms)
+  }
+
+  if (inherits(model, c("glmmTMB", "MixMod")) && type == "zi.prob") {
+    stop(sprintf("This prediction-type is currently not available for models of class '%s'.", class(model)[1]), call. = FALSE)
   }
 
   # for gamm/gamm4 objects, we have a list with two items, mer and gam
