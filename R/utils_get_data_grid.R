@@ -1,3 +1,4 @@
+#' @importFrom utils packageVersion
 #' @importFrom stats terms median
 #' @importFrom sjlabelled as_numeric
 #' @importFrom insight find_predictors find_response find_random find_weights get_weights
@@ -31,7 +32,7 @@
 
   # clean variable names
   # if (!inherits(model, "wbm")) {
-    colnames(model_frame) <- insight::clean_names(colnames(model_frame))
+  colnames(model_frame) <- insight::clean_names(colnames(model_frame))
   # }
 
 
@@ -65,14 +66,6 @@
           }
 
           check2 <- check2 & !check1
-        }
-
-        # check for log-terms
-        clean.term <- insight::find_predictors(model, effects = "all", component = "all", flatten = FALSE)
-        clean.term <- unlist(clean.term[c("conditional", "random", "instruments")])[check2]
-        exp.term <- string_ends_with(pattern = "[exp]", x = terms)
-        if (length(clean.term) > 0 && (any(.is_empty(exp.term)) || any(.clean_terms(terms)[exp.term] != clean.term))) {
-          message(sprintf("Model has log-transformed predictors. Consider using `terms=\"%s [exp]\"` to back-transform scale.", clean.term[1]))
         }
       }
     },
@@ -108,6 +101,16 @@
       use_all_values <- TRUE
     } else if (show_pretty_message) {
       message(sprintf("Model contains polynomial or cubic / quadratic terms. Consider using `terms=\"%s [all]\"` to get smooth plots. See also package-vignette 'Marginal Effects at Specific Values'.", all_terms[1]))
+      show_pretty_message <- FALSE
+    }
+  }
+
+
+  if (.has_trigonometry(model) && !.uses_all_tag(terms) && !use_all_values) {
+    if (inherits(model, all_values_models)) {
+      use_all_values <- TRUE
+    } else if (show_pretty_message) {
+      message(sprintf("Model contains trigonometric terms (sinus, cosinus, ...). Consider using `terms=\"%s [all]\"` to get smooth plots. See also package-vignette 'Marginal Effects at Specific Values'.", all_terms[1]))
       show_pretty_message <- FALSE
     }
   }
@@ -401,6 +404,15 @@
             constant_values[i] <- "0 (population-level)"
           }
         }
+      }
+
+      if (inherits(model, "rlmerMod")) {
+        datlist[] <- lapply(colnames(datlist), function(x) {
+          if (x %in% names(constant_values) && !(x %in% random_effect_terms) && is.factor(datlist[[x]])) {
+            levels(datlist[[x]]) <- levels(model_frame[[x]])
+          }
+          datlist[[x]]
+        })
       }
     }
   }

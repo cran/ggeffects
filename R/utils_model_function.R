@@ -1,3 +1,4 @@
+#' @importFrom insight model_info is_multivariate
 .get_model_function <- function(model) {
   # check class of fitted model
 
@@ -7,12 +8,19 @@
     "merModLmerTest", "rlmerMod", "bayesx", "mclogit"
   )
 
-  if (inherits(model, lm_models))
+  info <- insight::model_info(model)
+  if (insight::is_multivariate(model)) {
+    info <- info[[1]]
+  }
+
+  if (inherits(model, lm_models) && !inherits(model, "glm"))
     return("lm")
   else if (inherits(model, "coxph"))
     return("coxph")
   else if (inherits(model, "betareg"))
     return("betareg")
+  else if (info$is_linear)
+    return("lm")
   else
     return("glm")
 }
@@ -20,6 +28,7 @@
 get_predict_function <- function(model) {
   if (inherits(model, c("wblm", "wbm"))) return("wbm")
   else if (inherits(model, "mclogit")) return("mclogit")
+  else if (inherits(model, "mlogit")) return("mlogit")
   else if (inherits(model, "glimML")) return("glimML")
   else if (inherits(model, "cgam")) return("cgam")
   else if (inherits(model, "ols")) return("ols")

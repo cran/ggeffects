@@ -11,6 +11,8 @@ ggeffect <- function(model, terms, ci.lvl = .95, ...) {
     return(ggpredict(model = model, terms = terms, ci.lvl = ci.lvl))
   }
 
+  model_name <- deparse(substitute(model))
+
   # check if terms are a formula
   if (!missing(terms) && !is.null(terms) && inherits(terms, "formula")) {
     terms <- all.vars(terms)
@@ -42,6 +44,9 @@ ggeffect <- function(model, terms, ci.lvl = .95, ...) {
     }
   }
 
+  if (!is.null(res)) {
+    attr(res, "model.name") <- model_name
+  }
   res
 }
 
@@ -270,7 +275,7 @@ ggeffect_helper <- function(model, terms, ci.lvl, ...) {
   }
 
   # add raw data as well
-  attr(result, "rawdata") <- .get_raw_data(model, original_model_frame, terms, back.transform = FALSE)
+  attr(result, "rawdata") <- .get_raw_data(model, original_model_frame, terms)
 
 
   x_v <- original_model_frame[[fx.term]]

@@ -12,7 +12,7 @@
   }
 
   # now select only relevant variables: the predictors on the x-axis,
-  # the predictions and the originial response vector (needed for scatter plot)
+  # the predictions and the original response vector (needed for scatter plot)
   columns_to_keep <- c(cleaned_terms, "predicted", "std.error", "conf.low", "conf.high", "response.level")
   result <- prediction_data[, intersect(columns_to_keep, colnames(prediction_data))]
 

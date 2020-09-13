@@ -1,3 +1,23 @@
+# ggeffects 0.16.0
+
+## Breaking changes
+
+* Package _insight_ since version 0.9.5 now returns the "raw" (untransformed, i.e. original) data that was used to fit the model also for log-transformed variables. Thus, exponentiation like using `terms = "predictor [exp]"` is no longer necessary.
+
+## New supported models
+
+* `mlogit` (package **mlogit**)
+
+## General
+
+* `plot()` now can also create partial residuals plots. There, arguments `residuals`, `residuals.type` and `residuals.line` were added to add partial residuals, the type of residuals and a possible loess-fit regression line for the residual data.
+
+## Bug fixes
+
+* The message for models with a back-transformation to the response scale (all non-Gaussian models), that standard errors are still on the link-scale, did not show up for models of class `glm` since some time. Should be fixed now.
+* Fixed issue with `ggpredict()` and `rlmerMods` models when using factors as adjusted terms.
+* Fixed issue with brms-multi-response models.
+
 # ggeffects 0.15.1
 
 ## New supported models

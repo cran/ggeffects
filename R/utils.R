@@ -61,7 +61,7 @@ data_frame <- function(...) {
 
 #' @importFrom stats complete.cases
 #' @importFrom sjlabelled as_label as_numeric
-.get_raw_data <- function(model, mf, terms, back.transform = TRUE) {
+.get_raw_data <- function(model, mf, terms) {
   # for matrix variables, don't return raw data
   if (any(sapply(mf, is.matrix)) && !inherits(model, c("coxph", "coxme")))
     return(NULL)
@@ -81,18 +81,6 @@ data_frame <- function(...) {
   # back-transform log-transformed response?
   rv <- insight::find_terms(model)[["response"]]
 
-  if (any(grepl("log\\((.*)\\)", rv))) {
-    if (back.transform) {
-      # do we have log-log models?
-      if (grepl("log\\(log\\((.*)\\)\\)", rv)) {
-        response <- exp(exp(response))
-      } else {
-        response <- exp(response)
-      }
-    }
-  }
-
-
   # add optional grouping variable
   if (length(terms) > 1) {
     group <-
@@ -105,9 +93,6 @@ data_frame <- function(...) {
   } else {
     group <- as.factor(1)
   }
-
-  # remove missings from model frame
-  mf <- mf[stats::complete.cases(mf), , drop = FALSE]
 
   # return all as data.frame
   tryCatch(
