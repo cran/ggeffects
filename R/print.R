@@ -24,14 +24,16 @@ print.ggeffects <- function(x, n = 10, digits = 2, x.lab = FALSE, ...) {
   }
 
 
+  # remove std.error for printint
+  x$std.error <- NULL
+
+
   # do we have groups and facets?
   has_groups <- .obj_has_name(x, "group") && length(unique(x$group)) > 1
   has_facets <- .obj_has_name(x, "facet") && length(unique(x$facet)) > 1
   has_panel <- .obj_has_name(x, "panel") && length(unique(x$panel)) > 1
   has_response <- .obj_has_name(x, "response.level") && length(unique(x$response.level)) > 1
   has_se <- .obj_has_name(x, "std.error")
-
-  cat("\n")
 
   lab <- attr(x, "title", exact = TRUE)
   if (!is.null(lab)) insight::print_color(paste0(sprintf("# %s", lab), "\n", collapse = ""), "blue")
@@ -194,7 +196,7 @@ print.ggeffects <- function(x, n = 10, digits = 2, x.lab = FALSE, ...) {
     cv.names <- names(cv)
     cv.space <- max(nchar(cv.names))
 
-    # ignore this string when determing maximum length
+    # ignore this string when determining maximum length
     poplev <- which(cv %in% c("NA (population-level)", "0 (population-level)"))
     if (!.is_empty(poplev))
       mcv <- cv[-poplev]
@@ -215,16 +217,14 @@ print.ggeffects <- function(x, n = 10, digits = 2, x.lab = FALSE, ...) {
   }
 
 
-  cat("\n")
-
   fitfun <- attr(x, "fitfun", exact = TRUE)
   if (has_se && !is.null(fitfun) && fitfun != "lm") {
-    message("Standard errors are on the link-scale (untransformed).")
+    message("\nStandard errors are on the link-scale (untransformed).")
   }
 
   predint <- attr(x, "prediction.interval", exact = TRUE)
   if (!is.null(predint) && isTRUE(predint)) {
-    message("Intervals are prediction intervals.")
+    message("\nIntervals are prediction intervals.")
   }
 }
 
@@ -248,7 +248,7 @@ print.ggeffects <- function(x, n = 10, digits = 2, x.lab = FALSE, ...) {
 
 
 
-#' @importFrom insight format_table format_ci
+#' @importFrom insight export_table format_ci
 .print_block <- function(i, n, digits, ci.lvl, ...) {
   i <- i[setdiff(colnames(i), c("group", "facet", "panel", "response.level", ".nest"))]
   # print.data.frame(, ..., row.names = FALSE, quote = FALSE)
@@ -270,6 +270,7 @@ print.ggeffects <- function(x, n = 10, digits = 2, x.lab = FALSE, ...) {
   }
 
   colnames(dd)[which(colnames(dd) == "predicted")] <- "Predicted"
-  cat(insight::format_table(dd, digits = digits, protect_integers = TRUE))
+  cat(insight::export_table(dd, digits = digits, protect_integers = TRUE))
   # print.data.frame(dd, ..., quote = FALSE, row.names = FALSE)
 }
+

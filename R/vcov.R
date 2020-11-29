@@ -38,8 +38,8 @@
 #' result <- ggpredict(model, c("c161sex", "c172code"))
 #' vcov(result)
 #'
-#' @importFrom stats model.matrix terms formula
-#' @importFrom insight find_random clean_names find_parameters get_varcov
+#' @importFrom stats model.matrix terms formula reformulate
+#' @importFrom insight find_random clean_names find_parameters get_varcov find_terms
 #' @export
 vcov.ggeffects <- function(object, vcov.fun = NULL, vcov.type = NULL, vcov.args = NULL, ...) {
   model <- tryCatch({
@@ -184,6 +184,23 @@ vcov.ggeffects <- function(object, vcov.fun = NULL, vcov.type = NULL, vcov.args 
   error = function(e) {
     insight::find_formula(model)$conditional
   })
+
+  # drop offset from model_terms+
+  if (inherits(model, c("zeroinfl", "hurdle", "zerotrunc"))) {
+    all_terms <- insight::find_terms(model)$conditional
+    off_terms <- grepl("^offset\\((.*)\\)", all_terms)
+    if (any(off_terms)) {
+      all_terms <- all_terms[!off_terms]
+      ## TODO preserve interactions
+      vcov_names <- dimnames(vcm)[[1]][grepl(":", dimnames(vcm)[[1]], fixed = TRUE)]
+      if (length(vcov_names)) {
+        vcov_names <- gsub(":", "*", vcov_names, fixed = TRUE)
+        all_terms <- unique(c(all_terms, vcov_names))
+      }
+      off_terms <- grepl("^offset\\((.*)\\)", all_terms)
+      model_terms <- stats::reformulate(all_terms[!off_terms], response = insight::find_response(model))
+    }
+  }
 
   # code to compute se of prediction taken from
   # http://bbolker.github.io/mixedmodels-misc/glmmFAQ.html#predictions-andor-confidence-or-prediction-intervals-on-predictions

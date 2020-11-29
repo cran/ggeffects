@@ -6,7 +6,7 @@ if (.runThisTest) {
     require("testthat") &&
     require("lme4") &&
     require("sjmisc") &&
-    requireNamespace("rstanarm") &&
+    require("rstanarm") &&
     require("ggeffects")
   )) {
     # fit linear model
@@ -16,54 +16,54 @@ if (.runThisTest) {
     sleepstudy$Rdicho <- dicho(sleepstudy$Reaction)
     efc <- to_label(efc, e42dep, c161sex, c172code)
 
-    m <- rstanarm::stan_glmer(
+    m <- suppressWarnings(rstanarm::stan_glmer(
       Reaction ~ Days + age + (1 | Subject),
       data = sleepstudy, QR = TRUE,
       # this next line is only to keep the example small in size!
-      chains = 2, cores = 1, seed = 12345, iter = 500
-    )
+      chains = 2, cores = 1, seed = 12345, iter = 500, refresh = 0
+    ))
 
-    m2 <- rstanarm::stan_glmer(
+    m2 <- suppressWarnings(rstanarm::stan_glmer(
       Rdicho ~ Days + age + (1 | Subject),
       data = sleepstudy, QR = TRUE,
       family = binomial,
-      chains = 2, iter = 500
-    )
+      chains = 2, iter = 500, refresh = 0
+    ))
 
-    m3 <- rstanarm::stan_glm(
+    m3 <- suppressWarnings(rstanarm::stan_glm(
       tot_sc_e ~ neg_c_7 + e42dep + barthtot + c172code + c161sex,
       data = efc,
       family = poisson("log"),
       chains = 2, iter = 500
-    )
+    ))
 
     test_that("ggpredict, rstan", {
-      ggpredict(m, "Days")
-      ggpredict(m, c("Days", "age"))
-      ggpredict(m, "Days", type = "re")
-      ggpredict(m, c("Days", "age"), type = "re")
-      ggpredict(m, "Days", ppd = TRUE)
-      ggpredict(m, c("Days", "age"), ppd = TRUE)
-      ggpredict(m, "Days", type = "re", ppd = TRUE)
-      ggpredict(m, c("Days", "age"), type = "re", ppd = TRUE)
+      expect_s3_class(ggpredict(m, "Days"), "data.frame")
+      expect_s3_class(ggpredict(m, c("Days", "age")), "data.frame")
+      expect_s3_class(ggpredict(m, "Days", type = "re"), "data.frame")
+      expect_s3_class(ggpredict(m, c("Days", "age"), type = "re"), "data.frame")
+      expect_s3_class(ggpredict(m, "Days", ppd = TRUE), "data.frame")
+      expect_s3_class(ggpredict(m, c("Days", "age"), ppd = TRUE), "data.frame")
+      expect_s3_class(ggpredict(m, "Days", type = "re", ppd = TRUE), "data.frame")
+      expect_s3_class(ggpredict(m, c("Days", "age"), type = "re", ppd = TRUE), "data.frame")
     })
 
     test_that("ggpredict, rstan", {
-      ggpredict(m2, "Days")
-      ggpredict(m2, c("Days", "age"))
-      ggpredict(m2, "Days", type = "re")
-      ggpredict(m2, c("Days", "age"), type = "re")
-      ggpredict(m2, "Days", ppd = TRUE)
-      ggpredict(m2, c("Days", "age"), ppd = TRUE)
-      ggpredict(m2, "Days", type = "re", ppd = TRUE)
-      ggpredict(m2, c("Days", "age"), type = "re", ppd = TRUE)
+      expect_s3_class(ggpredict(m2, "Days"), "data.frame")
+      expect_s3_class(ggpredict(m2, c("Days", "age")), "data.frame")
+      expect_s3_class(ggpredict(m2, "Days", type = "re"), "data.frame")
+      expect_s3_class(ggpredict(m2, c("Days", "age"), type = "re"), "data.frame")
+      expect_s3_class(ggpredict(m2, "Days", ppd = TRUE), "data.frame")
+      expect_s3_class(ggpredict(m2, c("Days", "age"), ppd = TRUE), "data.frame")
+      expect_s3_class(ggpredict(m2, "Days", type = "re", ppd = TRUE), "data.frame")
+      expect_s3_class(ggpredict(m2, c("Days", "age"), type = "re", ppd = TRUE), "data.frame")
     })
 
     test_that("ggpredict, rstan", {
-      ggpredict(m3, "neg_c_7")
-      ggpredict(m3, c("neg_c_7", "e42dep"))
-      ggpredict(m3, "neg_c_7", ppd = TRUE)
-      ggpredict(m3, c("neg_c_7", "e42dep"), ppd = TRUE)
+      expect_s3_class(ggpredict(m3, "neg_c_7"), "data.frame")
+      expect_s3_class(ggpredict(m3, c("neg_c_7", "e42dep")), "data.frame")
+      expect_s3_class(ggpredict(m3, "neg_c_7", ppd = TRUE), "data.frame")
+      expect_s3_class(ggpredict(m3, c("neg_c_7", "e42dep"), ppd = TRUE), "data.frame")
     })
   }
 }

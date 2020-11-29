@@ -12,12 +12,12 @@ if (.runThisTest) {
     m4 <- glmmTMB(SiblingNegotiation ~ FoodTreatment + ArrivalTime + SexParent + (1 | Nest), data = Owls, ziformula =  ~ 1, family = truncated_poisson(link = "log"))
 
     test_that("ggpredict, glmmTMB", {
-      ggpredict(m1, c("ArrivalTime", "SexParent"))
-      ggpredict(m2, c("ArrivalTime", "SexParent"))
-      ggpredict(m4, c("FoodTreatment", "ArrivalTime [21,24,30]", "SexParent"))
-      ggpredict(m1, c("ArrivalTime", "SexParent"), type = "re")
-      ggpredict(m2, c("ArrivalTime", "SexParent"), type = "re")
-      ggpredict(m4, c("FoodTreatment", "ArrivalTime [21,24,30]", "SexParent"), type = "re")
+      expect_s3_class(ggpredict(m1, c("ArrivalTime", "SexParent")), "data.frame")
+      expect_s3_class(ggpredict(m2, c("ArrivalTime", "SexParent")), "data.frame")
+      expect_s3_class(ggpredict(m4, c("FoodTreatment", "ArrivalTime [21,24,30]", "SexParent")), "data.frame")
+      expect_s3_class(ggpredict(m1, c("ArrivalTime", "SexParent"), type = "re"), "data.frame")
+      expect_s3_class(ggpredict(m2, c("ArrivalTime", "SexParent"), type = "re"), "data.frame")
+      expect_s3_class(ggpredict(m4, c("FoodTreatment", "ArrivalTime [21,24,30]", "SexParent"), type = "re"), "data.frame")
 
     })
 
@@ -48,7 +48,7 @@ if (.runThisTest) {
       p4 <- ggpredict(m3, "mined", type = "re.zi")
       expect_gt(p3$conf.high[1], p1$conf.high[1])
       expect_gt(p4$conf.high[1], p2$conf.high[1])
-      ggpredict(m3, "mined", type = "fe.zi", nsim = 50)
+      expect_s3_class(ggpredict(m3, "mined", type = "fe.zi", nsim = 50), "data.frame")
     })
 
     test_that("ggpredict, glmmTMB", {
@@ -98,10 +98,10 @@ if (.runThisTest) {
 
 
     test_that("ggpredict, glmmTMB-simulate", {
-      p <- ggpredict(m3, "mined", type = "sim")
-      p <- ggpredict(m3, c("spp", "mined"), type = "sim")
-      p <- ggpredict(m4, "mined", type = "sim")
-      p <- ggpredict(m4, c("spp", "mined"), type = "sim")
+      expect_s3_class(ggpredict(m3, "mined", type = "sim"), "data.frame")
+      expect_s3_class(ggpredict(m3, c("spp", "mined"), type = "sim"), "data.frame")
+      expect_s3_class(ggpredict(m4, "mined", type = "sim"), "data.frame")
+      expect_s3_class(ggpredict(m4, c("spp", "mined"), type = "sim"), "data.frame")
     })
 
     md <- glmmTMB(
@@ -115,8 +115,8 @@ if (.runThisTest) {
     test_that("ggpredict, glmmTMB", {
       p1 <- ggpredict(md, c("spp", "mined"), type = "fe")
       p2 <- ggpredict(md, c("spp", "mined"), type = "fe.zi")
-      p3 <- ggpredict(md, c("spp", "mined"), type = "re")
-      p4 <- ggpredict(md, c("spp", "mined"), type = "re.zi")
+      p3 <- suppressWarnings(ggpredict(md, c("spp", "mined"), type = "re"))
+      p4 <- suppressWarnings(ggpredict(md, c("spp", "mined"), type = "re.zi"))
       expect_gt(p3$conf.high[1], p1$conf.high[1])
       expect_gt(p4$conf.high[1], p2$conf.high[1])
     })
@@ -130,10 +130,10 @@ if (.runThisTest) {
     )
 
     test_that("ggpredict, glmmTMB", {
-      ggpredict(m5, "c161sex", type = "fe")
-      ggpredict(m5, "c161sex", type = "fe.zi")
-      ggpredict(m5, "c161sex", type = "re")
-      ggpredict(m5, "c161sex", type = "re.zi")
+      expect_s3_class(ggpredict(m5, "c161sex", type = "fe"), "data.frame")
+      expect_s3_class(ggpredict(m5, "c161sex", type = "fe.zi"), "data.frame")
+      expect_s3_class(ggpredict(m5, "c161sex", type = "re"), "data.frame")
+      expect_s3_class(ggpredict(m5, "c161sex", type = "re.zi"), "data.frame")
     })
 
 
@@ -146,8 +146,8 @@ if (.runThisTest) {
     )
 
     test_that("ggpredict, glmmTMB", {
-      ggpredict(m6, "c161sex", type = "fe")
-      ggpredict(m6, "c161sex", type = "re")
+      expect_s3_class(ggpredict(m6, "c161sex", type = "fe"), "data.frame")
+      expect_s3_class(ggpredict(m6, "c161sex", type = "re"), "data.frame")
     })
 
 
@@ -163,15 +163,15 @@ if (.runThisTest) {
     )
 
     test_that("ggpredict, glmmTMB", {
-      ggpredict(m7, "neg_c_7")
-      ggpredict(m7, "neg_c_7 [all]")
-      ggpredict(m7, "neg_c_7", type = "fe.zi")
-      ggpredict(m7, "neg_c_7 [all]", type = "fe.zi")
+      expect_s3_class(ggpredict(m7, "neg_c_7"), "data.frame")
+      expect_s3_class(ggpredict(m7, "neg_c_7 [all]"), "data.frame")
+      expect_s3_class(ggpredict(m7, "neg_c_7", type = "fe.zi"), "data.frame")
+      expect_s3_class(ggpredict(m7, "neg_c_7 [all]", type = "fe.zi"), "data.frame")
 
-      ggpredict(m7, c("neg_c_7", "c172code"))
-      ggpredict(m7, c("neg_c_7 [all]", "c172code"))
-      ggpredict(m7, c("neg_c_7", "c172code"), type = "fe.zi")
-      ggpredict(m7, c("neg_c_7 [all]", "c172code"), type = "fe.zi")
+      expect_s3_class(ggpredict(m7, c("neg_c_7", "c172code")), "data.frame")
+      expect_s3_class(ggpredict(m7, c("neg_c_7 [all]", "c172code")), "data.frame")
+      expect_s3_class(ggpredict(m7, c("neg_c_7", "c172code"), type = "fe.zi"), "data.frame")
+      expect_s3_class(ggpredict(m7, c("neg_c_7 [all]", "c172code"), type = "fe.zi"), "data.frame")
     })
 
 
@@ -182,15 +182,15 @@ if (.runThisTest) {
     )
 
     test_that("ggpredict, glmmTMB", {
-      ggpredict(m8, "neg_c_7")
-      ggpredict(m8, "neg_c_7 [all]")
-      ggpredict(m8, "neg_c_7", type = "fe.zi")
-      ggpredict(m8, "neg_c_7 [all]", type = "fe.zi")
+      expect_s3_class(ggpredict(m8, "neg_c_7"), "data.frame")
+      expect_s3_class(ggpredict(m8, "neg_c_7 [all]"), "data.frame")
+      expect_s3_class(ggpredict(m8, "neg_c_7", type = "fe.zi"), "data.frame")
+      expect_s3_class(ggpredict(m8, "neg_c_7 [all]", type = "fe.zi"), "data.frame")
 
-      ggpredict(m8, c("neg_c_7", "c172code"))
-      ggpredict(m8, c("neg_c_7 [all]", "c172code"))
-      ggpredict(m8, c("neg_c_7", "c172code"), type = "fe.zi")
-      ggpredict(m8, c("neg_c_7 [all]", "c172code"), type = "fe.zi")
+      expect_s3_class(ggpredict(m8, c("neg_c_7", "c172code")), "data.frame")
+      expect_s3_class(ggpredict(m8, c("neg_c_7 [all]", "c172code")), "data.frame")
+      expect_s3_class(ggpredict(m8, c("neg_c_7", "c172code"), type = "fe.zi"), "data.frame")
+      expect_s3_class(ggpredict(m8, c("neg_c_7 [all]", "c172code"), type = "fe.zi"), "data.frame")
     })
 
 
@@ -204,10 +204,10 @@ if (.runThisTest) {
     )
 
     test_that("ggpredict, glmmTMB", {
-      ggpredict(m9, c("cover", "mined", "spp"), type = "fe")
-      ggpredict(m9, c("cover", "mined", "spp"), type = "fe.zi")
-      ggpredict(m9, c("cover", "mined", "spp"), type = "re")
-      ggpredict(m9, c("cover", "mined", "spp"), type = "re.zi")
+      expect_s3_class(ggpredict(m9, c("cover", "mined", "spp"), type = "fe"), "data.frame")
+      expect_s3_class(ggpredict(m9, c("cover", "mined", "spp"), type = "fe.zi"), "data.frame")
+      expect_s3_class(suppressWarnings(ggpredict(m9, c("cover", "mined", "spp"), type = "re")), "data.frame")
+      expect_s3_class(suppressWarnings(ggpredict(m9, c("cover", "mined", "spp"), type = "re.zi")), "data.frame")
     })
 
   }

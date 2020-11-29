@@ -12,10 +12,58 @@
 
 <meta name="author" content="Daniel Lüdecke" />
 
-<meta name="date" content="2020-09-12" />
+<meta name="date" content="2020-11-29" />
 
 <title>Introduction: Marginal Effects at Specific Values</title>
 
+<style type="text/css">
+a.anchor-section {margin-left: 10px; visibility: hidden; color: inherit;}
+a.anchor-section::before {content: '#';}
+.hasAnchor:hover a.anchor-section {visibility: visible;}
+</style>
+<script>// Anchor sections v1.0 written by Atsushi Yasumoto on Oct 3rd, 2020.
+document.addEventListener('DOMContentLoaded', function() {
+  // Do nothing if AnchorJS is used
+  if (typeof window.anchors === 'object' && anchors.hasOwnProperty('hasAnchorJSLink')) {
+    return;
+  }
+
+  const h = document.querySelectorAll('h1, h2, h3, h4, h5, h6');
+
+  // Do nothing if sections are already anchored
+  if (Array.from(h).some(x => x.classList.contains('hasAnchor'))) {
+    return null;
+  }
+
+  // Use section id when pandoc runs with --section-divs
+  const section_id = function(x) {
+    return ((x.classList.contains('section') || (x.tagName === 'SECTION'))
+            ? x.id : '');
+  };
+
+  // Add anchors
+  h.forEach(function(x) {
+    const id = x.id || section_id(x.parentElement);
+    if (id === '') {
+      return null;
+    }
+    let anchor = document.createElement('a');
+    anchor.href = '#' + id;
+    anchor.classList = ['anchor-section'];
+    x.classList.add('hasAnchor');
+    x.appendChild(anchor);
+  });
+});
+</script>
+
+<style type="text/css">
+  code{white-space: pre-wrap;}
+  span.smallcaps{font-variant: small-caps;}
+  span.underline{text-decoration: underline;}
+  div.column{display: inline-block; vertical-align: top; width: 50%;}
+  div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+  ul.task-list{list-style: none;}
+    </style>
 
 
 <style type="text/css">code{white-space: pre;}</style>
@@ -301,7 +349,7 @@ code > span.er { color: #a61717; background-color: #e3d2d2; }
 
 <h1 class="title toc-ignore">Introduction: Marginal Effects at Specific Values</h1>
 <h4 class="author">Daniel Lüdecke</h4>
-<h4 class="date">2020-09-12</h4>
+<h4 class="date">2020-11-29</h4>
 
 
 
@@ -329,91 +377,87 @@ code > span.er { color: #a61717; background-color: #e3d2d2; }
 <a class="sourceLine" id="cb1-5" title="5"></a>
 <a class="sourceLine" id="cb1-6" title="6">mydf &lt;-<span class="st"> </span><span class="kw">ggpredict</span>(fit, <span class="dt">terms =</span> <span class="kw">c</span>(<span class="st">&quot;c12hour [30:80]&quot;</span>, <span class="st">&quot;c172code [1,3]&quot;</span>))</a>
 <a class="sourceLine" id="cb1-7" title="7">mydf</a>
-<a class="sourceLine" id="cb1-8" title="8"><span class="co">#&gt; </span></a>
-<a class="sourceLine" id="cb1-9" title="9"><span class="co">#&gt; # Predicted values of Total score BARTHEL INDEX</span></a>
-<a class="sourceLine" id="cb1-10" title="10"><span class="co">#&gt; # x = average number of hours of care per week</span></a>
-<a class="sourceLine" id="cb1-11" title="11"><span class="co">#&gt; </span></a>
-<a class="sourceLine" id="cb1-12" title="12"><span class="co">#&gt; # c172code = low level of education</span></a>
-<a class="sourceLine" id="cb1-13" title="13"><span class="co">#&gt; </span></a>
-<a class="sourceLine" id="cb1-14" title="14"><span class="co">#&gt;  x | Predicted |   SE |         95% CI</span></a>
-<a class="sourceLine" id="cb1-15" title="15"><span class="co">#&gt; --------------------------------------</span></a>
-<a class="sourceLine" id="cb1-16" title="16"><span class="co">#&gt; 30 |     67.15 | 1.59 | [64.04, 70.26]</span></a>
-<a class="sourceLine" id="cb1-17" title="17"><span class="co">#&gt; 38 |     65.12 | 1.56 | [62.06, 68.18]</span></a>
-<a class="sourceLine" id="cb1-18" title="18"><span class="co">#&gt; 47 |     62.84 | 1.55 | [59.81, 65.88]</span></a>
-<a class="sourceLine" id="cb1-19" title="19"><span class="co">#&gt; 55 |     60.81 | 1.55 | [57.78, 63.85]</span></a>
-<a class="sourceLine" id="cb1-20" title="20"><span class="co">#&gt; 63 |     58.79 | 1.56 | [55.72, 61.85]</span></a>
-<a class="sourceLine" id="cb1-21" title="21"><span class="co">#&gt; 80 |     54.48 | 1.63 | [51.28, 57.68]</span></a>
-<a class="sourceLine" id="cb1-22" title="22"><span class="co">#&gt; </span></a>
-<a class="sourceLine" id="cb1-23" title="23"><span class="co">#&gt; # c172code = high level of education</span></a>
-<a class="sourceLine" id="cb1-24" title="24"><span class="co">#&gt; </span></a>
-<a class="sourceLine" id="cb1-25" title="25"><span class="co">#&gt;  x | Predicted |   SE |         95% CI</span></a>
-<a class="sourceLine" id="cb1-26" title="26"><span class="co">#&gt; --------------------------------------</span></a>
-<a class="sourceLine" id="cb1-27" title="27"><span class="co">#&gt; 30 |     68.58 | 1.62 | [65.42, 71.75]</span></a>
-<a class="sourceLine" id="cb1-28" title="28"><span class="co">#&gt; 38 |     66.56 | 1.62 | [63.39, 69.73]</span></a>
-<a class="sourceLine" id="cb1-29" title="29"><span class="co">#&gt; 47 |     64.28 | 1.63 | [61.08, 67.47]</span></a>
-<a class="sourceLine" id="cb1-30" title="30"><span class="co">#&gt; 55 |     62.25 | 1.66 | [59.01, 65.50]</span></a>
-<a class="sourceLine" id="cb1-31" title="31"><span class="co">#&gt; 63 |     60.23 | 1.69 | [56.91, 63.54]</span></a>
-<a class="sourceLine" id="cb1-32" title="32"><span class="co">#&gt; 80 |     55.92 | 1.80 | [52.39, 59.45]</span></a>
-<a class="sourceLine" id="cb1-33" title="33"><span class="co">#&gt; </span></a>
-<a class="sourceLine" id="cb1-34" title="34"><span class="co">#&gt; Adjusted for:</span></a>
-<a class="sourceLine" id="cb1-35" title="35"><span class="co">#&gt; * neg_c_7 = 11.84</span></a>
-<a class="sourceLine" id="cb1-36" title="36"><span class="co">#&gt; * c161sex =  1.76</span></a>
-<a class="sourceLine" id="cb1-37" title="37"><span class="kw">ggplot</span>(mydf, <span class="kw">aes</span>(x, predicted, <span class="dt">colour =</span> group)) <span class="op">+</span><span class="st"> </span><span class="kw">geom_line</span>()</a></code></pre></div>
+<a class="sourceLine" id="cb1-8" title="8"><span class="co">#&gt; # Predicted values of Total score BARTHEL INDEX</span></a>
+<a class="sourceLine" id="cb1-9" title="9"><span class="co">#&gt; # x = average number of hours of care per week</span></a>
+<a class="sourceLine" id="cb1-10" title="10"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb1-11" title="11"><span class="co">#&gt; # c172code = low level of education</span></a>
+<a class="sourceLine" id="cb1-12" title="12"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb1-13" title="13"><span class="co">#&gt;  x | Predicted |         95% CI</span></a>
+<a class="sourceLine" id="cb1-14" title="14"><span class="co">#&gt; -------------------------------</span></a>
+<a class="sourceLine" id="cb1-15" title="15"><span class="co">#&gt; 30 |     67.15 | [64.04, 70.26]</span></a>
+<a class="sourceLine" id="cb1-16" title="16"><span class="co">#&gt; 38 |     65.12 | [62.06, 68.18]</span></a>
+<a class="sourceLine" id="cb1-17" title="17"><span class="co">#&gt; 47 |     62.84 | [59.81, 65.88]</span></a>
+<a class="sourceLine" id="cb1-18" title="18"><span class="co">#&gt; 55 |     60.81 | [57.78, 63.85]</span></a>
+<a class="sourceLine" id="cb1-19" title="19"><span class="co">#&gt; 63 |     58.79 | [55.72, 61.85]</span></a>
+<a class="sourceLine" id="cb1-20" title="20"><span class="co">#&gt; 80 |     54.48 | [51.28, 57.68]</span></a>
+<a class="sourceLine" id="cb1-21" title="21"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb1-22" title="22"><span class="co">#&gt; # c172code = high level of education</span></a>
+<a class="sourceLine" id="cb1-23" title="23"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb1-24" title="24"><span class="co">#&gt;  x | Predicted |         95% CI</span></a>
+<a class="sourceLine" id="cb1-25" title="25"><span class="co">#&gt; -------------------------------</span></a>
+<a class="sourceLine" id="cb1-26" title="26"><span class="co">#&gt; 30 |     68.58 | [65.42, 71.75]</span></a>
+<a class="sourceLine" id="cb1-27" title="27"><span class="co">#&gt; 38 |     66.56 | [63.39, 69.73]</span></a>
+<a class="sourceLine" id="cb1-28" title="28"><span class="co">#&gt; 47 |     64.28 | [61.08, 67.47]</span></a>
+<a class="sourceLine" id="cb1-29" title="29"><span class="co">#&gt; 55 |     62.25 | [59.01, 65.50]</span></a>
+<a class="sourceLine" id="cb1-30" title="30"><span class="co">#&gt; 63 |     60.23 | [56.91, 63.54]</span></a>
+<a class="sourceLine" id="cb1-31" title="31"><span class="co">#&gt; 80 |     55.92 | [52.39, 59.45]</span></a>
+<a class="sourceLine" id="cb1-32" title="32"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb1-33" title="33"><span class="co">#&gt; Adjusted for:</span></a>
+<a class="sourceLine" id="cb1-34" title="34"><span class="co">#&gt; * neg_c_7 = 11.84</span></a>
+<a class="sourceLine" id="cb1-35" title="35"><span class="co">#&gt; * c161sex =  1.76</span></a>
+<a class="sourceLine" id="cb1-36" title="36"><span class="kw">ggplot</span>(mydf, <span class="kw">aes</span>(x, predicted, <span class="dt">colour =</span> group)) <span class="op">+</span><span class="st"> </span><span class="kw">geom_line</span>()</a></code></pre></div>
 <p><img src="data:image/png;base64,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" /><!-- --></p>
-<p>Defining value ranges is especially useful when variables are, for instance, log-transformed. <code>ggpredict()</code> then typically only uses the range of the log-transformed variable, which is in most cases not what we want. In such situation, specify the range in the <code>terms</code>-argument.</p>
+<p>When variables are, for instance, log-transformed, <em>ggeffects</em> automatically back-transforms predictions to the original scale of the response and predictors, making the predictions directly interpretable. However, sometimes it might be useful to define own value ranges. In such situation, specify the range in the <code>terms</code>-argument.</p>
 <div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb2-1" title="1"><span class="kw">data</span>(mtcars)</a>
 <a class="sourceLine" id="cb2-2" title="2">mpg_model &lt;-<span class="st"> </span><span class="kw">lm</span>(mpg <span class="op">~</span><span class="st"> </span><span class="kw">log</span>(hp), <span class="dt">data =</span> mtcars)</a>
 <a class="sourceLine" id="cb2-3" title="3"></a>
-<a class="sourceLine" id="cb2-4" title="4"><span class="co"># x-values and predictions based on the log(hp)-values</span></a>
+<a class="sourceLine" id="cb2-4" title="4"><span class="co"># x-values and predictions based on the full range of the original &quot;hp&quot;-values</span></a>
 <a class="sourceLine" id="cb2-5" title="5"><span class="kw">ggpredict</span>(mpg_model, <span class="st">&quot;hp&quot;</span>)</a>
-<a class="sourceLine" id="cb2-6" title="6"><span class="co">#&gt; </span></a>
-<a class="sourceLine" id="cb2-7" title="7"><span class="co">#&gt; # Predicted values of mpg</span></a>
-<a class="sourceLine" id="cb2-8" title="8"><span class="co">#&gt; # x = hp</span></a>
-<a class="sourceLine" id="cb2-9" title="9"><span class="co">#&gt; </span></a>
-<a class="sourceLine" id="cb2-10" title="10"><span class="co">#&gt;   x | Predicted |   SE |         95% CI</span></a>
-<a class="sourceLine" id="cb2-11" title="11"><span class="co">#&gt; ---------------------------------------</span></a>
-<a class="sourceLine" id="cb2-12" title="12"><span class="co">#&gt;  50 |     30.53 | 1.32 | [27.95, 33.11]</span></a>
-<a class="sourceLine" id="cb2-13" title="13"><span class="co">#&gt;  85 |     24.82 | 0.79 | [23.28, 26.36]</span></a>
-<a class="sourceLine" id="cb2-14" title="14"><span class="co">#&gt; 120 |     21.11 | 0.58 | [19.96, 22.25]</span></a>
-<a class="sourceLine" id="cb2-15" title="15"><span class="co">#&gt; 155 |     18.35 | 0.61 | [17.16, 19.54]</span></a>
-<a class="sourceLine" id="cb2-16" title="16"><span class="co">#&gt; 195 |     15.88 | 0.75 | [14.42, 17.34]</span></a>
-<a class="sourceLine" id="cb2-17" title="17"><span class="co">#&gt; 230 |     14.10 | 0.89 | [12.36, 15.85]</span></a>
-<a class="sourceLine" id="cb2-18" title="18"><span class="co">#&gt; 265 |     12.58 | 1.03 | [10.56, 14.60]</span></a>
-<a class="sourceLine" id="cb2-19" title="19"><span class="co">#&gt; 335 |     10.06 | 1.28 | [ 7.55, 12.56]</span></a>
-<a class="sourceLine" id="cb2-20" title="20"></a>
-<a class="sourceLine" id="cb2-21" title="21"><span class="co"># x-values and predictions based on hp-values from 50 to 150</span></a>
-<a class="sourceLine" id="cb2-22" title="22"><span class="kw">ggpredict</span>(mpg_model, <span class="st">&quot;hp [50:150]&quot;</span>)</a>
-<a class="sourceLine" id="cb2-23" title="23"><span class="co">#&gt; </span></a>
-<a class="sourceLine" id="cb2-24" title="24"><span class="co">#&gt; # Predicted values of mpg</span></a>
-<a class="sourceLine" id="cb2-25" title="25"><span class="co">#&gt; # x = hp</span></a>
-<a class="sourceLine" id="cb2-26" title="26"><span class="co">#&gt; </span></a>
-<a class="sourceLine" id="cb2-27" title="27"><span class="co">#&gt;   x | Predicted |   SE |         95% CI</span></a>
-<a class="sourceLine" id="cb2-28" title="28"><span class="co">#&gt; ---------------------------------------</span></a>
-<a class="sourceLine" id="cb2-29" title="29"><span class="co">#&gt;  50 |     30.53 | 1.32 | [27.95, 33.11]</span></a>
-<a class="sourceLine" id="cb2-30" title="30"><span class="co">#&gt;  63 |     28.04 | 1.07 | [25.94, 30.14]</span></a>
-<a class="sourceLine" id="cb2-31" title="31"><span class="co">#&gt;  75 |     26.17 | 0.90 | [24.41, 27.93]</span></a>
-<a class="sourceLine" id="cb2-32" title="32"><span class="co">#&gt;  87 |     24.57 | 0.77 | [23.07, 26.07]</span></a>
-<a class="sourceLine" id="cb2-33" title="33"><span class="co">#&gt; 100 |     23.07 | 0.67 | [21.77, 24.37]</span></a>
-<a class="sourceLine" id="cb2-34" title="34"><span class="co">#&gt; 113 |     21.75 | 0.60 | [20.57, 22.94]</span></a>
-<a class="sourceLine" id="cb2-35" title="35"><span class="co">#&gt; 125 |     20.67 | 0.58 | [19.54, 21.80]</span></a>
-<a class="sourceLine" id="cb2-36" title="36"><span class="co">#&gt; 150 |     18.71 | 0.59 | [17.54, 19.87]</span></a></code></pre></div>
+<a class="sourceLine" id="cb2-6" title="6"><span class="co">#&gt; # Predicted values of mpg</span></a>
+<a class="sourceLine" id="cb2-7" title="7"><span class="co">#&gt; # x = hp</span></a>
+<a class="sourceLine" id="cb2-8" title="8"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb2-9" title="9"><span class="co">#&gt;   x | Predicted |         95% CI</span></a>
+<a class="sourceLine" id="cb2-10" title="10"><span class="co">#&gt; --------------------------------</span></a>
+<a class="sourceLine" id="cb2-11" title="11"><span class="co">#&gt;  50 |     30.53 | [27.95, 33.11]</span></a>
+<a class="sourceLine" id="cb2-12" title="12"><span class="co">#&gt;  85 |     24.82 | [23.28, 26.36]</span></a>
+<a class="sourceLine" id="cb2-13" title="13"><span class="co">#&gt; 120 |     21.11 | [19.96, 22.25]</span></a>
+<a class="sourceLine" id="cb2-14" title="14"><span class="co">#&gt; 155 |     18.35 | [17.16, 19.54]</span></a>
+<a class="sourceLine" id="cb2-15" title="15"><span class="co">#&gt; 195 |     15.88 | [14.42, 17.34]</span></a>
+<a class="sourceLine" id="cb2-16" title="16"><span class="co">#&gt; 230 |     14.10 | [12.36, 15.85]</span></a>
+<a class="sourceLine" id="cb2-17" title="17"><span class="co">#&gt; 265 |     12.58 | [10.56, 14.60]</span></a>
+<a class="sourceLine" id="cb2-18" title="18"><span class="co">#&gt; 335 |     10.06 | [ 7.55, 12.56]</span></a>
+<a class="sourceLine" id="cb2-19" title="19"></a>
+<a class="sourceLine" id="cb2-20" title="20"><span class="co"># x-values and predictions based on &quot;hp&quot;-values ranging from 50 to 150</span></a>
+<a class="sourceLine" id="cb2-21" title="21"><span class="kw">ggpredict</span>(mpg_model, <span class="st">&quot;hp [50:150]&quot;</span>)</a>
+<a class="sourceLine" id="cb2-22" title="22"><span class="co">#&gt; # Predicted values of mpg</span></a>
+<a class="sourceLine" id="cb2-23" title="23"><span class="co">#&gt; # x = hp</span></a>
+<a class="sourceLine" id="cb2-24" title="24"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb2-25" title="25"><span class="co">#&gt;   x | Predicted |         95% CI</span></a>
+<a class="sourceLine" id="cb2-26" title="26"><span class="co">#&gt; --------------------------------</span></a>
+<a class="sourceLine" id="cb2-27" title="27"><span class="co">#&gt;  50 |     30.53 | [27.95, 33.11]</span></a>
+<a class="sourceLine" id="cb2-28" title="28"><span class="co">#&gt;  63 |     28.04 | [25.94, 30.14]</span></a>
+<a class="sourceLine" id="cb2-29" title="29"><span class="co">#&gt;  75 |     26.17 | [24.41, 27.93]</span></a>
+<a class="sourceLine" id="cb2-30" title="30"><span class="co">#&gt;  87 |     24.57 | [23.07, 26.07]</span></a>
+<a class="sourceLine" id="cb2-31" title="31"><span class="co">#&gt; 100 |     23.07 | [21.77, 24.37]</span></a>
+<a class="sourceLine" id="cb2-32" title="32"><span class="co">#&gt; 113 |     21.75 | [20.57, 22.94]</span></a>
+<a class="sourceLine" id="cb2-33" title="33"><span class="co">#&gt; 125 |     20.67 | [19.54, 21.80]</span></a>
+<a class="sourceLine" id="cb2-34" title="34"><span class="co">#&gt; 150 |     18.71 | [17.54, 19.87]</span></a></code></pre></div>
 <p>By default, the step size for a range is 1, like <code>50, 51, 52, ...</code>. If you need a different step size, use <code>by=&lt;stepsize&gt;</code> inside the brackets, e.g. <code>&quot;hp [50:60 by=.5]&quot;</code>. This would create a range from 50 to 60, with .5er steps.</p>
 <div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb3-1" title="1"><span class="co"># range for x-values with .5-steps</span></a>
 <a class="sourceLine" id="cb3-2" title="2"><span class="kw">ggpredict</span>(mpg_model, <span class="st">&quot;hp [50:60 by=.5]&quot;</span>)</a>
-<a class="sourceLine" id="cb3-3" title="3"><span class="co">#&gt; </span></a>
-<a class="sourceLine" id="cb3-4" title="4"><span class="co">#&gt; # Predicted values of mpg</span></a>
-<a class="sourceLine" id="cb3-5" title="5"><span class="co">#&gt; # x = hp</span></a>
-<a class="sourceLine" id="cb3-6" title="6"><span class="co">#&gt; </span></a>
-<a class="sourceLine" id="cb3-7" title="7"><span class="co">#&gt;     x | Predicted |   SE |         95% CI</span></a>
-<a class="sourceLine" id="cb3-8" title="8"><span class="co">#&gt; -----------------------------------------</span></a>
-<a class="sourceLine" id="cb3-9" title="9"><span class="co">#&gt; 50.00 |     30.53 | 1.32 | [27.95, 33.11]</span></a>
-<a class="sourceLine" id="cb3-10" title="10"><span class="co">#&gt; 51.50 |     30.21 | 1.29 | [27.69, 32.73]</span></a>
-<a class="sourceLine" id="cb3-11" title="11"><span class="co">#&gt; 52.50 |     30.01 | 1.26 | [27.53, 32.48]</span></a>
-<a class="sourceLine" id="cb3-12" title="12"><span class="co">#&gt; 53.50 |     29.80 | 1.24 | [27.36, 32.24]</span></a>
-<a class="sourceLine" id="cb3-13" title="13"><span class="co">#&gt; 55.00 |     29.50 | 1.21 | [27.12, 31.88]</span></a>
-<a class="sourceLine" id="cb3-14" title="14"><span class="co">#&gt; 56.50 |     29.22 | 1.19 | [26.89, 31.54]</span></a>
-<a class="sourceLine" id="cb3-15" title="15"><span class="co">#&gt; 57.50 |     29.03 | 1.17 | [26.74, 31.31]</span></a>
-<a class="sourceLine" id="cb3-16" title="16"><span class="co">#&gt; 60.00 |     28.57 | 1.12 | [26.37, 30.77]</span></a></code></pre></div>
+<a class="sourceLine" id="cb3-3" title="3"><span class="co">#&gt; # Predicted values of mpg</span></a>
+<a class="sourceLine" id="cb3-4" title="4"><span class="co">#&gt; # x = hp</span></a>
+<a class="sourceLine" id="cb3-5" title="5"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb3-6" title="6"><span class="co">#&gt;     x | Predicted |         95% CI</span></a>
+<a class="sourceLine" id="cb3-7" title="7"><span class="co">#&gt; ----------------------------------</span></a>
+<a class="sourceLine" id="cb3-8" title="8"><span class="co">#&gt; 50.00 |     30.53 | [27.95, 33.11]</span></a>
+<a class="sourceLine" id="cb3-9" title="9"><span class="co">#&gt; 51.50 |     30.21 | [27.69, 32.73]</span></a>
+<a class="sourceLine" id="cb3-10" title="10"><span class="co">#&gt; 52.50 |     30.01 | [27.53, 32.48]</span></a>
+<a class="sourceLine" id="cb3-11" title="11"><span class="co">#&gt; 53.50 |     29.80 | [27.36, 32.24]</span></a>
+<a class="sourceLine" id="cb3-12" title="12"><span class="co">#&gt; 55.00 |     29.50 | [27.12, 31.88]</span></a>
+<a class="sourceLine" id="cb3-13" title="13"><span class="co">#&gt; 56.50 |     29.22 | [26.89, 31.54]</span></a>
+<a class="sourceLine" id="cb3-14" title="14"><span class="co">#&gt; 57.50 |     29.03 | [26.74, 31.31]</span></a>
+<a class="sourceLine" id="cb3-15" title="15"><span class="co">#&gt; 60.00 |     28.57 | [26.37, 30.77]</span></a></code></pre></div>
 </div>
 <div id="choosing-representative-values" class="section level2">
 <h2>Choosing representative values</h2>
@@ -442,38 +486,36 @@ code > span.er { color: #a61717; background-color: #e3d2d2; }
 </div>
 <div id="transforming-values-with-functions" class="section level2">
 <h2>Transforming values with functions</h2>
-<p>The brackets in the <code>terms</code>-argument also accept the name of a valid function, to (back-)transform predicted valued. In this example, we define a custom function to get the original values of the focal predictor, multiplied by 2.</p>
-<div class="sourceCode" id="cb6"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb6-1" title="1"><span class="co"># x-values and predictions based on doubled hp-values</span></a>
+<p>The brackets in the <code>terms</code>-argument also accept the name of a valid function, to (back-)transform predicted values. In this example, we define a custom function to get the original values of the focal predictor, multiplied by 2.</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb6-1" title="1"><span class="co"># x-values and predictions based on &quot;hp&quot;-values, multiplied by 2</span></a>
 <a class="sourceLine" id="cb6-2" title="2">hp_double &lt;-<span class="st"> </span><span class="cf">function</span>(x) <span class="dv">2</span> <span class="op">*</span><span class="st"> </span>x</a>
 <a class="sourceLine" id="cb6-3" title="3"><span class="kw">ggpredict</span>(mpg_model, <span class="st">&quot;hp [hp_double]&quot;</span>)</a>
-<a class="sourceLine" id="cb6-4" title="4"><span class="co">#&gt; </span></a>
-<a class="sourceLine" id="cb6-5" title="5"><span class="co">#&gt; # Predicted values of mpg</span></a>
-<a class="sourceLine" id="cb6-6" title="6"><span class="co">#&gt; # x = hp</span></a>
-<a class="sourceLine" id="cb6-7" title="7"><span class="co">#&gt; </span></a>
-<a class="sourceLine" id="cb6-8" title="8"><span class="co">#&gt;   x | Predicted |   SE |         95% CI</span></a>
-<a class="sourceLine" id="cb6-9" title="9"><span class="co">#&gt; ---------------------------------------</span></a>
-<a class="sourceLine" id="cb6-10" title="10"><span class="co">#&gt; 104 |     22.65 | 0.64 | [21.39, 23.91]</span></a>
-<a class="sourceLine" id="cb6-11" title="11"><span class="co">#&gt; 132 |     20.08 | 0.57 | [18.96, 21.20]</span></a>
-<a class="sourceLine" id="cb6-12" title="12"><span class="co">#&gt; 186 |     16.39 | 0.71 | [15.00, 17.78]</span></a>
-<a class="sourceLine" id="cb6-13" title="13"><span class="co">#&gt; 210 |     15.08 | 0.81 | [13.50, 16.67]</span></a>
-<a class="sourceLine" id="cb6-14" title="14"><span class="co">#&gt; 226 |     14.29 | 0.87 | [12.58, 16.00]</span></a>
-<a class="sourceLine" id="cb6-15" title="15"><span class="co">#&gt; 300 |     11.24 | 1.16 | [ 8.97, 13.51]</span></a>
-<a class="sourceLine" id="cb6-16" title="16"><span class="co">#&gt; 410 |      7.88 | 1.50 | [ 4.94, 10.83]</span></a>
-<a class="sourceLine" id="cb6-17" title="17"><span class="co">#&gt; 670 |      2.59 | 2.07 | [-1.46,  6.65]</span></a></code></pre></div>
+<a class="sourceLine" id="cb6-4" title="4"><span class="co">#&gt; # Predicted values of mpg</span></a>
+<a class="sourceLine" id="cb6-5" title="5"><span class="co">#&gt; # x = hp</span></a>
+<a class="sourceLine" id="cb6-6" title="6"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb6-7" title="7"><span class="co">#&gt;   x | Predicted |         95% CI</span></a>
+<a class="sourceLine" id="cb6-8" title="8"><span class="co">#&gt; --------------------------------</span></a>
+<a class="sourceLine" id="cb6-9" title="9"><span class="co">#&gt; 104 |     22.65 | [21.39, 23.91]</span></a>
+<a class="sourceLine" id="cb6-10" title="10"><span class="co">#&gt; 132 |     20.08 | [18.96, 21.20]</span></a>
+<a class="sourceLine" id="cb6-11" title="11"><span class="co">#&gt; 186 |     16.39 | [15.00, 17.78]</span></a>
+<a class="sourceLine" id="cb6-12" title="12"><span class="co">#&gt; 210 |     15.08 | [13.50, 16.67]</span></a>
+<a class="sourceLine" id="cb6-13" title="13"><span class="co">#&gt; 226 |     14.29 | [12.58, 16.00]</span></a>
+<a class="sourceLine" id="cb6-14" title="14"><span class="co">#&gt; 300 |     11.24 | [ 8.97, 13.51]</span></a>
+<a class="sourceLine" id="cb6-15" title="15"><span class="co">#&gt; 410 |      7.88 | [ 4.94, 10.83]</span></a>
+<a class="sourceLine" id="cb6-16" title="16"><span class="co">#&gt; 670 |      2.59 | [-1.46,  6.65]</span></a></code></pre></div>
 </div>
 <div id="using-values-from-a-variable-vector" class="section level2">
 <h2>Using values from a variable (vector)</h2>
 <div class="sourceCode" id="cb7"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb7-1" title="1">val &lt;-<span class="st"> </span><span class="kw">c</span>(<span class="dv">100</span>, <span class="dv">200</span>, <span class="dv">300</span>)</a>
 <a class="sourceLine" id="cb7-2" title="2"><span class="kw">ggpredict</span>(mpg_model, <span class="st">&quot;hp [val]&quot;</span>)</a>
-<a class="sourceLine" id="cb7-3" title="3"><span class="co">#&gt; </span></a>
-<a class="sourceLine" id="cb7-4" title="4"><span class="co">#&gt; # Predicted values of mpg</span></a>
-<a class="sourceLine" id="cb7-5" title="5"><span class="co">#&gt; # x = hp</span></a>
-<a class="sourceLine" id="cb7-6" title="6"><span class="co">#&gt; </span></a>
-<a class="sourceLine" id="cb7-7" title="7"><span class="co">#&gt;   x | Predicted |   SE |         95% CI</span></a>
-<a class="sourceLine" id="cb7-8" title="8"><span class="co">#&gt; ---------------------------------------</span></a>
-<a class="sourceLine" id="cb7-9" title="9"><span class="co">#&gt; 100 |     23.07 | 0.67 | [21.77, 24.37]</span></a>
-<a class="sourceLine" id="cb7-10" title="10"><span class="co">#&gt; 200 |     15.61 | 0.77 | [14.11, 17.11]</span></a>
-<a class="sourceLine" id="cb7-11" title="11"><span class="co">#&gt; 300 |     11.24 | 1.16 | [ 8.97, 13.51]</span></a></code></pre></div>
+<a class="sourceLine" id="cb7-3" title="3"><span class="co">#&gt; # Predicted values of mpg</span></a>
+<a class="sourceLine" id="cb7-4" title="4"><span class="co">#&gt; # x = hp</span></a>
+<a class="sourceLine" id="cb7-5" title="5"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb7-6" title="6"><span class="co">#&gt;   x | Predicted |         95% CI</span></a>
+<a class="sourceLine" id="cb7-7" title="7"><span class="co">#&gt; --------------------------------</span></a>
+<a class="sourceLine" id="cb7-8" title="8"><span class="co">#&gt; 100 |     23.07 | [21.77, 24.37]</span></a>
+<a class="sourceLine" id="cb7-9" title="9"><span class="co">#&gt; 200 |     15.61 | [14.11, 17.11]</span></a>
+<a class="sourceLine" id="cb7-10" title="10"><span class="co">#&gt; 300 |     11.24 | [ 8.97, 13.51]</span></a></code></pre></div>
 </div>
 <div id="pretty-value-ranges" class="section level2">
 <h2>Pretty value ranges</h2>
@@ -524,40 +566,38 @@ code > span.er { color: #a61717; background-color: #e3d2d2; }
 <a class="sourceLine" id="cb12-3" title="3"></a>
 <a class="sourceLine" id="cb12-4" title="4"><span class="co"># &quot;disp&quot; is hold constant at its mean</span></a>
 <a class="sourceLine" id="cb12-5" title="5"><span class="kw">ggpredict</span>(mpg_model, <span class="st">&quot;hp&quot;</span>)</a>
-<a class="sourceLine" id="cb12-6" title="6"><span class="co">#&gt; </span></a>
-<a class="sourceLine" id="cb12-7" title="7"><span class="co">#&gt; # Predicted values of mpg</span></a>
-<a class="sourceLine" id="cb12-8" title="8"><span class="co">#&gt; # x = hp</span></a>
-<a class="sourceLine" id="cb12-9" title="9"><span class="co">#&gt; </span></a>
-<a class="sourceLine" id="cb12-10" title="10"><span class="co">#&gt;   x | Predicted |   SE |         95% CI</span></a>
-<a class="sourceLine" id="cb12-11" title="11"><span class="co">#&gt; ---------------------------------------</span></a>
-<a class="sourceLine" id="cb12-12" title="12"><span class="co">#&gt;  50 |     25.84 | 1.95 | [22.03, 29.66]</span></a>
-<a class="sourceLine" id="cb12-13" title="13"><span class="co">#&gt;  85 |     22.70 | 0.99 | [20.75, 24.64]</span></a>
-<a class="sourceLine" id="cb12-14" title="14"><span class="co">#&gt; 120 |     20.65 | 0.54 | [19.59, 21.71]</span></a>
-<a class="sourceLine" id="cb12-15" title="15"><span class="co">#&gt; 155 |     19.13 | 0.60 | [17.96, 20.30]</span></a>
-<a class="sourceLine" id="cb12-16" title="16"><span class="co">#&gt; 195 |     17.77 | 0.91 | [15.98, 19.56]</span></a>
-<a class="sourceLine" id="cb12-17" title="17"><span class="co">#&gt; 230 |     16.79 | 1.19 | [14.46, 19.13]</span></a>
-<a class="sourceLine" id="cb12-18" title="18"><span class="co">#&gt; 265 |     15.95 | 1.44 | [13.12, 18.78]</span></a>
-<a class="sourceLine" id="cb12-19" title="19"><span class="co">#&gt; 335 |     14.56 | 1.88 | [10.89, 18.24]</span></a>
-<a class="sourceLine" id="cb12-20" title="20"><span class="co">#&gt; </span></a>
-<a class="sourceLine" id="cb12-21" title="21"><span class="co">#&gt; Adjusted for:</span></a>
-<a class="sourceLine" id="cb12-22" title="22"><span class="co">#&gt; * disp = 230.72</span></a>
-<a class="sourceLine" id="cb12-23" title="23"></a>
-<a class="sourceLine" id="cb12-24" title="24"><span class="co"># &quot;disp&quot; is hold constant at value 200</span></a>
-<a class="sourceLine" id="cb12-25" title="25"><span class="kw">ggpredict</span>(mpg_model, <span class="st">&quot;hp&quot;</span>, <span class="dt">condition =</span> <span class="kw">c</span>(<span class="dt">disp =</span> <span class="dv">200</span>))</a>
-<a class="sourceLine" id="cb12-26" title="26"><span class="co">#&gt; </span></a>
-<a class="sourceLine" id="cb12-27" title="27"><span class="co">#&gt; # Predicted values of mpg</span></a>
-<a class="sourceLine" id="cb12-28" title="28"><span class="co">#&gt; # x = hp</span></a>
-<a class="sourceLine" id="cb12-29" title="29"><span class="co">#&gt; </span></a>
-<a class="sourceLine" id="cb12-30" title="30"><span class="co">#&gt;   x | Predicted |   SE |         95% CI</span></a>
-<a class="sourceLine" id="cb12-31" title="31"><span class="co">#&gt; ---------------------------------------</span></a>
-<a class="sourceLine" id="cb12-32" title="32"><span class="co">#&gt;  50 |     26.53 | 1.77 | [23.06, 30.00]</span></a>
-<a class="sourceLine" id="cb12-33" title="33"><span class="co">#&gt;  85 |     23.38 | 0.84 | [21.73, 25.04]</span></a>
-<a class="sourceLine" id="cb12-34" title="34"><span class="co">#&gt; 120 |     21.34 | 0.52 | [20.31, 22.37]</span></a>
-<a class="sourceLine" id="cb12-35" title="35"><span class="co">#&gt; 155 |     19.82 | 0.73 | [18.40, 21.24]</span></a>
-<a class="sourceLine" id="cb12-36" title="36"><span class="co">#&gt; 195 |     18.46 | 1.08 | [16.34, 20.58]</span></a>
-<a class="sourceLine" id="cb12-37" title="37"><span class="co">#&gt; 230 |     17.48 | 1.37 | [14.79, 20.17]</span></a>
-<a class="sourceLine" id="cb12-38" title="38"><span class="co">#&gt; 265 |     16.64 | 1.63 | [13.45, 19.83]</span></a>
-<a class="sourceLine" id="cb12-39" title="39"><span class="co">#&gt; 335 |     15.25 | 2.06 | [11.21, 19.29]</span></a></code></pre></div>
+<a class="sourceLine" id="cb12-6" title="6"><span class="co">#&gt; # Predicted values of mpg</span></a>
+<a class="sourceLine" id="cb12-7" title="7"><span class="co">#&gt; # x = hp</span></a>
+<a class="sourceLine" id="cb12-8" title="8"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb12-9" title="9"><span class="co">#&gt;   x | Predicted |         95% CI</span></a>
+<a class="sourceLine" id="cb12-10" title="10"><span class="co">#&gt; --------------------------------</span></a>
+<a class="sourceLine" id="cb12-11" title="11"><span class="co">#&gt;  50 |     25.84 | [22.03, 29.66]</span></a>
+<a class="sourceLine" id="cb12-12" title="12"><span class="co">#&gt;  85 |     22.70 | [20.75, 24.64]</span></a>
+<a class="sourceLine" id="cb12-13" title="13"><span class="co">#&gt; 120 |     20.65 | [19.59, 21.71]</span></a>
+<a class="sourceLine" id="cb12-14" title="14"><span class="co">#&gt; 155 |     19.13 | [17.96, 20.30]</span></a>
+<a class="sourceLine" id="cb12-15" title="15"><span class="co">#&gt; 195 |     17.77 | [15.98, 19.56]</span></a>
+<a class="sourceLine" id="cb12-16" title="16"><span class="co">#&gt; 230 |     16.79 | [14.46, 19.13]</span></a>
+<a class="sourceLine" id="cb12-17" title="17"><span class="co">#&gt; 265 |     15.95 | [13.12, 18.78]</span></a>
+<a class="sourceLine" id="cb12-18" title="18"><span class="co">#&gt; 335 |     14.56 | [10.89, 18.24]</span></a>
+<a class="sourceLine" id="cb12-19" title="19"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb12-20" title="20"><span class="co">#&gt; Adjusted for:</span></a>
+<a class="sourceLine" id="cb12-21" title="21"><span class="co">#&gt; * disp = 230.72</span></a>
+<a class="sourceLine" id="cb12-22" title="22"></a>
+<a class="sourceLine" id="cb12-23" title="23"><span class="co"># &quot;disp&quot; is hold constant at value 200</span></a>
+<a class="sourceLine" id="cb12-24" title="24"><span class="kw">ggpredict</span>(mpg_model, <span class="st">&quot;hp&quot;</span>, <span class="dt">condition =</span> <span class="kw">c</span>(<span class="dt">disp =</span> <span class="dv">200</span>))</a>
+<a class="sourceLine" id="cb12-25" title="25"><span class="co">#&gt; # Predicted values of mpg</span></a>
+<a class="sourceLine" id="cb12-26" title="26"><span class="co">#&gt; # x = hp</span></a>
+<a class="sourceLine" id="cb12-27" title="27"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb12-28" title="28"><span class="co">#&gt;   x | Predicted |         95% CI</span></a>
+<a class="sourceLine" id="cb12-29" title="29"><span class="co">#&gt; --------------------------------</span></a>
+<a class="sourceLine" id="cb12-30" title="30"><span class="co">#&gt;  50 |     26.53 | [23.06, 30.00]</span></a>
+<a class="sourceLine" id="cb12-31" title="31"><span class="co">#&gt;  85 |     23.38 | [21.73, 25.04]</span></a>
+<a class="sourceLine" id="cb12-32" title="32"><span class="co">#&gt; 120 |     21.34 | [20.31, 22.37]</span></a>
+<a class="sourceLine" id="cb12-33" title="33"><span class="co">#&gt; 155 |     19.82 | [18.40, 21.24]</span></a>
+<a class="sourceLine" id="cb12-34" title="34"><span class="co">#&gt; 195 |     18.46 | [16.34, 20.58]</span></a>
+<a class="sourceLine" id="cb12-35" title="35"><span class="co">#&gt; 230 |     17.48 | [14.79, 20.17]</span></a>
+<a class="sourceLine" id="cb12-36" title="36"><span class="co">#&gt; 265 |     16.64 | [13.45, 19.83]</span></a>
+<a class="sourceLine" id="cb12-37" title="37"><span class="co">#&gt; 335 |     15.25 | [11.21, 19.29]</span></a></code></pre></div>
 </div>
 <div id="marginal-effects-for-each-level-of-random-effects" class="section level2">
 <h2>Marginal effects for each level of random effects</h2>
@@ -588,7 +628,7 @@ code > span.er { color: #a61717; background-color: #e3d2d2; }
 <a class="sourceLine" id="cb17-2" title="2">m &lt;-<span class="st"> </span><span class="kw">lmer</span>(Reaction <span class="op">~</span><span class="st"> </span>Days <span class="op">+</span><span class="st"> </span>(<span class="dv">1</span> <span class="op">+</span><span class="st"> </span>Days <span class="op">|</span><span class="st"> </span>Subject), <span class="dt">data =</span> sleepstudy)</a>
 <a class="sourceLine" id="cb17-3" title="3">me &lt;-<span class="st"> </span><span class="kw">ggpredict</span>(m, <span class="dt">terms =</span> <span class="kw">c</span>(<span class="st">&quot;Days&quot;</span>, <span class="st">&quot;Subject [sample=8]&quot;</span>), <span class="dt">type =</span> <span class="st">&quot;re&quot;</span>)</a>
 <a class="sourceLine" id="cb17-4" title="4"><span class="kw">plot</span>(me)</a></code></pre></div>
-<p><img src="data:image/png;base64,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" /><!-- --></p>
+<p><img src="data:image/png;base64,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" /><!-- --></p>
 </div>
 </div>
 

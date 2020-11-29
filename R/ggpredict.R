@@ -155,13 +155,18 @@
 #'   \subsection{Difference between \code{ggpredict()} and \code{ggeffect()} or \code{ggemmeans()}}{
 #'   \code{ggpredict()} calls \code{predict()}, while \code{ggeffect()}
 #'   calls \code{effects::Effect()} and \code{ggemmeans()} calls
-#'   \code{emmeans::emmeans()} to compute marginal effects. Therefore,
-#'   \code{ggpredict()} and \code{ggeffect()} resp. \code{ggemmeans()} differ in
-#'   how factors are held constant: \code{ggpredict()} uses the reference level, while
-#'   \code{ggeffect()} and \code{ggemmeans()} compute a kind of "average" value,
-#'   which represents the proportions of each factor's category. Use \code{condition}
-#'   to set a specific level for factors in \code{ggemmeans()}, so factors are
-#'   not averaged over their categories, but held constant at a given level.
+#'   \code{emmeans::emmeans()} to compute marginal effects. Thus, effects returned
+#'   by \code{ggpredict()} can be described as \emph{conditional effects} (i.e.
+#'   these are conditioned on certain (reference) levels of factors), while
+#'   \code{ggemmeans()} and \code{ggeffect()} return \emph{marginal means}, since
+#'   the effects are "marginalized" (or "averaged") over the levels of factors.
+#'   Therefore, \code{ggpredict()} and \code{ggeffect()} resp. \code{ggemmeans()}
+#'   differ in how factors are held constant: \code{ggpredict()} uses the
+#'   reference level, while \code{ggeffect()} and \code{ggemmeans()} compute a
+#'   kind of "average" value, which represents the proportions of each factor's
+#'   category. Use \code{condition} to set a specific level for factors in
+#'   \code{ggemmeans()}, so factors are not averaged over their categories,
+#'   but held constant at a given level.
 #'   }
 #'   \subsection{Marginal Effects at Specific Values}{
 #'   Specific values of model terms can be specified via the \code{terms}-argument.
@@ -303,7 +308,7 @@
 #'         \describe{
 #'           \item{\code{x}}{the values of the first term in \code{terms}, used as x-position in plots.}
 #'           \item{\code{predicted}}{the predicted values of the response, used as y-position in plots.}
-#'           \item{\code{std.error}}{the standard error of the predictions.}
+#'           \item{\code{std.error}}{the standard error of the predictions. \emph{Note that the standard errors are always on the link-scale, and not back-transformed for non-Gaussian models!}}
 #'           \item{\code{conf.low}}{the lower bound of the confidence interval for the predicted values.}
 #'           \item{\code{conf.high}}{the upper bound of the confidence interval for the predicted values.}
 #'           \item{\code{group}}{the grouping level from the second term in \code{terms}, used as grouping-aesthetics in plots.}

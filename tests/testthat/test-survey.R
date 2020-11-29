@@ -6,8 +6,6 @@ if (suppressWarnings(
   require("sjstats") &&
   require("sjmisc")
 )) {
-  context("ggeffects, survey")
-
   # svyglm -----
 
   data(nhanes_sample)
@@ -24,15 +22,15 @@ if (suppressWarnings(
   )
 
   # fit negative binomial regression
-  fit <- svyglm(total ~ RIAGENDR + age + RIDRETH1, des, family = binomial(link = "logit"))
+  fit <- suppressWarnings(svyglm(total ~ RIAGENDR + age + RIDRETH1, des, family = binomial(link = "logit")))
 
   test_that("ggpredict, svyglm", {
-    ggpredict(fit, "age")
-    ggpredict(fit, c("age", "RIAGENDR"))
+    expect_s3_class(ggpredict(fit, "age"), "data.frame")
+    expect_s3_class(ggpredict(fit, c("age", "RIAGENDR")), "data.frame")
   })
 
   test_that("ggeffect, svyglm", {
-    ggeffect(fit, "age")
-    ggeffect(fit, c("age", "RIAGENDR"))
+    expect_s3_class(ggeffect(fit, "age"), "data.frame")
+    expect_s3_class(ggeffect(fit, c("age", "RIAGENDR")), "data.frame")
   })
 }

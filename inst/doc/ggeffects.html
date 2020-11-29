@@ -12,10 +12,58 @@
 
 <meta name="author" content="Daniel Lüdecke" />
 
-<meta name="date" content="2020-09-12" />
+<meta name="date" content="2020-11-29" />
 
 <title>ggeffects: Marginal Effects of Regression Models</title>
 
+<style type="text/css">
+a.anchor-section {margin-left: 10px; visibility: hidden; color: inherit;}
+a.anchor-section::before {content: '#';}
+.hasAnchor:hover a.anchor-section {visibility: visible;}
+</style>
+<script>// Anchor sections v1.0 written by Atsushi Yasumoto on Oct 3rd, 2020.
+document.addEventListener('DOMContentLoaded', function() {
+  // Do nothing if AnchorJS is used
+  if (typeof window.anchors === 'object' && anchors.hasOwnProperty('hasAnchorJSLink')) {
+    return;
+  }
+
+  const h = document.querySelectorAll('h1, h2, h3, h4, h5, h6');
+
+  // Do nothing if sections are already anchored
+  if (Array.from(h).some(x => x.classList.contains('hasAnchor'))) {
+    return null;
+  }
+
+  // Use section id when pandoc runs with --section-divs
+  const section_id = function(x) {
+    return ((x.classList.contains('section') || (x.tagName === 'SECTION'))
+            ? x.id : '');
+  };
+
+  // Add anchors
+  h.forEach(function(x) {
+    const id = x.id || section_id(x.parentElement);
+    if (id === '') {
+      return null;
+    }
+    let anchor = document.createElement('a');
+    anchor.href = '#' + id;
+    anchor.classList = ['anchor-section'];
+    x.classList.add('hasAnchor');
+    x.appendChild(anchor);
+  });
+});
+</script>
+
+<style type="text/css">
+  code{white-space: pre-wrap;}
+  span.smallcaps{font-variant: small-caps;}
+  span.underline{text-decoration: underline;}
+  div.column{display: inline-block; vertical-align: top; width: 50%;}
+  div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+  ul.task-list{list-style: none;}
+    </style>
 
 
 <style type="text/css">code{white-space: pre;}</style>
@@ -301,7 +349,7 @@ code > span.er { color: #a61717; background-color: #e3d2d2; }
 
 <h1 class="title toc-ignore">ggeffects: Marginal Effects of Regression Models</h1>
 <h4 class="author">Daniel Lüdecke</h4>
-<h4 class="date">2020-09-12</h4>
+<h4 class="date">2020-11-29</h4>
 
 
 
@@ -330,25 +378,24 @@ code > span.er { color: #a61717; background-color: #e3d2d2; }
 <a class="sourceLine" id="cb1-3" title="3">fit &lt;-<span class="st"> </span><span class="kw">lm</span>(barthtot <span class="op">~</span><span class="st"> </span>c12hour <span class="op">+</span><span class="st"> </span>neg_c_<span class="dv">7</span> <span class="op">+</span><span class="st"> </span>c161sex <span class="op">+</span><span class="st"> </span>c172code, <span class="dt">data =</span> efc)</a>
 <a class="sourceLine" id="cb1-4" title="4"></a>
 <a class="sourceLine" id="cb1-5" title="5"><span class="kw">ggpredict</span>(fit, <span class="dt">terms =</span> <span class="st">&quot;c12hour&quot;</span>)</a>
-<a class="sourceLine" id="cb1-6" title="6"><span class="co">#&gt; </span></a>
-<a class="sourceLine" id="cb1-7" title="7"><span class="co">#&gt; # Predicted values of Total score BARTHEL INDEX</span></a>
-<a class="sourceLine" id="cb1-8" title="8"><span class="co">#&gt; # x = average number of hours of care per week</span></a>
-<a class="sourceLine" id="cb1-9" title="9"><span class="co">#&gt; </span></a>
-<a class="sourceLine" id="cb1-10" title="10"><span class="co">#&gt;   x | Predicted |   SE |         95% CI</span></a>
-<a class="sourceLine" id="cb1-11" title="11"><span class="co">#&gt; ---------------------------------------</span></a>
-<a class="sourceLine" id="cb1-12" title="12"><span class="co">#&gt;   0 |     75.44 | 1.12 | [73.26, 77.63]</span></a>
-<a class="sourceLine" id="cb1-13" title="13"><span class="co">#&gt;  20 |     70.38 | 0.93 | [68.56, 72.19]</span></a>
-<a class="sourceLine" id="cb1-14" title="14"><span class="co">#&gt;  45 |     64.05 | 0.84 | [62.39, 65.70]</span></a>
-<a class="sourceLine" id="cb1-15" title="15"><span class="co">#&gt;  65 |     58.98 | 0.93 | [57.16, 60.80]</span></a>
-<a class="sourceLine" id="cb1-16" title="16"><span class="co">#&gt;  85 |     53.91 | 1.12 | [51.71, 56.11]</span></a>
-<a class="sourceLine" id="cb1-17" title="17"><span class="co">#&gt; 105 |     48.85 | 1.38 | [46.15, 51.55]</span></a>
-<a class="sourceLine" id="cb1-18" title="18"><span class="co">#&gt; 125 |     43.78 | 1.67 | [40.52, 47.05]</span></a>
-<a class="sourceLine" id="cb1-19" title="19"><span class="co">#&gt; 170 |     32.38 | 2.37 | [27.73, 37.03]</span></a>
-<a class="sourceLine" id="cb1-20" title="20"><span class="co">#&gt; </span></a>
-<a class="sourceLine" id="cb1-21" title="21"><span class="co">#&gt; Adjusted for:</span></a>
-<a class="sourceLine" id="cb1-22" title="22"><span class="co">#&gt; *  neg_c_7 = 11.84</span></a>
-<a class="sourceLine" id="cb1-23" title="23"><span class="co">#&gt; *  c161sex =  1.76</span></a>
-<a class="sourceLine" id="cb1-24" title="24"><span class="co">#&gt; * c172code =  1.97</span></a></code></pre></div>
+<a class="sourceLine" id="cb1-6" title="6"><span class="co">#&gt; # Predicted values of Total score BARTHEL INDEX</span></a>
+<a class="sourceLine" id="cb1-7" title="7"><span class="co">#&gt; # x = average number of hours of care per week</span></a>
+<a class="sourceLine" id="cb1-8" title="8"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb1-9" title="9"><span class="co">#&gt;   x | Predicted |         95% CI</span></a>
+<a class="sourceLine" id="cb1-10" title="10"><span class="co">#&gt; --------------------------------</span></a>
+<a class="sourceLine" id="cb1-11" title="11"><span class="co">#&gt;   0 |     75.44 | [73.26, 77.63]</span></a>
+<a class="sourceLine" id="cb1-12" title="12"><span class="co">#&gt;  20 |     70.38 | [68.56, 72.19]</span></a>
+<a class="sourceLine" id="cb1-13" title="13"><span class="co">#&gt;  45 |     64.05 | [62.39, 65.70]</span></a>
+<a class="sourceLine" id="cb1-14" title="14"><span class="co">#&gt;  65 |     58.98 | [57.16, 60.80]</span></a>
+<a class="sourceLine" id="cb1-15" title="15"><span class="co">#&gt;  85 |     53.91 | [51.71, 56.11]</span></a>
+<a class="sourceLine" id="cb1-16" title="16"><span class="co">#&gt; 105 |     48.85 | [46.15, 51.55]</span></a>
+<a class="sourceLine" id="cb1-17" title="17"><span class="co">#&gt; 125 |     43.78 | [40.52, 47.05]</span></a>
+<a class="sourceLine" id="cb1-18" title="18"><span class="co">#&gt; 170 |     32.38 | [27.73, 37.03]</span></a>
+<a class="sourceLine" id="cb1-19" title="19"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb1-20" title="20"><span class="co">#&gt; Adjusted for:</span></a>
+<a class="sourceLine" id="cb1-21" title="21"><span class="co">#&gt; *  neg_c_7 = 11.84</span></a>
+<a class="sourceLine" id="cb1-22" title="22"><span class="co">#&gt; *  c161sex =  1.76</span></a>
+<a class="sourceLine" id="cb1-23" title="23"><span class="co">#&gt; * c172code =  1.97</span></a></code></pre></div>
 <p>As you can see, <code>ggpredict()</code> (and <code>ggeffect()</code> or <code>ggemmeans()</code>) has a nice <code>print()</code>-method, which takes care of printing not too many rows (but always an equally spaced range of values, including minimum and maximum value of the term in question) and giving some extra information. This is especially useful when predicted values are shown depending on the levels of other terms (see below).</p>
 <p>The output shows the predicted values for the response at each value from the term <em>c12hour</em>. The data is already in shape for ggplot:</p>
 <div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb2-1" title="1"><span class="kw">library</span>(ggplot2)</a>
@@ -362,46 +409,45 @@ code > span.er { color: #a61717; background-color: #e3d2d2; }
 <h1>Marginal effects at the mean by other predictors’ levels</h1>
 <p>The <code>terms</code>-argument accepts up to four model terms, where the second to fourth terms indicate grouping levels. This allows predictions for the term in question at different levels for other model terms:</p>
 <div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb3-1" title="1"><span class="kw">ggpredict</span>(fit, <span class="dt">terms =</span> <span class="kw">c</span>(<span class="st">&quot;c12hour&quot;</span>, <span class="st">&quot;c172code&quot;</span>))</a>
-<a class="sourceLine" id="cb3-2" title="2"><span class="co">#&gt; </span></a>
-<a class="sourceLine" id="cb3-3" title="3"><span class="co">#&gt; # Predicted values of Total score BARTHEL INDEX</span></a>
-<a class="sourceLine" id="cb3-4" title="4"><span class="co">#&gt; # x = average number of hours of care per week</span></a>
-<a class="sourceLine" id="cb3-5" title="5"><span class="co">#&gt; </span></a>
-<a class="sourceLine" id="cb3-6" title="6"><span class="co">#&gt; # c172code = low level of education</span></a>
-<a class="sourceLine" id="cb3-7" title="7"><span class="co">#&gt; </span></a>
-<a class="sourceLine" id="cb3-8" title="8"><span class="co">#&gt;   x | Predicted |   SE |         95% CI</span></a>
-<a class="sourceLine" id="cb3-9" title="9"><span class="co">#&gt; ---------------------------------------</span></a>
-<a class="sourceLine" id="cb3-10" title="10"><span class="co">#&gt;   0 |     74.75 | 1.78 | [71.27, 78.23]</span></a>
-<a class="sourceLine" id="cb3-11" title="11"><span class="co">#&gt;  30 |     67.15 | 1.59 | [64.04, 70.26]</span></a>
-<a class="sourceLine" id="cb3-12" title="12"><span class="co">#&gt;  55 |     60.81 | 1.55 | [57.78, 63.85]</span></a>
-<a class="sourceLine" id="cb3-13" title="13"><span class="co">#&gt;  85 |     53.22 | 1.66 | [49.96, 56.47]</span></a>
-<a class="sourceLine" id="cb3-14" title="14"><span class="co">#&gt; 115 |     45.62 | 1.91 | [41.87, 49.37]</span></a>
-<a class="sourceLine" id="cb3-15" title="15"><span class="co">#&gt; 170 |     31.69 | 2.59 | [26.60, 36.77]</span></a>
-<a class="sourceLine" id="cb3-16" title="16"><span class="co">#&gt; </span></a>
-<a class="sourceLine" id="cb3-17" title="17"><span class="co">#&gt; # c172code = intermediate level of education</span></a>
-<a class="sourceLine" id="cb3-18" title="18"><span class="co">#&gt; </span></a>
-<a class="sourceLine" id="cb3-19" title="19"><span class="co">#&gt;   x | Predicted |   SE |         95% CI</span></a>
-<a class="sourceLine" id="cb3-20" title="20"><span class="co">#&gt; ---------------------------------------</span></a>
-<a class="sourceLine" id="cb3-21" title="21"><span class="co">#&gt;   0 |     75.46 | 1.11 | [73.28, 77.65]</span></a>
-<a class="sourceLine" id="cb3-22" title="22"><span class="co">#&gt;  30 |     67.87 | 0.87 | [66.17, 69.57]</span></a>
-<a class="sourceLine" id="cb3-23" title="23"><span class="co">#&gt;  55 |     61.53 | 0.87 | [59.82, 63.24]</span></a>
-<a class="sourceLine" id="cb3-24" title="24"><span class="co">#&gt;  85 |     53.93 | 1.13 | [51.73, 56.14]</span></a>
-<a class="sourceLine" id="cb3-25" title="25"><span class="co">#&gt; 115 |     46.34 | 1.52 | [43.35, 49.32]</span></a>
-<a class="sourceLine" id="cb3-26" title="26"><span class="co">#&gt; 170 |     32.40 | 2.38 | [27.75, 37.06]</span></a>
-<a class="sourceLine" id="cb3-27" title="27"><span class="co">#&gt; </span></a>
-<a class="sourceLine" id="cb3-28" title="28"><span class="co">#&gt; # c172code = high level of education</span></a>
-<a class="sourceLine" id="cb3-29" title="29"><span class="co">#&gt; </span></a>
-<a class="sourceLine" id="cb3-30" title="30"><span class="co">#&gt;   x | Predicted |   SE |         95% CI</span></a>
-<a class="sourceLine" id="cb3-31" title="31"><span class="co">#&gt; ---------------------------------------</span></a>
-<a class="sourceLine" id="cb3-32" title="32"><span class="co">#&gt;   0 |     76.18 | 1.72 | [72.82, 79.55]</span></a>
-<a class="sourceLine" id="cb3-33" title="33"><span class="co">#&gt;  30 |     68.58 | 1.62 | [65.42, 71.75]</span></a>
-<a class="sourceLine" id="cb3-34" title="34"><span class="co">#&gt;  55 |     62.25 | 1.66 | [59.01, 65.50]</span></a>
-<a class="sourceLine" id="cb3-35" title="35"><span class="co">#&gt;  85 |     54.65 | 1.84 | [51.04, 58.26]</span></a>
-<a class="sourceLine" id="cb3-36" title="36"><span class="co">#&gt; 115 |     47.05 | 2.14 | [42.85, 51.25]</span></a>
-<a class="sourceLine" id="cb3-37" title="37"><span class="co">#&gt; 170 |     33.12 | 2.86 | [27.51, 38.73]</span></a>
-<a class="sourceLine" id="cb3-38" title="38"><span class="co">#&gt; </span></a>
-<a class="sourceLine" id="cb3-39" title="39"><span class="co">#&gt; Adjusted for:</span></a>
-<a class="sourceLine" id="cb3-40" title="40"><span class="co">#&gt; * neg_c_7 = 11.84</span></a>
-<a class="sourceLine" id="cb3-41" title="41"><span class="co">#&gt; * c161sex =  1.76</span></a></code></pre></div>
+<a class="sourceLine" id="cb3-2" title="2"><span class="co">#&gt; # Predicted values of Total score BARTHEL INDEX</span></a>
+<a class="sourceLine" id="cb3-3" title="3"><span class="co">#&gt; # x = average number of hours of care per week</span></a>
+<a class="sourceLine" id="cb3-4" title="4"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb3-5" title="5"><span class="co">#&gt; # c172code = low level of education</span></a>
+<a class="sourceLine" id="cb3-6" title="6"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb3-7" title="7"><span class="co">#&gt;   x | Predicted |         95% CI</span></a>
+<a class="sourceLine" id="cb3-8" title="8"><span class="co">#&gt; --------------------------------</span></a>
+<a class="sourceLine" id="cb3-9" title="9"><span class="co">#&gt;   0 |     74.75 | [71.27, 78.23]</span></a>
+<a class="sourceLine" id="cb3-10" title="10"><span class="co">#&gt;  30 |     67.15 | [64.04, 70.26]</span></a>
+<a class="sourceLine" id="cb3-11" title="11"><span class="co">#&gt;  55 |     60.81 | [57.78, 63.85]</span></a>
+<a class="sourceLine" id="cb3-12" title="12"><span class="co">#&gt;  85 |     53.22 | [49.96, 56.47]</span></a>
+<a class="sourceLine" id="cb3-13" title="13"><span class="co">#&gt; 115 |     45.62 | [41.87, 49.37]</span></a>
+<a class="sourceLine" id="cb3-14" title="14"><span class="co">#&gt; 170 |     31.69 | [26.60, 36.77]</span></a>
+<a class="sourceLine" id="cb3-15" title="15"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb3-16" title="16"><span class="co">#&gt; # c172code = intermediate level of education</span></a>
+<a class="sourceLine" id="cb3-17" title="17"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb3-18" title="18"><span class="co">#&gt;   x | Predicted |         95% CI</span></a>
+<a class="sourceLine" id="cb3-19" title="19"><span class="co">#&gt; --------------------------------</span></a>
+<a class="sourceLine" id="cb3-20" title="20"><span class="co">#&gt;   0 |     75.46 | [73.28, 77.65]</span></a>
+<a class="sourceLine" id="cb3-21" title="21"><span class="co">#&gt;  30 |     67.87 | [66.17, 69.57]</span></a>
+<a class="sourceLine" id="cb3-22" title="22"><span class="co">#&gt;  55 |     61.53 | [59.82, 63.24]</span></a>
+<a class="sourceLine" id="cb3-23" title="23"><span class="co">#&gt;  85 |     53.93 | [51.73, 56.14]</span></a>
+<a class="sourceLine" id="cb3-24" title="24"><span class="co">#&gt; 115 |     46.34 | [43.35, 49.32]</span></a>
+<a class="sourceLine" id="cb3-25" title="25"><span class="co">#&gt; 170 |     32.40 | [27.75, 37.06]</span></a>
+<a class="sourceLine" id="cb3-26" title="26"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb3-27" title="27"><span class="co">#&gt; # c172code = high level of education</span></a>
+<a class="sourceLine" id="cb3-28" title="28"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb3-29" title="29"><span class="co">#&gt;   x | Predicted |         95% CI</span></a>
+<a class="sourceLine" id="cb3-30" title="30"><span class="co">#&gt; --------------------------------</span></a>
+<a class="sourceLine" id="cb3-31" title="31"><span class="co">#&gt;   0 |     76.18 | [72.82, 79.55]</span></a>
+<a class="sourceLine" id="cb3-32" title="32"><span class="co">#&gt;  30 |     68.58 | [65.42, 71.75]</span></a>
+<a class="sourceLine" id="cb3-33" title="33"><span class="co">#&gt;  55 |     62.25 | [59.01, 65.50]</span></a>
+<a class="sourceLine" id="cb3-34" title="34"><span class="co">#&gt;  85 |     54.65 | [51.04, 58.26]</span></a>
+<a class="sourceLine" id="cb3-35" title="35"><span class="co">#&gt; 115 |     47.05 | [42.85, 51.25]</span></a>
+<a class="sourceLine" id="cb3-36" title="36"><span class="co">#&gt; 170 |     33.12 | [27.51, 38.73]</span></a>
+<a class="sourceLine" id="cb3-37" title="37"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb3-38" title="38"><span class="co">#&gt; Adjusted for:</span></a>
+<a class="sourceLine" id="cb3-39" title="39"><span class="co">#&gt; * neg_c_7 = 11.84</span></a>
+<a class="sourceLine" id="cb3-40" title="40"><span class="co">#&gt; * c161sex =  1.76</span></a></code></pre></div>
 <p>Creating a ggplot is pretty straightforward: the <code>colour</code>-aesthetics is mapped with the <code>group</code>-column:</p>
 <div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb4-1" title="1">mydf &lt;-<span class="st"> </span><span class="kw">ggpredict</span>(fit, <span class="dt">terms =</span> <span class="kw">c</span>(<span class="st">&quot;c12hour&quot;</span>, <span class="st">&quot;c172code&quot;</span>))</a>
 <a class="sourceLine" id="cb4-2" title="2"><span class="kw">ggplot</span>(mydf, <span class="kw">aes</span>(x, predicted, <span class="dt">colour =</span> group)) <span class="op">+</span><span class="st"> </span><span class="kw">geom_line</span>()</a></code></pre></div>
@@ -409,75 +455,74 @@ code > span.er { color: #a61717; background-color: #e3d2d2; }
 <p>A second grouping structure can be defined, which will create another column named <code>facet</code>, which - as the name implies - might be used to create a facted plot:</p>
 <div class="sourceCode" id="cb5"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb5-1" title="1">mydf &lt;-<span class="st"> </span><span class="kw">ggpredict</span>(fit, <span class="dt">terms =</span> <span class="kw">c</span>(<span class="st">&quot;c12hour&quot;</span>, <span class="st">&quot;c172code&quot;</span>, <span class="st">&quot;c161sex&quot;</span>))</a>
 <a class="sourceLine" id="cb5-2" title="2">mydf</a>
-<a class="sourceLine" id="cb5-3" title="3"><span class="co">#&gt; </span></a>
-<a class="sourceLine" id="cb5-4" title="4"><span class="co">#&gt; # Predicted values of Total score BARTHEL INDEX</span></a>
-<a class="sourceLine" id="cb5-5" title="5"><span class="co">#&gt; # x = average number of hours of care per week</span></a>
-<a class="sourceLine" id="cb5-6" title="6"><span class="co">#&gt; </span></a>
-<a class="sourceLine" id="cb5-7" title="7"><span class="co">#&gt; # c172code = low level of education</span></a>
-<a class="sourceLine" id="cb5-8" title="8"><span class="co">#&gt; #  c161sex = [1] Male</span></a>
-<a class="sourceLine" id="cb5-9" title="9"><span class="co">#&gt; </span></a>
-<a class="sourceLine" id="cb5-10" title="10"><span class="co">#&gt;   x | Predicted |   SE |         95% CI</span></a>
-<a class="sourceLine" id="cb5-11" title="11"><span class="co">#&gt; ---------------------------------------</span></a>
-<a class="sourceLine" id="cb5-12" title="12"><span class="co">#&gt;   0 |     73.95 | 2.35 | [69.35, 78.55]</span></a>
-<a class="sourceLine" id="cb5-13" title="13"><span class="co">#&gt;  45 |     62.56 | 2.21 | [58.23, 66.88]</span></a>
-<a class="sourceLine" id="cb5-14" title="14"><span class="co">#&gt;  85 |     52.42 | 2.31 | [47.90, 56.95]</span></a>
-<a class="sourceLine" id="cb5-15" title="15"><span class="co">#&gt; 170 |     30.89 | 3.08 | [24.85, 36.94]</span></a>
-<a class="sourceLine" id="cb5-16" title="16"><span class="co">#&gt; </span></a>
-<a class="sourceLine" id="cb5-17" title="17"><span class="co">#&gt; # c172code = intermediate level of education</span></a>
-<a class="sourceLine" id="cb5-18" title="18"><span class="co">#&gt; #  c161sex = [1] Male</span></a>
-<a class="sourceLine" id="cb5-19" title="19"><span class="co">#&gt; </span></a>
-<a class="sourceLine" id="cb5-20" title="20"><span class="co">#&gt;   x | Predicted |   SE |         95% CI</span></a>
-<a class="sourceLine" id="cb5-21" title="21"><span class="co">#&gt; ---------------------------------------</span></a>
-<a class="sourceLine" id="cb5-22" title="22"><span class="co">#&gt;   0 |     74.67 | 1.85 | [71.06, 78.29]</span></a>
-<a class="sourceLine" id="cb5-23" title="23"><span class="co">#&gt;  45 |     63.27 | 1.73 | [59.88, 66.66]</span></a>
-<a class="sourceLine" id="cb5-24" title="24"><span class="co">#&gt;  85 |     53.14 | 1.91 | [49.40, 56.89]</span></a>
-<a class="sourceLine" id="cb5-25" title="25"><span class="co">#&gt; 170 |     31.61 | 2.87 | [25.98, 37.24]</span></a>
-<a class="sourceLine" id="cb5-26" title="26"><span class="co">#&gt; </span></a>
-<a class="sourceLine" id="cb5-27" title="27"><span class="co">#&gt; # c172code = high level of education</span></a>
-<a class="sourceLine" id="cb5-28" title="28"><span class="co">#&gt; #  c161sex = [1] Male</span></a>
-<a class="sourceLine" id="cb5-29" title="29"><span class="co">#&gt; </span></a>
-<a class="sourceLine" id="cb5-30" title="30"><span class="co">#&gt;   x | Predicted |   SE |         95% CI</span></a>
-<a class="sourceLine" id="cb5-31" title="31"><span class="co">#&gt; ---------------------------------------</span></a>
-<a class="sourceLine" id="cb5-32" title="32"><span class="co">#&gt;   0 |     75.39 | 2.22 | [71.04, 79.74]</span></a>
-<a class="sourceLine" id="cb5-33" title="33"><span class="co">#&gt;  45 |     63.99 | 2.18 | [59.73, 68.26]</span></a>
-<a class="sourceLine" id="cb5-34" title="34"><span class="co">#&gt;  85 |     53.86 | 2.36 | [49.23, 58.49]</span></a>
-<a class="sourceLine" id="cb5-35" title="35"><span class="co">#&gt; 170 |     32.33 | 3.26 | [25.95, 38.71]</span></a>
-<a class="sourceLine" id="cb5-36" title="36"><span class="co">#&gt; </span></a>
-<a class="sourceLine" id="cb5-37" title="37"><span class="co">#&gt; # c172code = low level of education</span></a>
-<a class="sourceLine" id="cb5-38" title="38"><span class="co">#&gt; #  c161sex = [2] Female</span></a>
-<a class="sourceLine" id="cb5-39" title="39"><span class="co">#&gt; </span></a>
-<a class="sourceLine" id="cb5-40" title="40"><span class="co">#&gt;   x | Predicted |   SE |         95% CI</span></a>
-<a class="sourceLine" id="cb5-41" title="41"><span class="co">#&gt; ---------------------------------------</span></a>
-<a class="sourceLine" id="cb5-42" title="42"><span class="co">#&gt;   0 |     75.00 | 1.83 | [71.41, 78.59]</span></a>
-<a class="sourceLine" id="cb5-43" title="43"><span class="co">#&gt;  45 |     63.60 | 1.60 | [60.46, 66.74]</span></a>
-<a class="sourceLine" id="cb5-44" title="44"><span class="co">#&gt;  85 |     53.46 | 1.70 | [50.13, 56.80]</span></a>
-<a class="sourceLine" id="cb5-45" title="45"><span class="co">#&gt; 170 |     31.93 | 2.61 | [26.83, 37.04]</span></a>
-<a class="sourceLine" id="cb5-46" title="46"><span class="co">#&gt; </span></a>
-<a class="sourceLine" id="cb5-47" title="47"><span class="co">#&gt; # c172code = intermediate level of education</span></a>
-<a class="sourceLine" id="cb5-48" title="48"><span class="co">#&gt; #  c161sex = [2] Female</span></a>
-<a class="sourceLine" id="cb5-49" title="49"><span class="co">#&gt; </span></a>
-<a class="sourceLine" id="cb5-50" title="50"><span class="co">#&gt;   x | Predicted |   SE |         95% CI</span></a>
-<a class="sourceLine" id="cb5-51" title="51"><span class="co">#&gt; ---------------------------------------</span></a>
-<a class="sourceLine" id="cb5-52" title="52"><span class="co">#&gt;   0 |     75.71 | 1.23 | [73.31, 78.12]</span></a>
-<a class="sourceLine" id="cb5-53" title="53"><span class="co">#&gt;  45 |     64.32 | 0.97 | [62.42, 66.21]</span></a>
-<a class="sourceLine" id="cb5-54" title="54"><span class="co">#&gt;  85 |     54.18 | 1.21 | [51.81, 56.55]</span></a>
-<a class="sourceLine" id="cb5-55" title="55"><span class="co">#&gt; 170 |     32.65 | 2.40 | [27.94, 37.36]</span></a>
-<a class="sourceLine" id="cb5-56" title="56"><span class="co">#&gt; </span></a>
-<a class="sourceLine" id="cb5-57" title="57"><span class="co">#&gt; # c172code = high level of education</span></a>
-<a class="sourceLine" id="cb5-58" title="58"><span class="co">#&gt; #  c161sex = [2] Female</span></a>
-<a class="sourceLine" id="cb5-59" title="59"><span class="co">#&gt; </span></a>
-<a class="sourceLine" id="cb5-60" title="60"><span class="co">#&gt;   x | Predicted |   SE |         95% CI</span></a>
-<a class="sourceLine" id="cb5-61" title="61"><span class="co">#&gt; ---------------------------------------</span></a>
-<a class="sourceLine" id="cb5-62" title="62"><span class="co">#&gt;   0 |     76.43 | 1.81 | [72.89, 79.98]</span></a>
-<a class="sourceLine" id="cb5-63" title="63"><span class="co">#&gt;  45 |     65.03 | 1.71 | [61.68, 68.39]</span></a>
-<a class="sourceLine" id="cb5-64" title="64"><span class="co">#&gt;  85 |     54.90 | 1.91 | [51.16, 58.65]</span></a>
-<a class="sourceLine" id="cb5-65" title="65"><span class="co">#&gt; 170 |     33.37 | 2.89 | [27.70, 39.05]</span></a>
-<a class="sourceLine" id="cb5-66" title="66"><span class="co">#&gt; </span></a>
-<a class="sourceLine" id="cb5-67" title="67"><span class="co">#&gt; Adjusted for:</span></a>
-<a class="sourceLine" id="cb5-68" title="68"><span class="co">#&gt; * neg_c_7 = 11.84</span></a>
-<a class="sourceLine" id="cb5-69" title="69"><span class="kw">ggplot</span>(mydf, <span class="kw">aes</span>(x, predicted, <span class="dt">colour =</span> group)) <span class="op">+</span><span class="st"> </span></a>
-<a class="sourceLine" id="cb5-70" title="70"><span class="st">  </span><span class="kw">geom_line</span>() <span class="op">+</span><span class="st"> </span></a>
-<a class="sourceLine" id="cb5-71" title="71"><span class="st">  </span><span class="kw">facet_wrap</span>(<span class="op">~</span>facet)</a></code></pre></div>
+<a class="sourceLine" id="cb5-3" title="3"><span class="co">#&gt; # Predicted values of Total score BARTHEL INDEX</span></a>
+<a class="sourceLine" id="cb5-4" title="4"><span class="co">#&gt; # x = average number of hours of care per week</span></a>
+<a class="sourceLine" id="cb5-5" title="5"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb5-6" title="6"><span class="co">#&gt; # c172code = low level of education</span></a>
+<a class="sourceLine" id="cb5-7" title="7"><span class="co">#&gt; #  c161sex = [1] Male</span></a>
+<a class="sourceLine" id="cb5-8" title="8"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb5-9" title="9"><span class="co">#&gt;   x | Predicted |         95% CI</span></a>
+<a class="sourceLine" id="cb5-10" title="10"><span class="co">#&gt; --------------------------------</span></a>
+<a class="sourceLine" id="cb5-11" title="11"><span class="co">#&gt;   0 |     73.95 | [69.35, 78.55]</span></a>
+<a class="sourceLine" id="cb5-12" title="12"><span class="co">#&gt;  45 |     62.56 | [58.23, 66.88]</span></a>
+<a class="sourceLine" id="cb5-13" title="13"><span class="co">#&gt;  85 |     52.42 | [47.90, 56.95]</span></a>
+<a class="sourceLine" id="cb5-14" title="14"><span class="co">#&gt; 170 |     30.89 | [24.85, 36.94]</span></a>
+<a class="sourceLine" id="cb5-15" title="15"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb5-16" title="16"><span class="co">#&gt; # c172code = intermediate level of education</span></a>
+<a class="sourceLine" id="cb5-17" title="17"><span class="co">#&gt; #  c161sex = [1] Male</span></a>
+<a class="sourceLine" id="cb5-18" title="18"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb5-19" title="19"><span class="co">#&gt;   x | Predicted |         95% CI</span></a>
+<a class="sourceLine" id="cb5-20" title="20"><span class="co">#&gt; --------------------------------</span></a>
+<a class="sourceLine" id="cb5-21" title="21"><span class="co">#&gt;   0 |     74.67 | [71.06, 78.29]</span></a>
+<a class="sourceLine" id="cb5-22" title="22"><span class="co">#&gt;  45 |     63.27 | [59.88, 66.66]</span></a>
+<a class="sourceLine" id="cb5-23" title="23"><span class="co">#&gt;  85 |     53.14 | [49.40, 56.89]</span></a>
+<a class="sourceLine" id="cb5-24" title="24"><span class="co">#&gt; 170 |     31.61 | [25.98, 37.24]</span></a>
+<a class="sourceLine" id="cb5-25" title="25"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb5-26" title="26"><span class="co">#&gt; # c172code = high level of education</span></a>
+<a class="sourceLine" id="cb5-27" title="27"><span class="co">#&gt; #  c161sex = [1] Male</span></a>
+<a class="sourceLine" id="cb5-28" title="28"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb5-29" title="29"><span class="co">#&gt;   x | Predicted |         95% CI</span></a>
+<a class="sourceLine" id="cb5-30" title="30"><span class="co">#&gt; --------------------------------</span></a>
+<a class="sourceLine" id="cb5-31" title="31"><span class="co">#&gt;   0 |     75.39 | [71.04, 79.74]</span></a>
+<a class="sourceLine" id="cb5-32" title="32"><span class="co">#&gt;  45 |     63.99 | [59.73, 68.26]</span></a>
+<a class="sourceLine" id="cb5-33" title="33"><span class="co">#&gt;  85 |     53.86 | [49.23, 58.49]</span></a>
+<a class="sourceLine" id="cb5-34" title="34"><span class="co">#&gt; 170 |     32.33 | [25.95, 38.71]</span></a>
+<a class="sourceLine" id="cb5-35" title="35"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb5-36" title="36"><span class="co">#&gt; # c172code = low level of education</span></a>
+<a class="sourceLine" id="cb5-37" title="37"><span class="co">#&gt; #  c161sex = [2] Female</span></a>
+<a class="sourceLine" id="cb5-38" title="38"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb5-39" title="39"><span class="co">#&gt;   x | Predicted |         95% CI</span></a>
+<a class="sourceLine" id="cb5-40" title="40"><span class="co">#&gt; --------------------------------</span></a>
+<a class="sourceLine" id="cb5-41" title="41"><span class="co">#&gt;   0 |     75.00 | [71.41, 78.59]</span></a>
+<a class="sourceLine" id="cb5-42" title="42"><span class="co">#&gt;  45 |     63.60 | [60.46, 66.74]</span></a>
+<a class="sourceLine" id="cb5-43" title="43"><span class="co">#&gt;  85 |     53.46 | [50.13, 56.80]</span></a>
+<a class="sourceLine" id="cb5-44" title="44"><span class="co">#&gt; 170 |     31.93 | [26.83, 37.04]</span></a>
+<a class="sourceLine" id="cb5-45" title="45"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb5-46" title="46"><span class="co">#&gt; # c172code = intermediate level of education</span></a>
+<a class="sourceLine" id="cb5-47" title="47"><span class="co">#&gt; #  c161sex = [2] Female</span></a>
+<a class="sourceLine" id="cb5-48" title="48"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb5-49" title="49"><span class="co">#&gt;   x | Predicted |         95% CI</span></a>
+<a class="sourceLine" id="cb5-50" title="50"><span class="co">#&gt; --------------------------------</span></a>
+<a class="sourceLine" id="cb5-51" title="51"><span class="co">#&gt;   0 |     75.71 | [73.31, 78.12]</span></a>
+<a class="sourceLine" id="cb5-52" title="52"><span class="co">#&gt;  45 |     64.32 | [62.42, 66.21]</span></a>
+<a class="sourceLine" id="cb5-53" title="53"><span class="co">#&gt;  85 |     54.18 | [51.81, 56.55]</span></a>
+<a class="sourceLine" id="cb5-54" title="54"><span class="co">#&gt; 170 |     32.65 | [27.94, 37.36]</span></a>
+<a class="sourceLine" id="cb5-55" title="55"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb5-56" title="56"><span class="co">#&gt; # c172code = high level of education</span></a>
+<a class="sourceLine" id="cb5-57" title="57"><span class="co">#&gt; #  c161sex = [2] Female</span></a>
+<a class="sourceLine" id="cb5-58" title="58"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb5-59" title="59"><span class="co">#&gt;   x | Predicted |         95% CI</span></a>
+<a class="sourceLine" id="cb5-60" title="60"><span class="co">#&gt; --------------------------------</span></a>
+<a class="sourceLine" id="cb5-61" title="61"><span class="co">#&gt;   0 |     76.43 | [72.89, 79.98]</span></a>
+<a class="sourceLine" id="cb5-62" title="62"><span class="co">#&gt;  45 |     65.03 | [61.68, 68.39]</span></a>
+<a class="sourceLine" id="cb5-63" title="63"><span class="co">#&gt;  85 |     54.90 | [51.16, 58.65]</span></a>
+<a class="sourceLine" id="cb5-64" title="64"><span class="co">#&gt; 170 |     33.37 | [27.70, 39.05]</span></a>
+<a class="sourceLine" id="cb5-65" title="65"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb5-66" title="66"><span class="co">#&gt; Adjusted for:</span></a>
+<a class="sourceLine" id="cb5-67" title="67"><span class="co">#&gt; * neg_c_7 = 11.84</span></a>
+<a class="sourceLine" id="cb5-68" title="68"><span class="kw">ggplot</span>(mydf, <span class="kw">aes</span>(x, predicted, <span class="dt">colour =</span> group)) <span class="op">+</span><span class="st"> </span></a>
+<a class="sourceLine" id="cb5-69" title="69"><span class="st">  </span><span class="kw">geom_line</span>() <span class="op">+</span><span class="st"> </span></a>
+<a class="sourceLine" id="cb5-70" title="70"><span class="st">  </span><span class="kw">facet_wrap</span>(<span class="op">~</span>facet)</a></code></pre></div>
 <p><img src="data:image/png;base64,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" /><!-- --></p>
 <p>Finally, a third differentation can be defined, creating another column named <code>panel</code>. In such cases, you may create multiple plots (for each value in <code>panel</code>). <strong>ggeffects</strong> takes care of this when you use <code>plot()</code> and automatically creates an integrated plot with all panels in one figure.</p>
 <div class="sourceCode" id="cb6"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb6-1" title="1">mydf &lt;-<span class="st"> </span><span class="kw">ggpredict</span>(fit, <span class="dt">terms =</span> <span class="kw">c</span>(<span class="st">&quot;c12hour&quot;</span>, <span class="st">&quot;c172code&quot;</span>, <span class="st">&quot;c161sex&quot;</span>, <span class="st">&quot;neg_c_7&quot;</span>))</a>
@@ -490,86 +535,78 @@ code > span.er { color: #a61717; background-color: #e3d2d2; }
 <div class="sourceCode" id="cb7"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb7-1" title="1">mydf &lt;-<span class="st"> </span><span class="kw">ggpredict</span>(fit)</a>
 <a class="sourceLine" id="cb7-2" title="2">mydf</a>
 <a class="sourceLine" id="cb7-3" title="3"><span class="co">#&gt; $c12hour</span></a>
-<a class="sourceLine" id="cb7-4" title="4"><span class="co">#&gt; </span></a>
-<a class="sourceLine" id="cb7-5" title="5"><span class="co">#&gt; # Predicted values of Total score BARTHEL INDEX</span></a>
-<a class="sourceLine" id="cb7-6" title="6"><span class="co">#&gt; # x = average number of hours of care per week</span></a>
-<a class="sourceLine" id="cb7-7" title="7"><span class="co">#&gt; </span></a>
-<a class="sourceLine" id="cb7-8" title="8"><span class="co">#&gt;   x | Predicted |   SE |         95% CI</span></a>
-<a class="sourceLine" id="cb7-9" title="9"><span class="co">#&gt; ---------------------------------------</span></a>
-<a class="sourceLine" id="cb7-10" title="10"><span class="co">#&gt;   0 |     75.44 | 1.12 | [73.26, 77.63]</span></a>
-<a class="sourceLine" id="cb7-11" title="11"><span class="co">#&gt;  20 |     70.38 | 0.93 | [68.56, 72.19]</span></a>
-<a class="sourceLine" id="cb7-12" title="12"><span class="co">#&gt;  45 |     64.05 | 0.84 | [62.39, 65.70]</span></a>
-<a class="sourceLine" id="cb7-13" title="13"><span class="co">#&gt;  65 |     58.98 | 0.93 | [57.16, 60.80]</span></a>
-<a class="sourceLine" id="cb7-14" title="14"><span class="co">#&gt;  85 |     53.91 | 1.12 | [51.71, 56.11]</span></a>
-<a class="sourceLine" id="cb7-15" title="15"><span class="co">#&gt; 105 |     48.85 | 1.38 | [46.15, 51.55]</span></a>
-<a class="sourceLine" id="cb7-16" title="16"><span class="co">#&gt; 125 |     43.78 | 1.67 | [40.52, 47.05]</span></a>
-<a class="sourceLine" id="cb7-17" title="17"><span class="co">#&gt; 170 |     32.38 | 2.37 | [27.73, 37.03]</span></a>
-<a class="sourceLine" id="cb7-18" title="18"><span class="co">#&gt; </span></a>
-<a class="sourceLine" id="cb7-19" title="19"><span class="co">#&gt; Adjusted for:</span></a>
-<a class="sourceLine" id="cb7-20" title="20"><span class="co">#&gt; *  neg_c_7 = 11.84</span></a>
-<a class="sourceLine" id="cb7-21" title="21"><span class="co">#&gt; *  c161sex =  1.76</span></a>
-<a class="sourceLine" id="cb7-22" title="22"><span class="co">#&gt; * c172code =  1.97</span></a>
-<a class="sourceLine" id="cb7-23" title="23"><span class="co">#&gt; </span></a>
-<a class="sourceLine" id="cb7-24" title="24"><span class="co">#&gt; </span></a>
-<a class="sourceLine" id="cb7-25" title="25"><span class="co">#&gt; $neg_c_7</span></a>
+<a class="sourceLine" id="cb7-4" title="4"><span class="co">#&gt; # Predicted values of Total score BARTHEL INDEX</span></a>
+<a class="sourceLine" id="cb7-5" title="5"><span class="co">#&gt; # x = average number of hours of care per week</span></a>
+<a class="sourceLine" id="cb7-6" title="6"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb7-7" title="7"><span class="co">#&gt;   x | Predicted |         95% CI</span></a>
+<a class="sourceLine" id="cb7-8" title="8"><span class="co">#&gt; --------------------------------</span></a>
+<a class="sourceLine" id="cb7-9" title="9"><span class="co">#&gt;   0 |     75.44 | [73.26, 77.63]</span></a>
+<a class="sourceLine" id="cb7-10" title="10"><span class="co">#&gt;  20 |     70.38 | [68.56, 72.19]</span></a>
+<a class="sourceLine" id="cb7-11" title="11"><span class="co">#&gt;  45 |     64.05 | [62.39, 65.70]</span></a>
+<a class="sourceLine" id="cb7-12" title="12"><span class="co">#&gt;  65 |     58.98 | [57.16, 60.80]</span></a>
+<a class="sourceLine" id="cb7-13" title="13"><span class="co">#&gt;  85 |     53.91 | [51.71, 56.11]</span></a>
+<a class="sourceLine" id="cb7-14" title="14"><span class="co">#&gt; 105 |     48.85 | [46.15, 51.55]</span></a>
+<a class="sourceLine" id="cb7-15" title="15"><span class="co">#&gt; 125 |     43.78 | [40.52, 47.05]</span></a>
+<a class="sourceLine" id="cb7-16" title="16"><span class="co">#&gt; 170 |     32.38 | [27.73, 37.03]</span></a>
+<a class="sourceLine" id="cb7-17" title="17"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb7-18" title="18"><span class="co">#&gt; Adjusted for:</span></a>
+<a class="sourceLine" id="cb7-19" title="19"><span class="co">#&gt; *  neg_c_7 = 11.84</span></a>
+<a class="sourceLine" id="cb7-20" title="20"><span class="co">#&gt; *  c161sex =  1.76</span></a>
+<a class="sourceLine" id="cb7-21" title="21"><span class="co">#&gt; * c172code =  1.97</span></a>
+<a class="sourceLine" id="cb7-22" title="22"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb7-23" title="23"><span class="co">#&gt; $neg_c_7</span></a>
+<a class="sourceLine" id="cb7-24" title="24"><span class="co">#&gt; # Predicted values of Total score BARTHEL INDEX</span></a>
+<a class="sourceLine" id="cb7-25" title="25"><span class="co">#&gt; # x = Negative impact with 7 items</span></a>
 <a class="sourceLine" id="cb7-26" title="26"><span class="co">#&gt; </span></a>
-<a class="sourceLine" id="cb7-27" title="27"><span class="co">#&gt; # Predicted values of Total score BARTHEL INDEX</span></a>
-<a class="sourceLine" id="cb7-28" title="28"><span class="co">#&gt; # x = Negative impact with 7 items</span></a>
-<a class="sourceLine" id="cb7-29" title="29"><span class="co">#&gt; </span></a>
-<a class="sourceLine" id="cb7-30" title="30"><span class="co">#&gt;  x | Predicted |   SE |         95% CI</span></a>
-<a class="sourceLine" id="cb7-31" title="31"><span class="co">#&gt; --------------------------------------</span></a>
-<a class="sourceLine" id="cb7-32" title="32"><span class="co">#&gt;  6 |     78.17 | 1.56 | [75.11, 81.22]</span></a>
-<a class="sourceLine" id="cb7-33" title="33"><span class="co">#&gt;  8 |     73.57 | 1.21 | [71.21, 75.94]</span></a>
-<a class="sourceLine" id="cb7-34" title="34"><span class="co">#&gt; 12 |     64.38 | 0.84 | [62.73, 66.03]</span></a>
-<a class="sourceLine" id="cb7-35" title="35"><span class="co">#&gt; 14 |     59.79 | 0.97 | [57.88, 61.69]</span></a>
-<a class="sourceLine" id="cb7-36" title="36"><span class="co">#&gt; 16 |     55.19 | 1.26 | [52.73, 57.66]</span></a>
-<a class="sourceLine" id="cb7-37" title="37"><span class="co">#&gt; 20 |     46.00 | 2.02 | [42.04, 49.97]</span></a>
-<a class="sourceLine" id="cb7-38" title="38"><span class="co">#&gt; 22 |     41.41 | 2.44 | [36.63, 46.19]</span></a>
-<a class="sourceLine" id="cb7-39" title="39"><span class="co">#&gt; 28 |     27.63 | 3.73 | [20.31, 34.95]</span></a>
-<a class="sourceLine" id="cb7-40" title="40"><span class="co">#&gt; </span></a>
-<a class="sourceLine" id="cb7-41" title="41"><span class="co">#&gt; Adjusted for:</span></a>
-<a class="sourceLine" id="cb7-42" title="42"><span class="co">#&gt; *  c12hour = 42.20</span></a>
-<a class="sourceLine" id="cb7-43" title="43"><span class="co">#&gt; *  c161sex =  1.76</span></a>
-<a class="sourceLine" id="cb7-44" title="44"><span class="co">#&gt; * c172code =  1.97</span></a>
-<a class="sourceLine" id="cb7-45" title="45"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb7-27" title="27"><span class="co">#&gt;  x | Predicted |         95% CI</span></a>
+<a class="sourceLine" id="cb7-28" title="28"><span class="co">#&gt; -------------------------------</span></a>
+<a class="sourceLine" id="cb7-29" title="29"><span class="co">#&gt;  6 |     78.17 | [75.11, 81.22]</span></a>
+<a class="sourceLine" id="cb7-30" title="30"><span class="co">#&gt;  8 |     73.57 | [71.21, 75.94]</span></a>
+<a class="sourceLine" id="cb7-31" title="31"><span class="co">#&gt; 12 |     64.38 | [62.73, 66.03]</span></a>
+<a class="sourceLine" id="cb7-32" title="32"><span class="co">#&gt; 14 |     59.79 | [57.88, 61.69]</span></a>
+<a class="sourceLine" id="cb7-33" title="33"><span class="co">#&gt; 16 |     55.19 | [52.73, 57.66]</span></a>
+<a class="sourceLine" id="cb7-34" title="34"><span class="co">#&gt; 20 |     46.00 | [42.04, 49.97]</span></a>
+<a class="sourceLine" id="cb7-35" title="35"><span class="co">#&gt; 22 |     41.41 | [36.63, 46.19]</span></a>
+<a class="sourceLine" id="cb7-36" title="36"><span class="co">#&gt; 28 |     27.63 | [20.31, 34.95]</span></a>
+<a class="sourceLine" id="cb7-37" title="37"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb7-38" title="38"><span class="co">#&gt; Adjusted for:</span></a>
+<a class="sourceLine" id="cb7-39" title="39"><span class="co">#&gt; *  c12hour = 42.20</span></a>
+<a class="sourceLine" id="cb7-40" title="40"><span class="co">#&gt; *  c161sex =  1.76</span></a>
+<a class="sourceLine" id="cb7-41" title="41"><span class="co">#&gt; * c172code =  1.97</span></a>
+<a class="sourceLine" id="cb7-42" title="42"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb7-43" title="43"><span class="co">#&gt; $c161sex</span></a>
+<a class="sourceLine" id="cb7-44" title="44"><span class="co">#&gt; # Predicted values of Total score BARTHEL INDEX</span></a>
+<a class="sourceLine" id="cb7-45" title="45"><span class="co">#&gt; # x = carer&#39;s gender</span></a>
 <a class="sourceLine" id="cb7-46" title="46"><span class="co">#&gt; </span></a>
-<a class="sourceLine" id="cb7-47" title="47"><span class="co">#&gt; $c161sex</span></a>
-<a class="sourceLine" id="cb7-48" title="48"><span class="co">#&gt; </span></a>
-<a class="sourceLine" id="cb7-49" title="49"><span class="co">#&gt; # Predicted values of Total score BARTHEL INDEX</span></a>
-<a class="sourceLine" id="cb7-50" title="50"><span class="co">#&gt; # x = carer&#39;s gender</span></a>
+<a class="sourceLine" id="cb7-47" title="47"><span class="co">#&gt; x | Predicted |         95% CI</span></a>
+<a class="sourceLine" id="cb7-48" title="48"><span class="co">#&gt; ------------------------------</span></a>
+<a class="sourceLine" id="cb7-49" title="49"><span class="co">#&gt; 1 |     63.96 | [60.57, 67.35]</span></a>
+<a class="sourceLine" id="cb7-50" title="50"><span class="co">#&gt; 2 |     65.00 | [63.11, 66.90]</span></a>
 <a class="sourceLine" id="cb7-51" title="51"><span class="co">#&gt; </span></a>
-<a class="sourceLine" id="cb7-52" title="52"><span class="co">#&gt; x | Predicted |   SE |         95% CI</span></a>
-<a class="sourceLine" id="cb7-53" title="53"><span class="co">#&gt; -------------------------------------</span></a>
-<a class="sourceLine" id="cb7-54" title="54"><span class="co">#&gt; 1 |     63.96 | 1.73 | [60.57, 67.35]</span></a>
-<a class="sourceLine" id="cb7-55" title="55"><span class="co">#&gt; 2 |     65.00 | 0.97 | [63.11, 66.90]</span></a>
+<a class="sourceLine" id="cb7-52" title="52"><span class="co">#&gt; Adjusted for:</span></a>
+<a class="sourceLine" id="cb7-53" title="53"><span class="co">#&gt; *  c12hour = 42.20</span></a>
+<a class="sourceLine" id="cb7-54" title="54"><span class="co">#&gt; *  neg_c_7 = 11.84</span></a>
+<a class="sourceLine" id="cb7-55" title="55"><span class="co">#&gt; * c172code =  1.97</span></a>
 <a class="sourceLine" id="cb7-56" title="56"><span class="co">#&gt; </span></a>
-<a class="sourceLine" id="cb7-57" title="57"><span class="co">#&gt; Adjusted for:</span></a>
-<a class="sourceLine" id="cb7-58" title="58"><span class="co">#&gt; *  c12hour = 42.20</span></a>
-<a class="sourceLine" id="cb7-59" title="59"><span class="co">#&gt; *  neg_c_7 = 11.84</span></a>
-<a class="sourceLine" id="cb7-60" title="60"><span class="co">#&gt; * c172code =  1.97</span></a>
-<a class="sourceLine" id="cb7-61" title="61"><span class="co">#&gt; </span></a>
-<a class="sourceLine" id="cb7-62" title="62"><span class="co">#&gt; </span></a>
-<a class="sourceLine" id="cb7-63" title="63"><span class="co">#&gt; $c172code</span></a>
-<a class="sourceLine" id="cb7-64" title="64"><span class="co">#&gt; </span></a>
-<a class="sourceLine" id="cb7-65" title="65"><span class="co">#&gt; # Predicted values of Total score BARTHEL INDEX</span></a>
-<a class="sourceLine" id="cb7-66" title="66"><span class="co">#&gt; # x = carer&#39;s level of education</span></a>
-<a class="sourceLine" id="cb7-67" title="67"><span class="co">#&gt; </span></a>
-<a class="sourceLine" id="cb7-68" title="68"><span class="co">#&gt; x | Predicted |   SE |         95% CI</span></a>
-<a class="sourceLine" id="cb7-69" title="69"><span class="co">#&gt; -------------------------------------</span></a>
-<a class="sourceLine" id="cb7-70" title="70"><span class="co">#&gt; 1 |     64.06 | 1.55 | [61.01, 67.10]</span></a>
-<a class="sourceLine" id="cb7-71" title="71"><span class="co">#&gt; 2 |     64.78 | 0.84 | [63.12, 66.43]</span></a>
-<a class="sourceLine" id="cb7-72" title="72"><span class="co">#&gt; 3 |     65.49 | 1.62 | [62.32, 68.67]</span></a>
-<a class="sourceLine" id="cb7-73" title="73"><span class="co">#&gt; </span></a>
-<a class="sourceLine" id="cb7-74" title="74"><span class="co">#&gt; Adjusted for:</span></a>
-<a class="sourceLine" id="cb7-75" title="75"><span class="co">#&gt; * c12hour = 42.20</span></a>
-<a class="sourceLine" id="cb7-76" title="76"><span class="co">#&gt; * neg_c_7 = 11.84</span></a>
-<a class="sourceLine" id="cb7-77" title="77"><span class="co">#&gt; * c161sex =  1.76</span></a>
-<a class="sourceLine" id="cb7-78" title="78"><span class="co">#&gt; </span></a>
-<a class="sourceLine" id="cb7-79" title="79"><span class="co">#&gt; </span></a>
-<a class="sourceLine" id="cb7-80" title="80"><span class="co">#&gt; attr(,&quot;class&quot;)</span></a>
-<a class="sourceLine" id="cb7-81" title="81"><span class="co">#&gt; [1] &quot;ggalleffects&quot; &quot;list&quot;        </span></a>
-<a class="sourceLine" id="cb7-82" title="82"><span class="co">#&gt; attr(,&quot;model.name&quot;)</span></a>
-<a class="sourceLine" id="cb7-83" title="83"><span class="co">#&gt; [1] &quot;fit&quot;</span></a></code></pre></div>
+<a class="sourceLine" id="cb7-57" title="57"><span class="co">#&gt; $c172code</span></a>
+<a class="sourceLine" id="cb7-58" title="58"><span class="co">#&gt; # Predicted values of Total score BARTHEL INDEX</span></a>
+<a class="sourceLine" id="cb7-59" title="59"><span class="co">#&gt; # x = carer&#39;s level of education</span></a>
+<a class="sourceLine" id="cb7-60" title="60"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb7-61" title="61"><span class="co">#&gt; x | Predicted |         95% CI</span></a>
+<a class="sourceLine" id="cb7-62" title="62"><span class="co">#&gt; ------------------------------</span></a>
+<a class="sourceLine" id="cb7-63" title="63"><span class="co">#&gt; 1 |     64.06 | [61.01, 67.10]</span></a>
+<a class="sourceLine" id="cb7-64" title="64"><span class="co">#&gt; 2 |     64.78 | [63.12, 66.43]</span></a>
+<a class="sourceLine" id="cb7-65" title="65"><span class="co">#&gt; 3 |     65.49 | [62.32, 68.67]</span></a>
+<a class="sourceLine" id="cb7-66" title="66"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb7-67" title="67"><span class="co">#&gt; Adjusted for:</span></a>
+<a class="sourceLine" id="cb7-68" title="68"><span class="co">#&gt; * c12hour = 42.20</span></a>
+<a class="sourceLine" id="cb7-69" title="69"><span class="co">#&gt; * neg_c_7 = 11.84</span></a>
+<a class="sourceLine" id="cb7-70" title="70"><span class="co">#&gt; * c161sex =  1.76</span></a>
+<a class="sourceLine" id="cb7-71" title="71"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb7-72" title="72"><span class="co">#&gt; attr(,&quot;class&quot;)</span></a>
+<a class="sourceLine" id="cb7-73" title="73"><span class="co">#&gt; [1] &quot;ggalleffects&quot; &quot;list&quot;        </span></a>
+<a class="sourceLine" id="cb7-74" title="74"><span class="co">#&gt; attr(,&quot;model.name&quot;)</span></a>
+<a class="sourceLine" id="cb7-75" title="75"><span class="co">#&gt; [1] &quot;fit&quot;</span></a></code></pre></div>
 </div>
 <div id="two-way-three-way--and-four-way-interactions" class="section level1">
 <h1>Two-Way, Three-Way- and Four-Way-Interactions</h1>
@@ -637,101 +674,99 @@ code > span.er { color: #a61717; background-color: #e3d2d2; }
 <a class="sourceLine" id="cb12-8" title="8"></a>
 <a class="sourceLine" id="cb12-9" title="9"><span class="co"># predicted risk-scores</span></a>
 <a class="sourceLine" id="cb12-10" title="10"><span class="kw">ggpredict</span>(m, <span class="kw">c</span>(<span class="st">&quot;sex&quot;</span>, <span class="st">&quot;ph.ecog&quot;</span>))</a>
-<a class="sourceLine" id="cb12-11" title="11"><span class="co">#&gt; </span></a>
-<a class="sourceLine" id="cb12-12" title="12"><span class="co">#&gt; # Predicted risk scores</span></a>
-<a class="sourceLine" id="cb12-13" title="13"><span class="co">#&gt; # x = sex</span></a>
-<a class="sourceLine" id="cb12-14" title="14"><span class="co">#&gt; </span></a>
-<a class="sourceLine" id="cb12-15" title="15"><span class="co">#&gt; # ph.ecog = good</span></a>
-<a class="sourceLine" id="cb12-16" title="16"><span class="co">#&gt; </span></a>
-<a class="sourceLine" id="cb12-17" title="17"><span class="co">#&gt; x      | Predicted |   SE |       95% CI</span></a>
-<a class="sourceLine" id="cb12-18" title="18"><span class="co">#&gt; ----------------------------------------</span></a>
-<a class="sourceLine" id="cb12-19" title="19"><span class="co">#&gt; male   |      0.83 | 0.15 | [0.62, 1.11]</span></a>
-<a class="sourceLine" id="cb12-20" title="20"><span class="co">#&gt; female |      0.48 | 0.18 | [0.34, 0.68]</span></a>
-<a class="sourceLine" id="cb12-21" title="21"><span class="co">#&gt; </span></a>
-<a class="sourceLine" id="cb12-22" title="22"><span class="co">#&gt; # ph.ecog = ok</span></a>
-<a class="sourceLine" id="cb12-23" title="23"><span class="co">#&gt; </span></a>
-<a class="sourceLine" id="cb12-24" title="24"><span class="co">#&gt; x      | Predicted |   SE |       95% CI</span></a>
-<a class="sourceLine" id="cb12-25" title="25"><span class="co">#&gt; ----------------------------------------</span></a>
-<a class="sourceLine" id="cb12-26" title="26"><span class="co">#&gt; male   |      1.25 | 0.11 | [1.01, 1.54]</span></a>
-<a class="sourceLine" id="cb12-27" title="27"><span class="co">#&gt; female |      0.72 | 0.13 | [0.57, 0.93]</span></a>
-<a class="sourceLine" id="cb12-28" title="28"><span class="co">#&gt; </span></a>
-<a class="sourceLine" id="cb12-29" title="29"><span class="co">#&gt; # ph.ecog = limited</span></a>
-<a class="sourceLine" id="cb12-30" title="30"><span class="co">#&gt; </span></a>
-<a class="sourceLine" id="cb12-31" title="31"><span class="co">#&gt; x      | Predicted |   SE |       95% CI</span></a>
-<a class="sourceLine" id="cb12-32" title="32"><span class="co">#&gt; ----------------------------------------</span></a>
-<a class="sourceLine" id="cb12-33" title="33"><span class="co">#&gt; male   |      2.04 | 0.16 | [1.50, 2.78]</span></a>
-<a class="sourceLine" id="cb12-34" title="34"><span class="co">#&gt; female |      1.18 | 0.17 | [0.85, 1.66]</span></a>
-<a class="sourceLine" id="cb12-35" title="35"><span class="co">#&gt; </span></a>
-<a class="sourceLine" id="cb12-36" title="36"><span class="co">#&gt; Adjusted for:</span></a>
-<a class="sourceLine" id="cb12-37" title="37"><span class="co">#&gt; * age = 62.42</span></a></code></pre></div>
+<a class="sourceLine" id="cb12-11" title="11"><span class="co">#&gt; # Predicted risk scores</span></a>
+<a class="sourceLine" id="cb12-12" title="12"><span class="co">#&gt; # x = sex</span></a>
+<a class="sourceLine" id="cb12-13" title="13"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb12-14" title="14"><span class="co">#&gt; # ph.ecog = good</span></a>
+<a class="sourceLine" id="cb12-15" title="15"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb12-16" title="16"><span class="co">#&gt; x      | Predicted |       95% CI</span></a>
+<a class="sourceLine" id="cb12-17" title="17"><span class="co">#&gt; ---------------------------------</span></a>
+<a class="sourceLine" id="cb12-18" title="18"><span class="co">#&gt; male   |      0.83 | [0.62, 1.11]</span></a>
+<a class="sourceLine" id="cb12-19" title="19"><span class="co">#&gt; female |      0.48 | [0.34, 0.68]</span></a>
+<a class="sourceLine" id="cb12-20" title="20"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb12-21" title="21"><span class="co">#&gt; # ph.ecog = ok</span></a>
+<a class="sourceLine" id="cb12-22" title="22"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb12-23" title="23"><span class="co">#&gt; x      | Predicted |       95% CI</span></a>
+<a class="sourceLine" id="cb12-24" title="24"><span class="co">#&gt; ---------------------------------</span></a>
+<a class="sourceLine" id="cb12-25" title="25"><span class="co">#&gt; male   |      1.25 | [1.01, 1.54]</span></a>
+<a class="sourceLine" id="cb12-26" title="26"><span class="co">#&gt; female |      0.72 | [0.57, 0.93]</span></a>
+<a class="sourceLine" id="cb12-27" title="27"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb12-28" title="28"><span class="co">#&gt; # ph.ecog = limited</span></a>
+<a class="sourceLine" id="cb12-29" title="29"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb12-30" title="30"><span class="co">#&gt; x      | Predicted |       95% CI</span></a>
+<a class="sourceLine" id="cb12-31" title="31"><span class="co">#&gt; ---------------------------------</span></a>
+<a class="sourceLine" id="cb12-32" title="32"><span class="co">#&gt; male   |      2.04 | [1.50, 2.78]</span></a>
+<a class="sourceLine" id="cb12-33" title="33"><span class="co">#&gt; female |      1.18 | [0.85, 1.66]</span></a>
+<a class="sourceLine" id="cb12-34" title="34"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb12-35" title="35"><span class="co">#&gt; Adjusted for:</span></a>
+<a class="sourceLine" id="cb12-36" title="36"><span class="co">#&gt; * age = 62.42</span></a></code></pre></div>
 <div class="sourceCode" id="cb13"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb13-1" title="1"><span class="co"># probability of survival</span></a>
 <a class="sourceLine" id="cb13-2" title="2"><span class="kw">ggpredict</span>(m, <span class="kw">c</span>(<span class="st">&quot;sex&quot;</span>, <span class="st">&quot;ph.ecog&quot;</span>), <span class="dt">type =</span> <span class="st">&quot;surv&quot;</span>)</a>
-<a class="sourceLine" id="cb13-3" title="3"><span class="co">#&gt; </span></a>
-<a class="sourceLine" id="cb13-4" title="4"><span class="co">#&gt; # Probability of Survival</span></a>
-<a class="sourceLine" id="cb13-5" title="5"><span class="co">#&gt; # x = time</span></a>
-<a class="sourceLine" id="cb13-6" title="6"><span class="co">#&gt; </span></a>
-<a class="sourceLine" id="cb13-7" title="7"><span class="co">#&gt; #    time = male</span></a>
-<a class="sourceLine" id="cb13-8" title="8"><span class="co">#&gt; #     sex = good</span></a>
-<a class="sourceLine" id="cb13-9" title="9"><span class="co">#&gt; </span></a>
-<a class="sourceLine" id="cb13-10" title="10"><span class="co">#&gt;    x | Predicted |       95% CI</span></a>
-<a class="sourceLine" id="cb13-11" title="11"><span class="co">#&gt; -------------------------------</span></a>
-<a class="sourceLine" id="cb13-12" title="12"><span class="co">#&gt;    5 |      1.00 | [0.99, 1.00]</span></a>
-<a class="sourceLine" id="cb13-13" title="13"><span class="co">#&gt;  181 |      0.77 | [0.69, 0.87]</span></a>
-<a class="sourceLine" id="cb13-14" title="14"><span class="co">#&gt;  276 |      0.65 | [0.54, 0.78]</span></a>
-<a class="sourceLine" id="cb13-15" title="15"><span class="co">#&gt; 1022 |      0.09 | [0.03, 0.26]</span></a>
-<a class="sourceLine" id="cb13-16" title="16"><span class="co">#&gt; </span></a>
-<a class="sourceLine" id="cb13-17" title="17"><span class="co">#&gt; #    time = female</span></a>
-<a class="sourceLine" id="cb13-18" title="18"><span class="co">#&gt; #     sex = good</span></a>
-<a class="sourceLine" id="cb13-19" title="19"><span class="co">#&gt; </span></a>
-<a class="sourceLine" id="cb13-20" title="20"><span class="co">#&gt;    x | Predicted |       95% CI</span></a>
-<a class="sourceLine" id="cb13-21" title="21"><span class="co">#&gt; -------------------------------</span></a>
-<a class="sourceLine" id="cb13-22" title="22"><span class="co">#&gt;    5 |      1.00 | [0.99, 1.00]</span></a>
-<a class="sourceLine" id="cb13-23" title="23"><span class="co">#&gt;  181 |      0.86 | [0.79, 0.93]</span></a>
-<a class="sourceLine" id="cb13-24" title="24"><span class="co">#&gt;  276 |      0.78 | [0.68, 0.88]</span></a>
-<a class="sourceLine" id="cb13-25" title="25"><span class="co">#&gt; 1022 |      0.24 | [0.11, 0.51]</span></a>
-<a class="sourceLine" id="cb13-26" title="26"><span class="co">#&gt; </span></a>
-<a class="sourceLine" id="cb13-27" title="27"><span class="co">#&gt; #    time = male</span></a>
-<a class="sourceLine" id="cb13-28" title="28"><span class="co">#&gt; #     sex = limited</span></a>
-<a class="sourceLine" id="cb13-29" title="29"><span class="co">#&gt; </span></a>
-<a class="sourceLine" id="cb13-30" title="30"><span class="co">#&gt;    x | Predicted |       95% CI</span></a>
-<a class="sourceLine" id="cb13-31" title="31"><span class="co">#&gt; -------------------------------</span></a>
-<a class="sourceLine" id="cb13-32" title="32"><span class="co">#&gt;    5 |      0.99 | [0.97, 1.00]</span></a>
-<a class="sourceLine" id="cb13-33" title="33"><span class="co">#&gt;  181 |      0.53 | [0.40, 0.69]</span></a>
-<a class="sourceLine" id="cb13-34" title="34"><span class="co">#&gt;  276 |      0.34 | [0.22, 0.52]</span></a>
-<a class="sourceLine" id="cb13-35" title="35"><span class="co">#&gt; 1022 |      0.00 | [0.00, 0.04]</span></a>
-<a class="sourceLine" id="cb13-36" title="36"><span class="co">#&gt; </span></a>
-<a class="sourceLine" id="cb13-37" title="37"><span class="co">#&gt; #    time = female</span></a>
-<a class="sourceLine" id="cb13-38" title="38"><span class="co">#&gt; #     sex = limited</span></a>
-<a class="sourceLine" id="cb13-39" title="39"><span class="co">#&gt; </span></a>
-<a class="sourceLine" id="cb13-40" title="40"><span class="co">#&gt;    x | Predicted |       95% CI</span></a>
-<a class="sourceLine" id="cb13-41" title="41"><span class="co">#&gt; -------------------------------</span></a>
-<a class="sourceLine" id="cb13-42" title="42"><span class="co">#&gt;    5 |      1.00 | [0.98, 1.00]</span></a>
-<a class="sourceLine" id="cb13-43" title="43"><span class="co">#&gt;  181 |      0.69 | [0.58, 0.82]</span></a>
-<a class="sourceLine" id="cb13-44" title="44"><span class="co">#&gt;  276 |      0.53 | [0.40, 0.71]</span></a>
-<a class="sourceLine" id="cb13-45" title="45"><span class="co">#&gt; 1022 |      0.03 | [0.00, 0.19]</span></a>
-<a class="sourceLine" id="cb13-46" title="46"><span class="co">#&gt; </span></a>
-<a class="sourceLine" id="cb13-47" title="47"><span class="co">#&gt; #    time = male</span></a>
-<a class="sourceLine" id="cb13-48" title="48"><span class="co">#&gt; #     sex = ok</span></a>
-<a class="sourceLine" id="cb13-49" title="49"><span class="co">#&gt; </span></a>
-<a class="sourceLine" id="cb13-50" title="50"><span class="co">#&gt;    x | Predicted |       95% CI</span></a>
-<a class="sourceLine" id="cb13-51" title="51"><span class="co">#&gt; -------------------------------</span></a>
-<a class="sourceLine" id="cb13-52" title="52"><span class="co">#&gt;    5 |      1.00 | [0.98, 1.00]</span></a>
-<a class="sourceLine" id="cb13-53" title="53"><span class="co">#&gt;  181 |      0.68 | [0.59, 0.78]</span></a>
-<a class="sourceLine" id="cb13-54" title="54"><span class="co">#&gt;  276 |      0.52 | [0.42, 0.64]</span></a>
-<a class="sourceLine" id="cb13-55" title="55"><span class="co">#&gt; 1022 |      0.02 | [0.01, 0.11]</span></a>
-<a class="sourceLine" id="cb13-56" title="56"><span class="co">#&gt; </span></a>
-<a class="sourceLine" id="cb13-57" title="57"><span class="co">#&gt; #    time = female</span></a>
-<a class="sourceLine" id="cb13-58" title="58"><span class="co">#&gt; #     sex = ok</span></a>
-<a class="sourceLine" id="cb13-59" title="59"><span class="co">#&gt; </span></a>
-<a class="sourceLine" id="cb13-60" title="60"><span class="co">#&gt;    x | Predicted |       95% CI</span></a>
-<a class="sourceLine" id="cb13-61" title="61"><span class="co">#&gt; -------------------------------</span></a>
-<a class="sourceLine" id="cb13-62" title="62"><span class="co">#&gt;    5 |      1.00 | [0.99, 1.00]</span></a>
-<a class="sourceLine" id="cb13-63" title="63"><span class="co">#&gt;  181 |      0.80 | [0.72, 0.88]</span></a>
-<a class="sourceLine" id="cb13-64" title="64"><span class="co">#&gt;  276 |      0.68 | [0.59, 0.79]</span></a>
-<a class="sourceLine" id="cb13-65" title="65"><span class="co">#&gt; 1022 |      0.12 | [0.04, 0.31]</span></a>
-<a class="sourceLine" id="cb13-66" title="66"><span class="co">#&gt; </span></a>
-<a class="sourceLine" id="cb13-67" title="67"><span class="co">#&gt; Adjusted for:</span></a>
-<a class="sourceLine" id="cb13-68" title="68"><span class="co">#&gt; * age = 62.42</span></a></code></pre></div>
+<a class="sourceLine" id="cb13-3" title="3"><span class="co">#&gt; # Probability of Survival</span></a>
+<a class="sourceLine" id="cb13-4" title="4"><span class="co">#&gt; # x = time</span></a>
+<a class="sourceLine" id="cb13-5" title="5"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb13-6" title="6"><span class="co">#&gt; #    time = male</span></a>
+<a class="sourceLine" id="cb13-7" title="7"><span class="co">#&gt; #     sex = good</span></a>
+<a class="sourceLine" id="cb13-8" title="8"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb13-9" title="9"><span class="co">#&gt;    x | Predicted |       95% CI</span></a>
+<a class="sourceLine" id="cb13-10" title="10"><span class="co">#&gt; -------------------------------</span></a>
+<a class="sourceLine" id="cb13-11" title="11"><span class="co">#&gt;    5 |      1.00 | [0.99, 1.00]</span></a>
+<a class="sourceLine" id="cb13-12" title="12"><span class="co">#&gt;  181 |      0.77 | [0.69, 0.87]</span></a>
+<a class="sourceLine" id="cb13-13" title="13"><span class="co">#&gt;  276 |      0.65 | [0.54, 0.78]</span></a>
+<a class="sourceLine" id="cb13-14" title="14"><span class="co">#&gt; 1022 |      0.09 | [0.03, 0.26]</span></a>
+<a class="sourceLine" id="cb13-15" title="15"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb13-16" title="16"><span class="co">#&gt; #    time = female</span></a>
+<a class="sourceLine" id="cb13-17" title="17"><span class="co">#&gt; #     sex = good</span></a>
+<a class="sourceLine" id="cb13-18" title="18"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb13-19" title="19"><span class="co">#&gt;    x | Predicted |       95% CI</span></a>
+<a class="sourceLine" id="cb13-20" title="20"><span class="co">#&gt; -------------------------------</span></a>
+<a class="sourceLine" id="cb13-21" title="21"><span class="co">#&gt;    5 |      1.00 | [0.99, 1.00]</span></a>
+<a class="sourceLine" id="cb13-22" title="22"><span class="co">#&gt;  181 |      0.86 | [0.79, 0.93]</span></a>
+<a class="sourceLine" id="cb13-23" title="23"><span class="co">#&gt;  276 |      0.78 | [0.68, 0.88]</span></a>
+<a class="sourceLine" id="cb13-24" title="24"><span class="co">#&gt; 1022 |      0.24 | [0.11, 0.51]</span></a>
+<a class="sourceLine" id="cb13-25" title="25"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb13-26" title="26"><span class="co">#&gt; #    time = male</span></a>
+<a class="sourceLine" id="cb13-27" title="27"><span class="co">#&gt; #     sex = limited</span></a>
+<a class="sourceLine" id="cb13-28" title="28"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb13-29" title="29"><span class="co">#&gt;    x | Predicted |       95% CI</span></a>
+<a class="sourceLine" id="cb13-30" title="30"><span class="co">#&gt; -------------------------------</span></a>
+<a class="sourceLine" id="cb13-31" title="31"><span class="co">#&gt;    5 |      0.99 | [0.97, 1.00]</span></a>
+<a class="sourceLine" id="cb13-32" title="32"><span class="co">#&gt;  181 |      0.53 | [0.40, 0.69]</span></a>
+<a class="sourceLine" id="cb13-33" title="33"><span class="co">#&gt;  276 |      0.34 | [0.22, 0.52]</span></a>
+<a class="sourceLine" id="cb13-34" title="34"><span class="co">#&gt; 1022 |      0.00 | [0.00, 0.04]</span></a>
+<a class="sourceLine" id="cb13-35" title="35"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb13-36" title="36"><span class="co">#&gt; #    time = female</span></a>
+<a class="sourceLine" id="cb13-37" title="37"><span class="co">#&gt; #     sex = limited</span></a>
+<a class="sourceLine" id="cb13-38" title="38"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb13-39" title="39"><span class="co">#&gt;    x | Predicted |       95% CI</span></a>
+<a class="sourceLine" id="cb13-40" title="40"><span class="co">#&gt; -------------------------------</span></a>
+<a class="sourceLine" id="cb13-41" title="41"><span class="co">#&gt;    5 |      1.00 | [0.98, 1.00]</span></a>
+<a class="sourceLine" id="cb13-42" title="42"><span class="co">#&gt;  181 |      0.69 | [0.58, 0.82]</span></a>
+<a class="sourceLine" id="cb13-43" title="43"><span class="co">#&gt;  276 |      0.53 | [0.40, 0.71]</span></a>
+<a class="sourceLine" id="cb13-44" title="44"><span class="co">#&gt; 1022 |      0.03 | [0.00, 0.19]</span></a>
+<a class="sourceLine" id="cb13-45" title="45"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb13-46" title="46"><span class="co">#&gt; #    time = male</span></a>
+<a class="sourceLine" id="cb13-47" title="47"><span class="co">#&gt; #     sex = ok</span></a>
+<a class="sourceLine" id="cb13-48" title="48"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb13-49" title="49"><span class="co">#&gt;    x | Predicted |       95% CI</span></a>
+<a class="sourceLine" id="cb13-50" title="50"><span class="co">#&gt; -------------------------------</span></a>
+<a class="sourceLine" id="cb13-51" title="51"><span class="co">#&gt;    5 |      1.00 | [0.98, 1.00]</span></a>
+<a class="sourceLine" id="cb13-52" title="52"><span class="co">#&gt;  181 |      0.68 | [0.59, 0.78]</span></a>
+<a class="sourceLine" id="cb13-53" title="53"><span class="co">#&gt;  276 |      0.52 | [0.42, 0.64]</span></a>
+<a class="sourceLine" id="cb13-54" title="54"><span class="co">#&gt; 1022 |      0.02 | [0.01, 0.11]</span></a>
+<a class="sourceLine" id="cb13-55" title="55"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb13-56" title="56"><span class="co">#&gt; #    time = female</span></a>
+<a class="sourceLine" id="cb13-57" title="57"><span class="co">#&gt; #     sex = ok</span></a>
+<a class="sourceLine" id="cb13-58" title="58"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb13-59" title="59"><span class="co">#&gt;    x | Predicted |       95% CI</span></a>
+<a class="sourceLine" id="cb13-60" title="60"><span class="co">#&gt; -------------------------------</span></a>
+<a class="sourceLine" id="cb13-61" title="61"><span class="co">#&gt;    5 |      1.00 | [0.99, 1.00]</span></a>
+<a class="sourceLine" id="cb13-62" title="62"><span class="co">#&gt;  181 |      0.80 | [0.72, 0.88]</span></a>
+<a class="sourceLine" id="cb13-63" title="63"><span class="co">#&gt;  276 |      0.68 | [0.59, 0.79]</span></a>
+<a class="sourceLine" id="cb13-64" title="64"><span class="co">#&gt; 1022 |      0.12 | [0.04, 0.31]</span></a>
+<a class="sourceLine" id="cb13-65" title="65"><span class="co">#&gt; </span></a>
+<a class="sourceLine" id="cb13-66" title="66"><span class="co">#&gt; Adjusted for:</span></a>
+<a class="sourceLine" id="cb13-67" title="67"><span class="co">#&gt; * age = 62.42</span></a></code></pre></div>
 </div>
 <div id="labelling-the-data" class="section level1">
 <h1>Labelling the data</h1>
