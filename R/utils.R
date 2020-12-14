@@ -130,17 +130,20 @@ data_frame <- function(...) {
 }
 
 
-#' @importFrom insight get_variance_random n_obs find_parameters
-#' @importFrom stats deviance
-.get_random_effect_variance <- function(x) {
+#' @importFrom insight get_variance_random get_sigma model_info
+.get_residual_variance <- function(x) {
   tryCatch(
     {
-      if (inherits(x, c("merMod", "rlmerMod", "lmerMod", "glmerMod", "glmmTMB", "stanreg", "MixMod"))) {
+      info <- insight::model_info(x)
+      if (info$is_mixed || inherits(x, c("merMod", "rlmerMod", "lmerMod", "glmerMod", "glmmTMB", "stanreg", "MixMod"))) {
         re.var <- insight::get_variance_random(x)
       } else if (inherits(x, c("lme", "nlme"))) {
         re.var <- x$sigma^2
       } else {
-        re.var <- stats::deviance(x) / (insight::n_obs(x) - length(insight::find_parameters(x)[["conditional"]]))
+        re.var <- insight::get_sigma(x)
+        if (is.null(re.var)) {
+          re.var <- 0
+        }
       }
       re.var
     },

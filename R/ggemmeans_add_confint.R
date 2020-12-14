@@ -1,12 +1,12 @@
 #' @importFrom stats confint plogis
-.ggemmeans_add_confint <- function(model, tmp, ci.lvl, type = "fe", pmode = NULL) {
+.ggemmeans_add_confint <- function(model, tmp, ci.lvl, type = "fe", pmode = NULL, interval = NULL) {
   # compute ci, two-ways
   if (!is.null(ci.lvl) && !is.na(ci.lvl))
     ci <- (1 + ci.lvl) / 2
   else
     ci <- .975
 
-  if (type %in% c("re", "re.zi")) {
+  if (type %in% c("re", "re.zi") || identical(interval, "prediction")) {
 
       fitfram <- suppressWarnings(
         .var_rename(
@@ -23,7 +23,7 @@
         )
       )
 
-    revar <- .get_random_effect_variance(model)
+    revar <- .get_residual_variance(model)
     # get link-function and back-transform fitted values
     # to original scale, so we compute proper CI
     if (!is.null(revar)) {
