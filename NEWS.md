@@ -1,3 +1,23 @@
+# ggeffects 1.0.2
+
+## Breaking changes
+
+* `residuals.type` argument in `plot()` is deprecated. Always using `"working"` residuals.
+
+## General
+
+* `pretty_range()` and `values_at()` can now also be used as function factories.
+
+* `plot()` gains a `limit.range` argument, to limit the range of the prediction bands to the range of the data.
+
+## Bug fixes
+
+* Fixed issue with unnecessary back-transformation of log-transformed offset-terms fro *glmmTMB* models.
+
+* Fixed issues with plotting raw data when predictor on x-axis was a character vector.
+
+* Fixed issues from CRAN checks.
+
 # ggeffects 1.0.1
 
 ## General

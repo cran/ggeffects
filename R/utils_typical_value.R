@@ -1,5 +1,5 @@
 #' @importFrom stats median
-.typical_value <- function(x, fun = "mean", weights = NULL, predictor = NULL, log_terms = NULL, ...) {
+.typical_value <- function(x, fun = "mean", weights = NULL, predictor = NULL, log_terms = NULL, emmeans.only = FALSE, ...) {
 
   # check if we have named vectors and find the requested function
   # for special functions for factors, convert to numeric first
@@ -26,7 +26,7 @@
 
     if (length(weights) != length(x)) {
       # if not, tell user and change function to mean
-      warning("Vector of weights is of different length than `x`. Using `mean` as function for typical value.", call. = F)
+      warning("Vector of weights is of different length than `x`. Using `mean` as function for typical value.", call. = FALSE)
       fun <- "mean"
     }
 
@@ -35,7 +35,7 @@
 
     if (all(weights == 1)) {
       # if not, tell user and change function to mean
-      warning("All weight values are `1`. Using `mean` as function for typical value.", call. = F)
+      warning("All weight values are `1`. Using `mean` as function for typical value.", call. = FALSE)
       fun <- "mean"
     }
   }

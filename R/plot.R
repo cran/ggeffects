@@ -18,12 +18,11 @@
 #'   \code{facets}.
 #' @param add.data,rawdata Logical, if \code{TRUE}, a layer with raw data from response by
 #'   predictor on the x-axis, plotted as point-geoms, is added to the plot.
+#' @param limit.range Logical, if \code{TRUE}, limits the range of the prediction
+#'   bands to the range of the data.
 #' @param residuals Logical, if \code{TRUE}, a layer with partial residuals is
 #'   added to the plot. See vignette \href{https://cran.r-project.org/package=effects}{"Effect Displays with Partial Residuals"}
 #'   from \pkg{effects} for more details on partial residual plots.
-#' @param residuals.type The type of residuals to be plotted. Only applies if \code{residuals}
-#'   is \code{TRUE}. See \code{\link[stats:residuals.glm]{residuals.glm()}} for
-#'   details.
 #' @param residuals.line Logical, if \code{TRUE}, a loess-fit line is added to the
 #'   partial residuals plot. Only applies if \code{residuals} is \code{TRUE}.
 #' @param colors Character vector with color values in hex-format, valid
@@ -71,8 +70,11 @@
 #' @param base_family Base font family.
 #' @param ... Further arguments passed down to \code{ggplot::scale_y*()}, to
 #'    control the appearance of the y-axis.
+#' @param residuals.type Deprecated. Formally was the residual type. Now is always \code{"working"}.
 #'
 #' @inheritParams get_title
+#'
+#' @inheritSection residualize_over_grid Partial Residuals
 #'
 #' @return A ggplot2-object.
 #'
@@ -126,8 +128,8 @@ plot.ggeffects <- function(x,
                            ci.style = c("ribbon", "errorbar", "dash", "dot"),
                            facets,
                            add.data = FALSE,
+                           limit.range = FALSE,
                            residuals = FALSE,
-                           residuals.type = NULL,
                            residuals.line = FALSE,
                            colors = "Set1",
                            alpha = .15,
@@ -147,11 +149,14 @@ plot.ggeffects <- function(x,
                            grid,
                            one.plot = TRUE,
                            rawdata,
+                           residuals.type,
                            ...) {
 
   if (!requireNamespace("ggplot2", quietly = FALSE)) {
     stop("Package `ggplot2` needed to produce marginal effects plots. Please install it by typing `install.packages(\"ggplot2\", dependencies = TRUE)` into the console.", call. = FALSE)
   }
+
+  if (!missing(residuals.type)) warning("'residuals.type' is deprecated. Using 'working' residuals.")
 
   # check alias
   if (missing(rawdata)) rawdata <- add.data
@@ -184,7 +189,7 @@ plot.ggeffects <- function(x,
   if (missing(ci.style) && x_is_factor) ci.style <- "errorbar"
   ci.style <- match.arg(ci.style)
 
-  add.args <- lapply(match.call(expand.dots = F)$`...`, function(x) x)
+  add.args <- lapply(match.call(expand.dots = FALSE)$`...`, function(x) x)
   if (!("breaks" %in% names(add.args)) && isTRUE(log.y)) {
     y.breaks <- unique(round(log2(pretty(c(min(x$conf.low), max(x$conf.high))))))
     y.breaks[is.nan(y.breaks)] <- NA
@@ -209,6 +214,41 @@ plot.ggeffects <- function(x,
   has_panel <- .obj_has_name(x, "panel") && length(unique(x$panel)) > 1
 
 
+  # if we add data points, limit to range
+  if (isTRUE(limit.range)) {
+    raw_data <- attr(x, "rawdata", exact = TRUE)
+    if (!is.null(raw_data)) {
+      if (has_groups && has_facets) {
+        ranges <- lapply(split(raw_data, list(raw_data$group, raw_data$facet)), function(i) range(i$x, na.rm = TRUE))
+        for (i in unique(raw_data$group)) {
+          for (j in unique(raw_data$facet)) {
+            if (any(is.infinite(ranges[[paste0(i, ".", j)]]))) {
+              remove <- x$group == i & x$facet == j
+              x$x[remove] <- NA
+            } else {
+              remove <- x$group == i & x$facet == j & x$x < ranges[[paste0(i, ".", j)]][1]
+              x$x[remove] <- NA
+              remove <- x$group == i & x$facet == j & x$x > ranges[[paste0(i, ".", j)]][2]
+              x$x[remove] <- NA
+            }
+          }
+        }
+      } else if (has_groups) {
+        ranges <- lapply(split(raw_data, raw_data$group), function(i) range(i$x, na.rm = TRUE))
+        for (i in names(ranges)) {
+          remove <- x$group == i & x$x < ranges[[i]][1]
+          x$x[remove] <- NA
+          remove <- x$group == i & x$x > ranges[[i]][2]
+          x$x[remove] <- NA
+        }
+      } else {
+        remove <- x$x < min(raw_data$x, na.rm = TRUE) | x$x > max(raw_data$x, na.rm = TRUE)
+        x$x[remove] <- NA
+      }
+    }
+  }
+
+
   # partial residuals?
   if (residuals) {
     obj_name <- attr(x, "model.name", exact = TRUE)
@@ -229,7 +269,7 @@ plot.ggeffects <- function(x,
     }
 
     if (!is.null(model)) {
-      residual_data <- residualize_over_grid(grid = x, model = model, type = residuals.type)
+      residual_data <- residualize_over_grid(grid = x, model = model)
       attr(x, "residual_data") <- residual_data
 
       ## TODO for now, we allow no continuous grouping varialbles for partial residuals
@@ -406,7 +446,7 @@ plot.ggeffects <- function(x,
 }
 
 
-
+#' @importFrom stats na.omit
 plot_panel <- function(x,
                        colors,
                        has_groups,
@@ -451,21 +491,23 @@ plot_panel <- function(x,
 
   # base plot, set mappings -----
 
+  plot_data <- x[!is.na(x$x), ]
+
   if (has_groups && !facets_grp && is_black_white && x_is_factor)
-    p <- ggplot2::ggplot(x, ggplot2::aes_string(x = "x", y = "predicted", colour = "group_col", fill = "group_col", shape = "group"))
+    p <- ggplot2::ggplot(plot_data, ggplot2::aes_string(x = "x", y = "predicted", colour = "group_col", fill = "group_col", shape = "group"))
   else if (has_groups && !facets_grp && is_black_white && !x_is_factor)
-    p <- ggplot2::ggplot(x, ggplot2::aes_string(x = "x", y = "predicted", colour = "group_col", fill = "group_col", linetype = "group"))
+    p <- ggplot2::ggplot(plot_data, ggplot2::aes_string(x = "x", y = "predicted", colour = "group_col", fill = "group_col", linetype = "group"))
   else if (has_groups && !facets_grp && colors[1] == "gs" && x_is_factor)
-    p <- ggplot2::ggplot(x, ggplot2::aes_string(x = "x", y = "predicted", colour = "group_col", fill = "group_col", shape = "group"))
+    p <- ggplot2::ggplot(plot_data, ggplot2::aes_string(x = "x", y = "predicted", colour = "group_col", fill = "group_col", shape = "group"))
   else if (has_groups && colors[1] != "bw")
-    p <- ggplot2::ggplot(x, ggplot2::aes_string(x = "x", y = "predicted", colour = "group_col", fill = "group_col"))
+    p <- ggplot2::ggplot(plot_data, ggplot2::aes_string(x = "x", y = "predicted", colour = "group_col", fill = "group_col"))
   else
-    p <- ggplot2::ggplot(x, ggplot2::aes_string(x = "x", y = "predicted"))
+    p <- ggplot2::ggplot(plot_data, ggplot2::aes_string(x = "x", y = "predicted"))
 
 
   # get color values -----
 
-  colors <- .get_colors(colors, length(unique(x$group)), isTRUE(attr(x, "continuous.group")))
+  colors <- .get_colors(colors, length(unique(stats::na.omit(x$group))), isTRUE(attr(x, "continuous.group")))
 
 
   # plot raw data points -----
@@ -589,7 +631,7 @@ plot_panel <- function(x,
   x_lab <- get_x_labels(x, case)
 
   if (!is.null(x_lab)) {
-    p <- p + ggplot2::scale_x_continuous(breaks = unique(x$x), labels = x_lab)
+    p <- p + ggplot2::scale_x_continuous(breaks = unique(plot_data$x), labels = x_lab)
   }
 
 
@@ -747,11 +789,11 @@ plot.ggalleffects <- function(x,
     attr(dat, "rawdata") <- rawdat
 
     # set various attributes
-    attr(dat, "x.is.factor") <- attr(x[[1]], "x.is.factor", exact = T)
-    attr(dat, "family") <- attr(x[[1]], "family", exact = T)
-    attr(dat, "link") <- attr(x[[1]], "link", exact = T)
-    attr(dat, "logistic") <- attr(x[[1]], "logistic", exact = T)
-    attr(dat, "fitfun") <- attr(x[[1]], "fitfun", exact = T)
+    attr(dat, "x.is.factor") <- attr(x[[1]], "x.is.factor", exact = TRUE)
+    attr(dat, "family") <- attr(x[[1]], "family", exact = TRUE)
+    attr(dat, "link") <- attr(x[[1]], "link", exact = TRUE)
+    attr(dat, "logistic") <- attr(x[[1]], "logistic", exact = TRUE)
+    attr(dat, "fitfun") <- attr(x[[1]], "fitfun", exact = TRUE)
 
     graphics::plot(
       x = dat,

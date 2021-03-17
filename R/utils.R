@@ -9,7 +9,7 @@ data_frame <- function(...) {
 
 .check_vars <- function(terms, model) {
   if (missing(terms) || is.null(terms)) {
-    stop("`terms` needs to be a character vector with at least one predictor names: one term used for the x-axis, more optional terms as grouping factors.", call. = F)
+    stop("`terms` needs to be a character vector with at least one predictor names: one term used for the x-axis, more optional terms as grouping factors.", call. = FALSE)
   }
 
   # check for correct length of vector
@@ -47,8 +47,8 @@ data_frame <- function(...) {
       return(NULL)
     }
     cleaned_off <- insight::clean_names(off)
-    if (!identical(off, cleaned_off) && isTRUE(verbose)) {
-      insight::print_color(sprintf("Model uses a transformed offset term. Predictions may not be correct. Please apply transformation of offset term to the data before fitting the model and use 'offset=%s' in the model formula.\n", cleaned_off), "red")
+    if (!identical(off, cleaned_off) && isTRUE(verbose) && !inherits(model, "glmmTMB")) {
+      warning(sprintf("Model uses a transformed offset term. Predictions may not be correct. Please apply transformation of offset term to the data before fitting the model and use 'offset(%s)' in the model formula.\n", cleaned_off), call. = FALSE)
     }
     cleaned_off
   },
@@ -71,7 +71,6 @@ data_frame <- function(...) {
 
   # get response and x-value
   response <- insight::get_response(model)
-  x <- sjlabelled::as_numeric(mf[[terms[1]]])
 
   # for cox-models, modify response
   if (inherits(model, "coxph")) {
@@ -80,6 +79,15 @@ data_frame <- function(...) {
 
   # back-transform log-transformed response?
   rv <- insight::find_terms(model)[["response"]]
+
+  # character vectors to factors
+  for (i in terms) {
+    if (is.character(mf[[i]])) {
+      mf[[i]] <- factor(mf[[i]], levels = unique(mf[[i]]))
+    }
+  }
+  x <- sjlabelled::as_numeric(mf[[terms[1]]])
+
 
   # add optional grouping variable
   if (length(terms) > 1) {
@@ -94,10 +102,22 @@ data_frame <- function(...) {
     group <- as.factor(1)
   }
 
+  if (length(terms) > 2) {
+    facet <-
+      sjlabelled::as_label(
+        mf[[terms[3]]],
+        prefix = FALSE,
+        drop.na = TRUE,
+        drop.levels = !is.numeric(mf[[terms[3]]])
+      )
+  } else {
+    facet <- as.factor(1)
+  }
+
   # return all as data.frame
   tryCatch(
     {
-      data_frame(response = response, x = x, group = group)
+      data_frame(response = response, x = x, group = group, facet = facet)
     },
     error = function(x) { NULL },
     warning = function(x) { NULL },
@@ -163,7 +183,13 @@ data_frame <- function(...) {
 
 
 is.whole <- function(x) {
-  (is.numeric(x) && all(floor(x) == x, na.rm = T)) || is.character(x) || is.factor(x)
+  (is.numeric(x) && isTRUE(all.equal(x, round(x)))) || is.character(x) || is.factor(x)
+}
+
+
+
+is.whole.number <- function(x) {
+  (is.numeric(x) && isTRUE(all.equal(x, round(x))))
 }
 
 
@@ -214,7 +240,13 @@ is_brms_trial <- function(model) {
 }
 
 
-.compact_list <- function(x) x[!sapply(x, function(i) length(i) == 0 || is.null(i) || any(i == "NULL"))]
+#' @importFrom stats complete.cases
+.compact_list <- function(x) {
+  if (is.data.frame(x)) {
+    x <- x[stats::complete.cases(x), ]
+  }
+  x[!sapply(x, function(i) length(i) == 0 || is.null(i) || any(i == "NULL"))]
+}
 
 
 .safe_deparse <- function(string) {

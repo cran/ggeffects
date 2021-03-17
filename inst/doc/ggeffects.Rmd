@@ -21,6 +21,7 @@ options(width = 800)
 
 if (!requireNamespace("ggplot2", quietly = TRUE) ||
     !requireNamespace("splines", quietly = TRUE) ||
+    !requireNamespace("survival", quietly = TRUE) ||
     !requireNamespace("sjmisc", quietly = TRUE)) {
   knitr::opts_chunk$set(eval = FALSE)
 }
@@ -180,18 +181,14 @@ ggplot(dat, aes(x, predicted)) +
 
 # Survival models
 
-`ggpredict()` also supports `coxph`-models from the **survival**-package and is able to either plot risk-scores (the default), probabilities of survival (`type = "surv"`) or cumulative hazards (`type = "cumhaz"`).
+`ggpredict()` also supports `coxph`-models from the **survival**-package and is able to either plot risk-scores (the default), probabilities of survival (`type = "survival"`) or cumulative hazards (`type = "cumulative_hazard"`).
 
-Since probabilities of survival and cumulative hazards are changing across time, the time-variable is automatically used as x-axis in such cases, so the `terms`-argument only needs up to **two** variables for `type = "surv"` or `type = "cumhaz"`.
+Since probabilities of survival and cumulative hazards are changing across time, the time-variable is automatically used as x-axis in such cases, so the `terms`-argument only needs up to **two** variables for `type = "survival"` or `type = "cumulative_hazard"`.
 
 ```{r}
-data("lung", package = "survival")
-# remove category 3 (outlier)
-lung <- subset(lung, subset = ph.ecog %in% 0:2)
-lung$sex <- factor(lung$sex, labels = c("male", "female"))
-lung$ph.ecog <- factor(lung$ph.ecog, labels = c("good", "ok", "limited"))
-
-m <- survival::coxph(survival::Surv(time, status) ~ sex + age + ph.ecog, data = lung)
+library(survival)
+data("lung")
+m <- coxph(Surv(time, status) ~ sex + age + ph.ecog, data = lung)
 
 # predicted risk-scores
 ggpredict(m, c("sex", "ph.ecog"))
@@ -199,7 +196,7 @@ ggpredict(m, c("sex", "ph.ecog"))
 
 ```{r}
 # probability of survival
-ggpredict(m, c("sex", "ph.ecog"), type = "surv")
+ggpredict(m, c("sex", "ph.ecog"), type = "survival")
 ```
 
 # Labelling the data
