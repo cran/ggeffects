@@ -16,6 +16,7 @@
   limit.range = FALSE,
   residuals = FALSE,
   residuals.line = FALSE,
+  collapse.group = FALSE,
   colors = "Set1",
   alpha = 0.15,
   dodge = 0.25,
@@ -72,6 +73,13 @@ from \pkg{effects} for more details on partial residual plots.}
 
 \item{residuals.line}{Logical, if \code{TRUE}, a loess-fit line is added to the
 partial residuals plot. Only applies if \code{residuals} is \code{TRUE}.}
+
+\item{collapse.group}{For mixed effects models, name of the grouping variable
+of random effects. If \code{collapse.group = TRUE}, data points "collapsed"
+by the first random effect groups are added to the plot. Else, if
+\code{collapse.group} is a name of a group factor, data is collapsed by
+that specific random effect. See \code{\link{collapse_by_group}} for
+further details.}
 
 \item{colors}{Character vector with color values in hex-format, valid
 color value names (see \code{demo("colors")}) or a name of a
@@ -201,5 +209,4 @@ plot(dat)}
 
 # show all color palettes
 show_pals()
-
 }

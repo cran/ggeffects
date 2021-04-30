@@ -39,7 +39,6 @@ data_frame <- function(...) {
 
 
 
-#' @importFrom insight clean_names print_color
 .offset_term <- function(model, verbose = TRUE) {
   tryCatch({
     off <- .safe_deparse(model$call$offset)
@@ -59,8 +58,6 @@ data_frame <- function(...) {
 
 
 
-#' @importFrom stats complete.cases
-#' @importFrom sjlabelled as_label as_numeric
 .get_raw_data <- function(model, mf, terms) {
   # for matrix variables, don't return raw data
   if (any(sapply(mf, is.matrix)) && !inherits(model, c("coxph", "coxme")))
@@ -86,7 +83,7 @@ data_frame <- function(...) {
       mf[[i]] <- factor(mf[[i]], levels = unique(mf[[i]]))
     }
   }
-  x <- sjlabelled::as_numeric(mf[[terms[1]]])
+  x <- .factor_to_numeric(mf[[terms[1]]])
 
 
   # add optional grouping variable
@@ -126,7 +123,6 @@ data_frame <- function(...) {
 }
 
 
-#' @importFrom stats na.omit
 .prettify_data <- function(conditional_terms, original_model_frame, terms, use_all_values = FALSE, show_pretty_message = FALSE) {
   lapply(conditional_terms, function(.x) {
     pr <- original_model_frame[[terms[.x]]]
@@ -150,22 +146,22 @@ data_frame <- function(...) {
 }
 
 
-#' @importFrom insight get_variance_random get_sigma model_info
 .get_residual_variance <- function(x) {
   tryCatch(
     {
-      info <- insight::model_info(x)
-      if (info$is_mixed || inherits(x, c("merMod", "rlmerMod", "lmerMod", "glmerMod", "glmmTMB", "stanreg", "MixMod"))) {
-        re.var <- insight::get_variance_random(x)
-      } else if (inherits(x, c("lme", "nlme"))) {
-        re.var <- x$sigma^2
-      } else {
-        re.var <- insight::get_sigma(x)
-        if (is.null(re.var)) {
-          re.var <- 0
-        }
-      }
-      re.var
+      insight::get_sigma(x, verbose = FALSE)^2
+      # info <- insight::model_info(x)
+      # if (info$is_mixed || inherits(x, c("merMod", "rlmerMod", "lmerMod", "glmerMod", "glmmTMB", "stanreg", "MixMod"))) {
+      #   re.var <- insight::get_variance_random(x)
+      # } else if (inherits(x, c("lme", "nlme"))) {
+      #   re.var <- x$sigma^2
+      # } else {
+      #   re.var <- insight::get_sigma(x, verbose = FALSE)
+      #   if (is.null(re.var)) {
+      #     re.var <- 0
+      #   }
+      # }
+      # re.var
     },
     error = function(x) { 0 }
   )
@@ -212,7 +208,6 @@ is.whole.number <- function(x) {
 }
 
 
-#' @importFrom stats formula
 is_brms_trial <- function(model) {
   is.trial <- FALSE
 
@@ -240,7 +235,6 @@ is_brms_trial <- function(model) {
 }
 
 
-#' @importFrom stats complete.cases
 .compact_list <- function(x) {
   if (is.data.frame(x)) {
     x <- x[stats::complete.cases(x), ]
@@ -302,4 +296,38 @@ is.gamm4 <- function(x) {
 
 .is_numeric_factor <- function(x) {
   is.factor(x) && !anyNA(suppressWarnings(as.numeric(levels(x))))
+}
+
+
+.factor_to_numeric <- function(x, lowest = NULL) {
+  if (is.numeric(x)) {
+    return(x)
+  }
+
+  if (is.logical(x)) {
+    return(as.numeric(x))
+  }
+
+  if (anyNA(suppressWarnings(as.numeric(as.character(stats::na.omit(x)))))) {
+    if (is.character(x)) {
+      x <- as.factor(x)
+    }
+    x <- droplevels(x)
+    levels(x) <- 1:nlevels(x)
+  }
+
+  out <- as.numeric(as.character(x))
+
+  if (!is.null(lowest)) {
+    difference <- min(out) - lowest
+    out <- out - difference
+  }
+
+  out
+}
+
+
+
+.check_returned_se <- function(se.pred) {
+  !is.null(se.pred) && length(se.pred) > 0 && !is.null(se.pred$se.fit) && length(se.pred$se.fit) > 0
 }

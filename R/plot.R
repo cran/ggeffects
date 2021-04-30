@@ -25,6 +25,12 @@
 #'   from \pkg{effects} for more details on partial residual plots.
 #' @param residuals.line Logical, if \code{TRUE}, a loess-fit line is added to the
 #'   partial residuals plot. Only applies if \code{residuals} is \code{TRUE}.
+#' @param collapse.group For mixed effects models, name of the grouping variable
+#'   of random effects. If \code{collapse.group = TRUE}, data points "collapsed"
+#'   by the first random effect groups are added to the plot. Else, if
+#'   \code{collapse.group} is a name of a group factor, data is collapsed by
+#'   that specific random effect. See \code{\link{collapse_by_group}} for
+#'   further details.
 #' @param colors Character vector with color values in hex-format, valid
 #'   color value names (see \code{demo("colors")}) or a name of a
 #'   ggeffects-color-palette.
@@ -119,9 +125,6 @@
 #'
 #' # show all color palettes
 #' show_pals()
-#'
-#' @importFrom stats binomial poisson gaussian Gamma inverse.gaussian quasi quasibinomial quasipoisson
-#' @importFrom sjlabelled as_numeric
 #' @export
 plot.ggeffects <- function(x,
                            ci = TRUE,
@@ -131,6 +134,7 @@ plot.ggeffects <- function(x,
                            limit.range = FALSE,
                            residuals = FALSE,
                            residuals.line = FALSE,
+                           collapse.group = FALSE,
                            colors = "Set1",
                            alpha = .15,
                            dodge = .25,
@@ -251,23 +255,7 @@ plot.ggeffects <- function(x,
 
   # partial residuals?
   if (residuals) {
-    obj_name <- attr(x, "model.name", exact = TRUE)
-    model <- NULL
-    if (!is.null(obj_name)) {
-      model <- tryCatch({
-        get(obj_name, envir = parent.frame())
-      }, error = function(e) {
-        NULL
-      })
-      if (is.null(model)) {
-        model <- tryCatch({
-          get(obj_name, envir = globalenv())
-        }, error = function(e) {
-          NULL
-        })
-      }
-    }
-
+    model <- .get_model_object(x)
     if (!is.null(model)) {
       residual_data <- residualize_over_grid(grid = x, model = model)
       attr(x, "residual_data") <- residual_data
@@ -283,12 +271,33 @@ plot.ggeffects <- function(x,
     }
   }
 
+
+  # collapse data by random effects?
+  if (isTRUE(collapse.group) || (!is.null(collapse.group) && !isFALSE(collapse.group))) {
+    if (isTRUE(collapse.group)) {
+      # use first random effect
+      collapse.group <- NULL
+    }
+    re_data <- collapse_by_group(x,
+                                 model = .get_model_object(x),
+                                 collapse.by = collapse.group,
+                                 residuals = residuals)
+    attr(x, "random_effects_data") <- re_data
+    attr(x, "continuous.group") <- FALSE
+
+    # no additional residuals or raw data
+    rawdata <- add.data <- FALSE
+    residuals <- FALSE
+    attr(x, "residual_data") <- NULL
+  }
+
+
   # convert x back to numeric
   if (!is.numeric(x$x)) {
     if (x_is_factor && !.is_numeric_factor(x$x)) {
       levels(x$x) <- seq_len(nlevels(x$x))
     }
-    x$x <- sjlabelled::as_numeric(x$x)
+    x$x <- .factor_to_numeric(x$x)
   }
 
   # special solution for polr
@@ -323,7 +332,7 @@ plot.ggeffects <- function(x,
       x$facet <- sprintf(
         "%s = %g",
         attr(x, "terms", exact = TRUE)[3],
-        sjlabelled::as_numeric(x$facet)
+        .factor_to_numeric(x$facet)
       )
     }
   }
@@ -446,7 +455,6 @@ plot.ggeffects <- function(x,
 }
 
 
-#' @importFrom stats na.omit
 plot_panel <- function(x,
                        colors,
                        has_groups,
@@ -525,6 +533,15 @@ plot_panel <- function(x,
   residual_data <- attr(x, "residual_data", exact = TRUE)
   if (isTRUE(residuals)) {
     p <- .add_residuals_to_plot(p, x, residual_data, residuals.line, ci.style, line.size, dot.alpha, dot.size, dodge, jitter, colors)
+  }
+
+
+  # plot random effects group data -----
+
+  # get re-group data
+  random_effects_data <- attr(x, "random_effects_data", exact = TRUE)
+  if (!is.null(random_effects_data)) {
+    p <- .add_re_data_to_plot(p, x, random_effects_data, dot.alpha, dot.size, dodge, jitter)
   }
 
 
@@ -740,7 +757,6 @@ plot_panel <- function(x,
 
 
 
-#' @importFrom graphics plot
 #' @export
 plot.ggalleffects <- function(x,
                               ci = TRUE,
@@ -846,7 +862,6 @@ plot.ggalleffects <- function(x,
 
 
 
-#' @importFrom insight format_value
 .percents <- function(x) {
   insight::format_value(x = x, as_percent = TRUE, digits = 0)
 }
@@ -867,7 +882,7 @@ plot.ggalleffects <- function(x,
 
   if (!is.null(rawdat)) {
     # make sure response is numeric
-    rawdat$response <- sjlabelled::as_numeric(rawdat$response)
+    rawdat$response <- .factor_to_numeric(rawdat$response)
 
     # check if we have a group-variable with at least two groups
     if (.obj_has_name(rawdat, "group")) {
@@ -977,7 +992,6 @@ plot.ggalleffects <- function(x,
 
 
 
-#' @importFrom sjlabelled as_numeric
 .add_residuals_to_plot <- function(p, x, residuals, residuals.line, ci.style, line.size, dot.alpha, dot.size, dodge, jitter, colors) {
   if (!requireNamespace("ggplot2", quietly = FALSE)) {
     stop("Package `ggplot2` needed to produce marginal effects plots. Please install it by typing `install.packages(\"ggplot2\", dependencies = TRUE)` into the console.", call. = FALSE)
@@ -987,7 +1001,7 @@ plot.ggalleffects <- function(x,
 
     # make sure x on x-axis is on same scale
     if (is.numeric(x$x) && !is.numeric(residuals$x)) {
-      residuals$x <- sjlabelled::as_numeric(residuals$x)
+      residuals$x <- .factor_to_numeric(residuals$x)
     }
 
     residuals$facet <- NULL
@@ -1080,4 +1094,78 @@ plot.ggalleffects <- function(x,
   }
 
   p
+}
+
+
+
+
+
+.add_re_data_to_plot <- function(p, x, random_effects_data, dot.alpha, dot.size, dodge, jitter) {
+  if (!requireNamespace("ggplot2", quietly = FALSE)) {
+    stop("Package `ggplot2` needed to produce marginal effects plots. Please install it by typing `install.packages(\"ggplot2\", dependencies = TRUE)` into the console.", call. = FALSE)
+  }
+
+  # make sure x on x-axis is on same scale
+  if (is.numeric(x$x) && !is.numeric(random_effects_data$x)) {
+    random_effects_data$x <- .factor_to_numeric(random_effects_data$x)
+  }
+
+  if ("response" %in% names(random_effects_data)) {
+    mp <- ggplot2::aes_string(x = "x", y = "response", colour = "group_col")
+  } else {
+    mp <- ggplot2::aes_string(x = "x", y = "predicted", colour = "group_col")
+  }
+
+  if (is.null(jitter)) {
+    p <- p + ggplot2::geom_point(
+      data = random_effects_data,
+      mapping = mp,
+      alpha = dot.alpha,
+      size = dot.size,
+      position = ggplot2::position_dodge(width = dodge),
+      show.legend = FALSE,
+      inherit.aes = FALSE,
+      shape = 16
+    )
+  } else {
+    p <- p + ggplot2::geom_point(
+      data = random_effects_data,
+      mapping = mp,
+      alpha = dot.alpha,
+      size = dot.size,
+      position = ggplot2::position_jitterdodge(
+        jitter.width = jitter[1],
+        jitter.height = jitter[2],
+        dodge.width = dodge
+      ),
+      show.legend = FALSE,
+      inherit.aes = FALSE,
+      shape = 16
+    )
+  }
+
+  p
+}
+
+
+
+
+.get_model_object <- function(x) {
+  obj_name <- attr(x, "model.name", exact = TRUE)
+  model <- NULL
+  if (!is.null(obj_name)) {
+    model <- tryCatch({
+      get(obj_name, envir = parent.frame())
+    }, error = function(e) {
+      NULL
+    })
+    if (is.null(model)) {
+      model <- tryCatch({
+        get(obj_name, envir = globalenv())
+      }, error = function(e) {
+        NULL
+      })
+    }
+  }
+  model
 }

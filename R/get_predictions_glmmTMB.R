@@ -1,5 +1,3 @@
-#' @importFrom stats predict qnorm plogis
-#' @importFrom insight link_function print_color
 get_predictions_glmmTMB <- function(model, data_grid, ci.lvl, linv, type, terms, value_adjustment, condition, ...) {
   # does user want standard errors?
   se <- !is.null(ci.lvl) && !is.na(ci.lvl)
@@ -71,7 +69,7 @@ get_predictions_glmmTMB <- function(model, data_grid, ci.lvl, linv, type, terms,
 
       # we need a data grid with combination from *all* levels for
       # all model predictors, so the data grid has the same number
-      # of rows as our simulated data from ".simulate_predictions"
+      # of rows as our simulated data from ".simulate_zi_predictions"
 
       newdata <- .data_grid(
         model = model,
@@ -89,7 +87,7 @@ get_predictions_glmmTMB <- function(model, data_grid, ci.lvl, linv, type, terms,
       # based on quantiles of simulated draws from a multivariate normal distribution
       # (see also _Brooks et al. 2017, pp.391-392_ for details).
 
-      prdat.sim <- .simulate_predictions(model, newdata, nsim, terms, value_adjustment, condition)
+      prdat.sim <- .simulate_zi_predictions(model, newdata, nsim, terms, value_adjustment, condition)
 
       if (any(sapply(prdat.sim, nrow) == 0)) {
         stop("Could not simulate predictions. Maybe you have used 'scale()' in the formula? If so, please standardize your data before fitting the model.", call. = FALSE)
@@ -138,7 +136,7 @@ get_predictions_glmmTMB <- function(model, data_grid, ci.lvl, linv, type, terms,
 
     # predictions conditioned on zero-inflation component and random
     # effects, based on simulations
-    predicted_data <- simulate_predictions(model, nsim, clean_terms, ci)
+    predicted_data <- simulate_predictions(model, nsim, clean_terms, ci, type)
 
   } else {
 

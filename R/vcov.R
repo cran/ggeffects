@@ -37,9 +37,6 @@
 #' # thus vcov() returns a 6x6 matrix
 #' result <- ggpredict(model, c("c161sex", "c172code"))
 #' vcov(result)
-#'
-#' @importFrom stats model.matrix terms formula reformulate
-#' @importFrom insight find_random clean_names find_parameters get_varcov find_terms
 #' @export
 vcov.ggeffects <- function(object, vcov.fun = NULL, vcov.type = NULL, vcov.args = NULL, ...) {
   model <- tryCatch({
@@ -77,6 +74,14 @@ vcov.ggeffects <- function(object, vcov.fun = NULL, vcov.type = NULL, vcov.args 
   const.values <- c(condition, unlist(const.values[sapply(const.values, is.numeric)]))
   terms <- attr(object, "original.terms")
 
+
+  ## TODO fpr debugging
+  add.args <- lapply(match.call(expand.dots = FALSE)$`...`, function(x) x)
+  if (isTRUE(add.args[["debug"]])) {
+    message("Collection 1")
+    print(gc(TRUE))
+  }
+
   # copy data frame with predictions
   newdata <- .data_grid(
     model,
@@ -88,17 +93,25 @@ vcov.ggeffects <- function(object, vcov.fun = NULL, vcov.type = NULL, vcov.args 
     condition = const.values
   )
 
-  # make sure we have enough values to compute CI
-  nlevels_terms <- sapply(
-    colnames(newdata),
-    function(.x) !(.x %in% random_effect_terms) && is.factor(newdata[[.x]]) && nlevels(newdata[[.x]]) == 1
-  )
 
-  if (any(nlevels_terms)) {
-    not_enough <- colnames(newdata)[which(nlevels_terms)[1]]
-    remove_lvl <- paste0("[", gsub(pattern = "(.*)\\[(.*)\\]", replacement = "\\2", x = terms[which(.clean_terms(terms) == not_enough)]), "]", collapse = "")
-    stop(sprintf("`%s` does not have enough factor levels. Try to remove `%s`.", not_enough, remove_lvl), call. = TRUE)
+  ## TODO fpr debugging
+  if (isTRUE(add.args[["debug"]])) {
+    message("Collection 2")
+    print(gc(TRUE))
   }
+
+
+  # make sure we have enough values to compute CI
+  # nlevels_terms <- sapply(
+  #   colnames(newdata),
+  #   function(.x) !(.x %in% random_effect_terms) && is.factor(newdata[[.x]]) && nlevels(newdata[[.x]]) == 1
+  # )
+  #
+  # if (any(nlevels_terms)) {
+  #   not_enough <- colnames(newdata)[which(nlevels_terms)[1]]
+  #   remove_lvl <- paste0("[", gsub(pattern = "(.*)\\[(.*)\\]", replacement = "\\2", x = terms[which(.clean_terms(terms) == not_enough)]), "]", collapse = "")
+  #   stop(sprintf("`%s` does not have enough factor levels. Try to remove `%s`.", not_enough, remove_lvl), call. = TRUE)
+  # }
 
 
   # add response to newdata. For models fitted with "glmmPQL",
@@ -136,7 +149,15 @@ vcov.ggeffects <- function(object, vcov.fun = NULL, vcov.type = NULL, vcov.args 
 
   # rownames were resorted as well, which causes troubles in model.matrix
   rownames(newdata) <- NULL
-  .vcov_helper(model, model_frame, get_predict_function(model), newdata, vcov.fun, vcov.type, vcov.args, terms)
+  tryCatch(
+    {
+      .vcov_helper(model, model_frame, get_predict_function(model), newdata, vcov.fun, vcov.type, vcov.args, terms)
+    },
+    error = function(e) {
+      message("Could not compute variance-covariance matrix of predictions. No confidence intervals are returned.")
+      NULL
+    }
+  )
 }
 
 
@@ -185,6 +206,12 @@ vcov.ggeffects <- function(object, vcov.fun = NULL, vcov.type = NULL, vcov.args 
     insight::find_formula(model)$conditional
   })
 
+  # exception for gamlss, who may have "random()" function in formula
+  # we need to remove this term...
+  if (inherits(model, "gamlss") && grepl("random\\((.*\\))", .safe_deparse(stats::formula(model)))) {
+    model_terms <- insight::find_formula(model)$conditional
+  }
+
   # drop offset from model_terms+
   if (inherits(model, c("zeroinfl", "hurdle", "zerotrunc"))) {
     all_terms <- insight::find_terms(model)$conditional
@@ -200,6 +227,26 @@ vcov.ggeffects <- function(object, vcov.fun = NULL, vcov.type = NULL, vcov.args 
       off_terms <- grepl("^offset\\((.*)\\)", all_terms)
       model_terms <- stats::reformulate(all_terms[!off_terms], response = insight::find_response(model))
     }
+  }
+
+  # check if factors are held constant. if so, we have just one
+  # level in the data, which is too few to compute the vcov -
+  # in this case, remove those factors from model formula and vcov
+
+  re.terms <- insight::find_random(model, split_nested = TRUE, flatten = TRUE)
+
+  nlevels_terms <- sapply(
+    colnames(newdata),
+    function(.x) !(.x %in% re.terms) && is.factor(newdata[[.x]]) && nlevels(newdata[[.x]]) == 1
+  )
+
+  if (any(nlevels_terms)) {
+    all_terms <- setdiff(
+      insight::find_terms(model)$conditional,
+      colnames(newdata)[nlevels_terms]
+    )
+    model_terms <- stats::reformulate(all_terms, response = insight::find_response(model))
+    vcm <- vcm[!nlevels_terms, !nlevels_terms, drop = FALSE]
   }
 
   # code to compute se of prediction taken from

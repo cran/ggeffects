@@ -1,5 +1,3 @@
-#' @importFrom stats quantile
-#' @importFrom sjlabelled as_label get_labels
 #' @export
 print.ggeffects <- function(x, n = 10, digits = 2, x.lab = FALSE, ...) {
 
@@ -38,8 +36,8 @@ print.ggeffects <- function(x, n = 10, digits = 2, x.lab = FALSE, ...) {
   lab <- attr(x, "title", exact = TRUE)
   if (!is.null(lab)) insight::print_color(paste0(sprintf("# %s", lab), "\n", collapse = ""), "blue")
 
-  lab <- attr(x, "x.title", exact = TRUE)
-  if (!is.null(lab)) insight::print_color(paste0(sprintf("# x = %s", lab), "\n", collapse = ""), "blue")
+  # lab <- attr(x, "x.title", exact = TRUE)
+  # if (!is.null(lab)) insight::print_color(paste0(sprintf("# x = %s", lab), "\n", collapse = ""), "blue")
 
   consv <- attr(x, "constant.values")
   terms <- attr(x, "terms")
@@ -49,8 +47,12 @@ print.ggeffects <- function(x, n = 10, digits = 2, x.lab = FALSE, ...) {
   a1 <- attr(x, "fitfun", exact = TRUE)
   a2 <- attr(x, "y.title", exact = TRUE)
 
-  if (!is.null(a1) && !is.null(a2) && a1 == "coxph" && !(a2 == "Risk Score"))
+  if (!is.null(a1) && !is.null(a2) && a1 == "coxph" && !(a2 == "Risk Score") && !"time" %in% terms)
     terms <- c("time", terms)
+
+  # use focal term as column name
+  focal_term <- terms[1]
+  colnames(x)[1] <- focal_term
 
   x <- .round_numeric(x, digits = digits)
 
@@ -248,7 +250,6 @@ print.ggeffects <- function(x, n = 10, digits = 2, x.lab = FALSE, ...) {
 
 
 
-#' @importFrom insight export_table format_ci
 .print_block <- function(i, n, digits, ci.lvl, ...) {
   i <- i[setdiff(colnames(i), c("group", "facet", "panel", "response.level", ".nest"))]
   # print.data.frame(, ..., row.names = FALSE, quote = FALSE)
@@ -273,4 +274,3 @@ print.ggeffects <- function(x, n = 10, digits = 2, x.lab = FALSE, ...) {
   cat(insight::export_table(dd, digits = digits, protect_integers = TRUE))
   # print.data.frame(dd, ..., quote = FALSE, row.names = FALSE)
 }
-

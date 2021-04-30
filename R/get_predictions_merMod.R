@@ -15,18 +15,10 @@ get_predictions_merMod <- function(model, fitfram, ci.lvl, linv, type, terms, va
   else
     ref <- NULL
 
-  clean_terms <- .clean_terms(terms)
+  if (type %in% c("sim", "sim_re")) {
 
-  if (type == "sim") {
-
-    add.args <- lapply(match.call(expand.dots = FALSE)$`...`, function(x) x)
-
-    if ("nsim" %in% names(add.args))
-      nsim <- eval(add.args[["nsim"]])
-    else
-      nsim <- 1000
-
-    fitfram <- simulate_predictions(model, nsim, clean_terms, ci)
+    # simulate predictions
+    fitfram <- .do_simulate(model, terms, ci, type, ...)
 
   } else {
 
@@ -51,7 +43,7 @@ get_predictions_merMod <- function(model, fitfram, ci.lvl, linv, type, terms, va
           condition = condition
         )
 
-      if (!is.null(se.pred)) {
+      if (.check_returned_se(se.pred)) {
         se.fit <- se.pred$se.fit
         fitfram <- se.pred$prediction_data
 

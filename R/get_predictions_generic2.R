@@ -1,4 +1,3 @@
-#' @importFrom stats qnorm predict
 get_predictions_generic2 <- function(model, fitfram, ci.lvl, linv, type, model_class, value_adjustment, terms, vcov.fun, vcov.type, vcov.args, condition, interval, ...) {
   # get prediction type.
   pt <- switch(
@@ -48,7 +47,7 @@ get_predictions_generic2 <- function(model, fitfram, ci.lvl, linv, type, model_c
     )
 
 
-  if (!is.null(se.pred) && isTRUE(se)) {
+  if (.check_returned_se(se.pred) && isTRUE(se)) {
     se.fit <- se.pred$se.fit
     fitfram <- se.pred$prediction_data
 

@@ -1,5 +1,9 @@
-if (suppressWarnings(
+.runThisTest <- Sys.getenv("RunAllggeffectsTests") == "yes"
+
+if (.runThisTest &&
+    suppressWarnings(
   require("testthat") &&
+  require("emmeans") &&
   require("ggeffects")
 )) {
   # lm, linear regression ----

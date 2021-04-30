@@ -49,8 +49,6 @@
   se
 }
 
-#' @importFrom stats model.matrix terms formula
-#' @importFrom insight find_random clean_names find_parameters get_varcov find_formula
 .safe_se_from_vcov <- function(model,
                               prediction_data,
                               value_adjustment,
@@ -96,16 +94,16 @@
   )
 
   # make sure we have enough values to compute CI
-  nlevels_terms <- sapply(
-    colnames(newdata),
-    function(.x) !(.x %in% re.terms) && is.factor(newdata[[.x]]) && nlevels(newdata[[.x]]) == 1
-  )
+  # nlevels_terms <- sapply(
+  #   colnames(newdata),
+  #   function(.x) !(.x %in% re.terms) && is.factor(newdata[[.x]]) && nlevels(newdata[[.x]]) == 1
+  # )
 
-  if (any(nlevels_terms)) {
-    not_enough <- colnames(newdata)[which(nlevels_terms)[1]]
-    remove_lvl <- paste0("[", gsub(pattern = "(.*)\\[(.*)\\]", replacement = "\\2", x = terms[which(.clean_terms(terms) == not_enough)]), "]", collapse = "")
-    stop(sprintf("`%s` does not have enough factor levels. Try to remove `%s`.", not_enough, remove_lvl), call. = TRUE)
-  }
+  # if (any(nlevels_terms)) {
+  #   not_enough <- colnames(newdata)[which(nlevels_terms)[1]]
+  #   remove_lvl <- paste0("[", gsub(pattern = "(.*)\\[(.*)\\]", replacement = "\\2", x = terms[which(.clean_terms(terms) == not_enough)]), "]", collapse = "")
+  #   stop(sprintf("`%s` does not have enough factor levels. Try to remove `%s`.", not_enough, remove_lvl), call. = TRUE)
+  # }
 
 
   # add response to newdata. For models fitted with "glmmPQL",
@@ -148,26 +146,46 @@
   rownames(newdata) <- NULL
   rownames(prediction_data) <- NULL
 
-  vmatrix <- .vcov_helper(model, model_frame, model_class, newdata, vcov.fun, vcov.type, vcov.args, terms)
-  pvar <- diag(vmatrix)
+  vmatrix <- tryCatch(
+    {
+      .vcov_helper(model, model_frame, model_class, newdata, vcov.fun, vcov.type, vcov.args, terms)
+    },
+    error = function(e) {
+      NULL
+    }
+  )
+
   pr_int <- FALSE
 
-  # condition on random effect variances
-  if (type == "re" || (!is.null(interval) && interval == "prediction")) {
-    sig <- .get_residual_variance(model)
-    if (!is.null(sig) && sig > 0.0001) {
-      pvar <- pvar + sig
-      pr_int <- TRUE
+  if (is.null(vmatrix)) {
+    message("Could not compute variance-covariance matrix of predictions. No confidence intervals are returned.")
+    se.fit <- NULL
+  } else {
+    pvar <- diag(vmatrix)
+
+    # condition on random effect variances
+    if (type == "re" || (!is.null(interval) && interval == "prediction")) {
+      sig <- .get_residual_variance(model)
+      if (!is.null(sig) && sig > 0.0001) {
+        pvar <- pvar + sig
+        pr_int <- TRUE
+      }
+    }
+
+    se.fit <- sqrt(pvar)
+
+    n_pred <- nrow(prediction_data)
+    n_se <- length(se.fit)
+
+    # shorten to length of prediction_data
+    if (!is.null(model_class) && model_class %in% c("polr", "multinom", "mixor")) {
+      se.fit <- rep(se.fit, each = .n_distinct(prediction_data$response.level))
+    } else if (type == "re" && n_se < n_pred && n_pred %% n_se == 0) {
+      se.fit <- rep(se.fit, times = n_pred / n_se)
+    } else {
+      se.fit <- se.fit[1:n_pred]
     }
   }
-
-  se.fit <- sqrt(pvar)
-
-  # shorten to length of prediction_data
-  if (!is.null(model_class) && model_class %in% c("polr", "multinom", "mixor"))
-    se.fit <- rep(se.fit, each = .n_distinct(prediction_data$response.level))
-  else
-    se.fit <- se.fit[1:nrow(prediction_data)]
 
   std_error <- list(prediction_data = prediction_data, se.fit = se.fit)
   attr(std_error, "prediction_interval") <- pr_int

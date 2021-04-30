@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+<meta name="author" content="Daniel Lüdecke" />
+
+<meta name="date" content="2021-04-29" />
+
+<title>Intoduction to Adjusted Predictions and Marginal Effects in R</title>
+
+<script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
+// be compatible with the behavior of Pandoc < 2.8).
+document.addEventListener('DOMContentLoaded', function(e) {
+  var hs = document.querySelectorAll("div.section[class*='level'] > :first-child");
+  var i, h, a;
+  for (i = 0; i < hs.length; i++) {
+    h = hs[i];
+    if (!/^h[1-6]$/i.test(h.tagName)) continue;  // it should be a header h1-h6
+    a = h.attributes;
+    while (a.length > 0) h.removeAttribute(a[0].name);
+  }
+});
+</script>
+<script>// Hide empty <a> tag within highlighted CodeBlock for screen reader accessibility (see https://github.com/jgm/pandoc/issues/6352#issuecomment-626106786) -->
+// v0.0.1
+// Written by JooYoung Seo (jooyoung@psu.edu) and Atsushi Yasumoto on June 1st, 2020.
+
+document.addEventListener('DOMContentLoaded', function() {
+  const codeList = document.getElementsByClassName("sourceCode");
+  for (var i = 0; i < codeList.length; i++) {
+    var linkList = codeList[i].getElementsByTagName('a');
+    for (var j = 0; j < linkList.length; j++) {
+      if (linkList[j].innerHTML === "") {
+        linkList[j].setAttribute('aria-hidden', 'true');
+      }
+    }
+  }
+});
+</script>
+
+<style type="text/css">
+  code{white-space: pre-wrap;}
+  span.smallcaps{font-variant: small-caps;}
+  span.underline{text-decoration: underline;}
+  div.column{display: inline-block; vertical-align: top; width: 50%;}
+  div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+  ul.task-list{list-style: none;}
+    </style>
+
+
+<style type="text/css">
+  code {
+    white-space: pre;
+  }
+  .sourceCode {
+    overflow: visible;
+  }
+</style>
+<style type="text/css" data-origin="pandoc">
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+    color: #aaaaaa;
+  }
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; font-weight: bold; } /* Alert */
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } /* Annotation */
+code span.at { color: #7d9029; } /* Attribute */
+code span.bn { color: #40a070; } /* BaseN */
+code span.bu { } /* BuiltIn */
+code span.cf { color: #007020; font-weight: bold; } /* ControlFlow */
+code span.ch { color: #4070a0; } /* Char */
+code span.cn { color: #880000; } /* Constant */
+code span.co { color: #60a0b0; font-style: italic; } /* Comment */
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } /* CommentVar */
+code span.do { color: #ba2121; font-style: italic; } /* Documentation */
+code span.dt { color: #902000; } /* DataType */
+code span.dv { color: #40a070; } /* DecVal */
+code span.er { color: #ff0000; font-weight: bold; } /* Error */
+code span.ex { } /* Extension */
+code span.fl { color: #40a070; } /* Float */
+code span.fu { color: #06287e; } /* Function */
+code span.im { } /* Import */
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Information */
+code span.kw { color: #007020; font-weight: bold; } /* Keyword */
+code span.op { color: #666666; } /* Operator */
+code span.ot { color: #007020; } /* Other */
+code span.pp { color: #bc7a00; } /* Preprocessor */
+code span.sc { color: #4070a0; } /* SpecialChar */
+code span.ss { color: #bb6688; } /* SpecialString */
+code span.st { color: #4070a0; } /* String */
+code span.va { color: #19177c; } /* Variable */
+code span.vs { color: #4070a0; } /* VerbatimString */
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warning */
+
+</style>
+<script>
+// apply pandoc div.sourceCode style to pre.sourceCode instead
+(function() {
+  var sheets = document.styleSheets;
+  for (var i = 0; i < sheets.length; i++) {
+    if (sheets[i].ownerNode.dataset["origin"] !== "pandoc") continue;
+    try { var rules = sheets[i].cssRules; } catch (e) { continue; }
+    for (var j = 0; j < rules.length; j++) {
+      var rule = rules[j];
+      // check if there is a div.sourceCode rule
+      if (rule.type !== rule.STYLE_RULE || rule.selectorText !== "div.sourceCode") continue;
+      var style = rule.style.cssText;
+      // check if color or background-color is set
+      if (rule.style.color === '' && rule.style.backgroundColor === '') continue;
+      // replace div.sourceCode by a pre.sourceCode rule
+      sheets[i].deleteRule(j);
+      sheets[i].insertRule('pre.sourceCode{' + style + '}', j);
+    }
+  }
+})();
+</script>
+
+
+
+
+<style type="text/css">body {
+background-color: #fff;
+margin: 1em auto;
+max-width: 700px;
+overflow: visible;
+padding-left: 2em;
+padding-right: 2em;
+font-family: "Open Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+font-size: 14px;
+line-height: 1.35;
+}
+#TOC {
+clear: both;
+margin: 0 0 10px 10px;
+padding: 4px;
+width: 400px;
+border: 1px solid #CCCCCC;
+border-radius: 5px;
+background-color: #f6f6f6;
+font-size: 13px;
+line-height: 1.3;
+}
+#TOC .toctitle {
+font-weight: bold;
+font-size: 15px;
+margin-left: 5px;
+}
+#TOC ul {
+padding-left: 40px;
+margin-left: -1.5em;
+margin-top: 5px;
+margin-bottom: 5px;
+}
+#TOC ul ul {
+margin-left: -2em;
+}
+#TOC li {
+line-height: 16px;
+}
+table {
+margin: 1em auto;
+border-width: 1px;
+border-color: #DDDDDD;
+border-style: outset;
+border-collapse: collapse;
+}
+table th {
+border-width: 2px;
+padding: 5px;
+border-style: inset;
+}
+table td {
+border-width: 1px;
+border-style: inset;
+line-height: 18px;
+padding: 5px 5px;
+}
+table, table th, table td {
+border-left-style: none;
+border-right-style: none;
+}
+table thead, table tr.even {
+background-color: #f7f7f7;
+}
+p {
+margin: 0.5em 0;
+}
+blockquote {
+background-color: #f6f6f6;
+padding: 0.25em 0.75em;
+}
+hr {
+border-style: solid;
+border: none;
+border-top: 1px solid #777;
+margin: 28px 0;
+}
+dl {
+margin-left: 0;
+}
+dl dd {
+margin-bottom: 13px;
+margin-left: 13px;
+}
+dl dt {
+font-weight: bold;
+}
+ul {
+margin-top: 0;
+}
+ul li {
+list-style: circle outside;
+}
+ul ul {
+margin-bottom: 0;
+}
+pre, code {
+background-color: #f7f7f7;
+border-radius: 3px;
+color: #333;
+white-space: pre-wrap; 
+}
+pre {
+border-radius: 3px;
+margin: 5px 0px 10px 0px;
+padding: 10px;
+}
+pre:not([class]) {
+background-color: #f7f7f7;
+}
+code {
+font-family: Consolas, Monaco, 'Courier New', monospace;
+font-size: 85%;
+}
+p > code, li > code {
+padding: 2px 0px;
+}
+div.figure {
+text-align: center;
+}
+img {
+background-color: #FFFFFF;
+padding: 2px;
+border: 1px solid #DDDDDD;
+border-radius: 3px;
+border: 1px solid #CCCCCC;
+margin: 0 5px;
+}
+h1 {
+margin-top: 0;
+font-size: 35px;
+line-height: 40px;
+}
+h2 {
+border-bottom: 4px solid #f7f7f7;
+padding-top: 10px;
+padding-bottom: 2px;
+font-size: 145%;
+}
+h3 {
+border-bottom: 2px solid #f7f7f7;
+padding-top: 10px;
+font-size: 120%;
+}
+h4 {
+border-bottom: 1px solid #f7f7f7;
+margin-left: 8px;
+font-size: 105%;
+}
+h5, h6 {
+border-bottom: 1px solid #ccc;
+font-size: 105%;
+}
+a {
+color: #0033dd;
+text-decoration: none;
+}
+a:hover {
+color: #6666ff; }
+a:visited {
+color: #800080; }
+a:visited:hover {
+color: #BB00BB; }
+a[href^="http:"] {
+text-decoration: underline; }
+a[href^="https:"] {
+text-decoration: underline; }
+
+code > span.kw { color: #555; font-weight: bold; } 
+code > span.dt { color: #902000; } 
+code > span.dv { color: #40a070; } 
+code > span.bn { color: #d14; } 
+code > span.fl { color: #d14; } 
+code > span.ch { color: #d14; } 
+code > span.st { color: #d14; } 
+code > span.co { color: #888888; font-style: italic; } 
+code > span.ot { color: #007020; } 
+code > span.al { color: #ff0000; font-weight: bold; } 
+code > span.fu { color: #900; font-weight: bold; } 
+code > span.er { color: #a61717; background-color: #e3d2d2; } 
+</style>
+
+
+
+
+</head>
+
+<body>
+
+
+
+
+<h1 class="title toc-ignore">Intoduction to Adjusted Predictions and Marginal Effects in R</h1>
+<h4 class="author">Daniel Lüdecke</h4>
+<h4 class="date">2021-04-29</h4>
+
+
+
+<div id="marginal-effects-and-predictions" class="section level1">
+<h1>Marginal effects and predictions</h1>
+<p>There is no common language across fields regarding a unique meaning of “marginal effects”. Thus, the wording throughout this package may vary. The most generic description of what <em>ggeffects</em> does, is: <em>ggeffects</em> allows us to interpret a statistical model by making predictions generated by the model when one holds the non-focal variables constant and varies the focal variable(s).</p>
+<p>In the following, some examples are shown to make clear what is actually calculated and returned by the package’s functions <code>ggpredict()</code>, <code>ggemmeans()</code> and <code>ggeffect()</code>, and how this differs from other functions or software packages that calculate marginal effects.</p>
+<div id="an-example-with-a-simple-linear-model" class="section level2">
+<h2>An example with a simple linear model</h2>
+<p>First, we fit s simple linear model and look at the coefficient of the only predictor, <code>Sepal.Width</code>.</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1"></a><span class="kw">data</span>(iris)</span>
+<span id="cb1-2"><a href="#cb1-2"></a>model1 &lt;-<span class="st"> </span><span class="kw">lm</span>(Sepal.Length <span class="op">~</span><span class="st"> </span>Sepal.Width, <span class="dt">data =</span> iris)</span>
+<span id="cb1-3"><a href="#cb1-3"></a><span class="kw">coef</span>(model1)[<span class="st">&quot;Sepal.Width&quot;</span>]</span>
+<span id="cb1-4"><a href="#cb1-4"></a><span class="co">#&gt; Sepal.Width </span></span>
+<span id="cb1-5"><a href="#cb1-5"></a><span class="co">#&gt;  -0.2233611</span></span></code></pre></div>
+<p>In this basic example, the coefficient we see here is the <em>slope</em> of the regression line:</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1"></a><span class="kw">library</span>(ggplot2)</span>
+<span id="cb2-2"><a href="#cb2-2"></a><span class="kw">ggplot</span>(iris, <span class="kw">aes</span>(<span class="dt">x =</span> Sepal.Width, <span class="dt">y =</span> Sepal.Length)) <span class="op">+</span><span class="st"> </span></span>
+<span id="cb2-3"><a href="#cb2-3"></a><span class="st">  </span><span class="kw">geom_point</span>() <span class="op">+</span></span>
+<span id="cb2-4"><a href="#cb2-4"></a><span class="st">  </span><span class="kw">geom_abline</span>(<span class="dt">intercept =</span> <span class="kw">coef</span>(model1)[<span class="st">&quot;(Intercept)&quot;</span>], </span>
+<span id="cb2-5"><a href="#cb2-5"></a>              <span class="dt">slope =</span> <span class="kw">coef</span>(model1)[<span class="st">&quot;Sepal.Width&quot;</span>])</span></code></pre></div>
+<p><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAqAAAAFQCAMAAABXmDxzAAAAxlBMVEUAAAAAADoAAGYAOpAAZrYzMzM6AAA6ADo6AGY6Ojo6kNtNTU1NTW5NTY5NbqtNjshmAABmADpmZmZmtv9uTU1uTW5uTY5ubo5ubqtuq+SOTU2OTW6OTY6Obk2ObquOyP+QOgCQkGaQ27aQ2/+rbk2rbm6rbo6rjk2r5OSr5P+2ZgC225C22/+2///Ijk3I///bkDrb/7bb/9vb///kq27k///r6+v/tmb/yI7/25D/27b/29v/5Kv//7b//8j//9v//+T///+wgNb2AAAACXBIWXMAAA7DAAAOwwHHb6hkAAAQ9klEQVR4nO2da2PbthWGlcRxMytJ3Tnd2qSb3brpZm9JtMWu7c03/v8/VZKiLrYJCgCBAxzheT/EksyX54B+AhwQJDWpEMpYk9QJIDQkAEVZC0BR1gJQlLUAFGUtAEVZyxbQlwiJyhXQgd/9brmPwN6SrPoyHmsFUFVWfRkLAHr9bvrmy+INgCa16ss4PqC3H06qs7fn3TsATWrVl3F8QK9/OK9uf1p0oQCa1KovY8ketJ1U/Y6QoCxq0Nv30+UITw+a1qovY4Eh/vuT6vINQ3wWVn0Zxwf0su4+m2F+LgBNatWXMT1oUVZ9GQucB72cTl8vOlAATWsNFHYycbv2Im9AHwhAk1rDhJ1MHAkFUH2oAKiMFUBVWQF0kwA0qZUadJMANKlVX8YAWpRVX8YAWpRVX8YAWpRVX8YAWpRVX8YAWpRVX8YAWpRVX8YAWpRVX8YAWpRVX8YAarLarJb4L664rsUYokp6WUlKf+DXZLXe7L087bya3R9V1OvdWAAd5wVQVyuAeiYT0gqgZiuAeiYT1EoNarZSg/olgzXTsACq9OiJW/VlDKBprLqHeEVWAPWS7kmSJiuAeglApawA6iUAlbICqJ+oQYWsAKrKqi9jAC3Kqi9jAC3Kqi9jAC3Kqi9jcUBTPxIalSV6UFVWfRkzxBdl1ZcxgBZl1ZcxgBZl1ZcxgBZl1ZcxgAay6rjIPP1xkrYC6FxKbtNJfpzErQA6F4BmagXQuQA0UyuAdqIGzdMKoKqs+jIG0KKs+jIG0MhW09APoDJWAB2WcfIEoDJWAB0WgCa2AuiwADSxFUA3iBo0rRVAVVn1ZQygRVn1ZQygaayuC0/r24c/TlbZaDvEADrC6rp0/2D74MfJLhtlhxhAx1gBVMoKoF4CUCkrgPqJGlTICqCqrPoyBtCirPoyBlAdQ3yYqPqOE4DqmCSFiTrOq9MKoF4CUCkrgHoJQKWsAOonalAhK4CqsurLOD6gZ9NGh907AE1q1ZexTA96+fa8ewWgfta4K0lbbLUC9PbDyeIlgHpZ467Fb7PVCtCzb9sfLxulfma5TrWApk5CpWwAXetA6UH9rPSgvlYbQFcVKID6WqlBPa02gH7+cfUaQJNa9WUsAOj9x9UID6BprfoyFgB0vQQF0A1W0woTQ7ynlZWkoFbTGj2TJF8rgAa1AmhoK4AGtQJoaCuAhrVSgwa2Aqgqq76MAbQoq76MAbQoq76MATSQ1fES+bwe3LDFVgCdy/Emo7wefbPNVgCdC0AztQLoXACaqRVAO1GD5mkFUFVWfRkDaFFWfRkDaJpHKNgsaVpEdU5eJ2UjrOoBTfMQGquLQjZHdU9eJ2UjrAAaNCqAhrYCaNCoABra2gvo1W575J5/emrKDlBq0O229gF6d7RjNOUHaFFWfRnHAPRm/8BoAtCkVn0Zx+lBAXQpwyDM80GFrL016EVf9TlXaYAapjE8YVnK+gTQm/3JQjomSQC61Vb1p5kAdLutA5Ok3oG+NECpQRNbAVSVVV/G4QGdLWvQvrOhAJrUqi9jzoMGsnLBcp5WJklzcctHptb+HtQ8yG/rM+rb5kbbnGfUe6u3B50106Ob/b2eRXl6UJ/N6UG9rcOz+KcT+W0FlBo0UyuAqrLqyzjKJGkxxFezF18fmQA0qVVfxnFm8RdNyXRQzZ4dPzapB/TB2GwxxJs+N0S12Y2K45SLtbTTTA9nN5snScbZUH9Uq91oOE7ZWAG073PT9hujAmhoq/57kgB0q63F3ZNEDarLylq8Kqu+jOP0oACaqVVfxlFqUO5JytWqL+M4Q3zKe5LGLCK6bh6+BrXRiKhKKRthze4006jLMFw3Dz6Lt9KIqEopG2EF0OHdAGhiaz+gs8nk4Ok6/Pr2gXMBULuoSikbYe0F9PTFf/YP+s+GUoM+tbqKGtTBajgP2pwK5a7O/Kz6MgbQoqz6Mo4yxM+aIb65HvSpAgJqGmxdlWawjZswQ3w1BOj8etA+PgMCapquOCvNdCVqwkySltZ0p5kA1CwAXVoHAI1cgwKoWQC6tKYDlBp0QNSgVXpAQ3lLsurLGECLsurLGEBNVpsVJv8h3nW9yxBV0qvT6gzoZBJj3hD+EFit0XtPklyvGDBEFfXqtPo+o37yQKNzAdD4Xp3WMOdBJ328uifjJwDdZmuUE/UeuFKDRvfqtApMkqy6V51HT9yqL2OBHvT+1+nrk8Wb8bP4flx1Hj1xq76MBQD9fFhdvj3v3oReSRpfvbqvsDpZ0wzxjDSVNaC3P31Zexd5Ld6HV6ewvVGtt9/0sZ1Yi3ewbj7NdP3DP7oh/mWjYA8fb0PYbLOUVFSL7YPl4xS1RG3uQa/fHdaQhh/iXfsyY/dKDxoqbI5WC0BrOG8/LGZJGV3N5Fe9UoPqsm5+/OLt3yMBGso7t3rNttT9zfRlHAPQu6O9u6OD5TPuPscZ4oN5e612uKr7m+nLOAagDZqne9VF9+SG2/fTN8uJvBZAH8rUvfpHdR3iw0TVStkIqwnQ2Y72y+0G5Fe9PtmD7/ZqjlMO1v4ni7R09j77ZisAfWj1qV4BVMraC2hdhFank6ffQVNtJaCPZIUrgEpZs3u6XWZWU/dKDSpkBVAnja9efaKG8eq0Gh+/2HzTXI8KB/Sh1evca4HHaYx1+Ls6n0oPoAZiJoaVJNcOsSeqLa55HScL+Q8W8U4zVdrv6jRAYjoP6jxkb0zY3L1mdZwsNKacAdBsAe0LPLp8BdBWF80ZJuVDfG6APrL64gqg1fCdx2oATVCD+lvtu1dq0A3SA6hi6wCumWYczwqg2VsDVa86GvvEmt3X0GDd4PXGVV1jzYAm/RoaV5n+SjZ/PYsa1KaUdVTI4+TQveZScD+RKZuh00x6vuXD9Hex6l82z+KtTgY4KuJxGsI13SmLYRmzAdDtA/ShTN2rdkCFvoYmjBdAra3+k63cABX5GppQ3rJrUD9rk71D9ZpbDTqk/AAtyhov7CCuuc3iBwSgSa1SYR91r3kBOnt23K52Kh/ibTYvdYh3lX/1GgHQ5kqR5hyo8kmS1eZlTZJCWV2q1/CANjfMVVe7B81cXsNdnQCa2jrMa3BA24tB2+vtdJ8HtdocQMNbH+EaB9C289QBKDVo1lancqAvas8Qf1DNl+FPVQzxZVn1ZTxUvtpYn06S6t6zLUEvem/rBNCkVn0ZD1k3dK+m00ynzRmmu6PeB4sIAOo41oZaSXJVsvM9KcK6WU1VlIXvAa55nqh3nK2EWot3VrqKTj6sxyUq46N2nDoDGvuZ5G1WET9XLRWNCpskPain6EFNCtSD5jrEU4MOaatr0N6o+QGKNb+weV0sMigATWrVlzGAJqsGY0Y17j7qYBsoalArgHop8mzFvPuY05VAUcNaAdRLAGorAAVQy90AaEGAUoPaCkCLsurLGECLsurLGECLsqZc00ljBVBV1pSr4mmsAKrKCqCbBKBJrQC6SQCa1EoNukkAmtSqL2MALcqqL2MA3cpRb8xV2CPCOlolrgkvDVAd84ZR97H4h3W0itxVA6ASUV2tALq0AqhEVFcrgC6tpQFKDRrQSg2KNY+wzOKVHj1xq76MAbQoq76MATSvsszRGuNpFKbNLcKaBKD+3rwmto5W19m6Y2NNpyycjxmAAugDAejSCqAprQC60aoeUGrQAVGDhsolPSo6rPoyFgD0bDqdvvnSvQHQpFZ9GQsA+vlw7c0AoGPG2ocFkq91RFRXuWZpuAIg0BBvlc22Anr/8WTtnRnQUbOVVTvcd5Pi6Llm+WD74JMku2y2FdDb9/UQ33aiLxvFfjR5oN1ElmuWhu1Nu3H8XMcx89NmQK+/P1nrRelBW9GDSlktZ/HLOpQadC5qUCFrQECZnca36ss4PqCXb8+r+984zZSFVV/GMudBXy8n8ukADbS44hjVpDHZhD9ODPFLJQM00PK0Y9Qo2QQ/TkySVgLQ8dkAqIMVQL0EoFJWNYBSgw54qUGXYhaf1KovYwAtyqovYwDNayUp0BBv3I224wSgea3FB5okmXej7DgBaCIrgEpZAdRLACplBVA/UYMKWQFUlVVfxgBalFVfxgCqw2q4YDl2WP1WABWxGm75iB12C6wAKmIFUF8rgIpYAdTXCqAyVmpQTyuAqrLqyxhAi7LqyxhAi7LqyxhA87LaLIGGX+rkivqlAHTQanURyeaojheLcE/SSgA6aAXQ0FYADWoF0NBWAA1rpQYNbAVQVVZ9GQNoUVZ9GW8foM4PYtB54FWFBdCV1/1RNjoPvKqwmgCN/UzyFtDYQZAa0YOqsurLeOuGeGrQDMMCqNKjJ27VlzGAFmXVlzGARrYaKg7XQoQr6j2tADosw5zNdSrHPUm+VgAdFoAmtgLosAA0sRVAN4gaNK0VQFVZ9WUMoEVZ9WUMoGmszutdQaLqO04AmsbqfsVAiKjjvDqtAOolAJWyAqiXAFTKCqB+ogYVsgKoKqu+jAG0KKu+jAG0KKu+jAG0KKu+jAG0KKu+jAG0KKu+jAG0KKu+jAG0KKu+jAG0KKu+jAG0KKu+jMUBRUhUjoAOwhtgH2rC0ljZqACqImpRjQVQfVGLamxwQBGKJgBFWQtAUdYCUJS1ABRlrTGAXr+bTg/bV7fvp2/PwyTkEvZsOp2++SIT9XIZSrSxq7CSja2q+18T/GWXUdfaOgLQ2w8n1fX3J91+z74NkKBb2OrzoVDM+n/FX750TRRt7CqsZGOrBpE2nGhjl1HX2zoC0MtvF7u6/elLeyhFtAp7//FEJmSneRNFG7sKK9vY67/+rWVEtrGLqOttHVmDNt1ZveMfzrtXQpoHq4efxWAvonlXIt7YeVjRxt5//Od8sBVt7DLqelvHAXr/64/Nj8u3sn+zLmwz0Mt1LNfvXrehhBu7CCva2LMfu2pQtLHLqOttHQXo7fsWFOlOZRG2lWBplnS4aCXU2LqJ9/I96Cpqq66t42bx3e6EK5V3638mybmDfMG9CvvoVVQ1k+jptOkFJBu7itpqPKArUJohV25iuwzbjD/3v8kcvdVYJ9rYVVjJxlbLEz6ijV1GXW/rCEDnxB82/8Ekz5atha1fvpYaa+expBu7FlaysXNUxBu7jLrWVlaSUNYCUJS1ABRlLQBFWQtAUdYCUJS1ANRbs8lk8uzY/Purb9pfnr742m68U/97d7TTfVpdPP9U/e/fi42QSQDqq1lNWHUxOTBu0LHXkFiT+eeG05v9vcVv64+bDQB0gwDUU3dHLZrz/rFXHXtXu/WGN9/98l397mLV4wKonQDUU3dHe6uXk0ndTV598/Nk0vB6tVsP/nsL9toNL178t/kxe/G1+fRmf/Ls5+f/qjfba00D3XDxAlBfXTQQNqoLyzl6u88/Na9v9g/aAmDROda/qk73qlm91WmLbTPQ3+x3Pehu/du2WkC9AlB/NbOkna7IrKlsx/Iauv83g379c2061NQDV68+NejWn7aG2QLQg4pxfkAAOko3+y++ztqvn2tG6+Nq3n1etPP7BXY33x3XcLYIv2oKgeNZWwe8WtWgAGoWgI7Tgreqw6zG8Gb/2fF6D1oP7M3w3v0AUDcBqKcWc/R6xO6m5vPR+tWni4a/i1UPWlefp3vLH4shfn0WD6BmAaivThsum0nR3VFNZANkN0lqgL3aXQP06k/tq/mPdpK0006SupIUQIcEoN5qa8+ma2xOM7Wj+s/tpKk6rd/+Ulec3xzPz0U1hWq7WTu0L08zfao33AHQDQLQYAKzGALQYALQGALQYALQGAJQlLUAFGUtAEVZC0BR1gJQlLUAFGUtAEVZ6w8IPxpQx0ZvhgAAAABJRU5ErkJggg==" /><!-- --></p>
+<p>For this simple linear model, the slope for the regression line is always the same for each value of our predictor, <code>Sepal.Width</code>. We can check this by generating predictions of our model.</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1"></a><span class="kw">library</span>(ggeffects)</span>
+<span id="cb3-2"><a href="#cb3-2"></a>pr &lt;-<span class="st"> </span><span class="kw">ggpredict</span>(model1, <span class="st">&quot;Sepal.Width&quot;</span>)</span>
+<span id="cb3-3"><a href="#cb3-3"></a>pr</span>
+<span id="cb3-4"><a href="#cb3-4"></a><span class="co">#&gt; # Predicted values of Sepal.Length</span></span>
+<span id="cb3-5"><a href="#cb3-5"></a><span class="co">#&gt; </span></span>
+<span id="cb3-6"><a href="#cb3-6"></a><span class="co">#&gt; Sepal.Width | Predicted |       95% CI</span></span>
+<span id="cb3-7"><a href="#cb3-7"></a><span class="co">#&gt; --------------------------------------</span></span>
+<span id="cb3-8"><a href="#cb3-8"></a><span class="co">#&gt;        2.00 |      6.08 | [5.73, 6.43]</span></span>
+<span id="cb3-9"><a href="#cb3-9"></a><span class="co">#&gt;        2.20 |      6.03 | [5.74, 6.33]</span></span>
+<span id="cb3-10"><a href="#cb3-10"></a><span class="co">#&gt;        2.60 |      5.95 | [5.75, 6.14]</span></span>
+<span id="cb3-11"><a href="#cb3-11"></a><span class="co">#&gt;        3.00 |      5.86 | [5.72, 5.99]</span></span>
+<span id="cb3-12"><a href="#cb3-12"></a><span class="co">#&gt;        3.20 |      5.81 | [5.67, 5.95]</span></span>
+<span id="cb3-13"><a href="#cb3-13"></a><span class="co">#&gt;        3.40 |      5.77 | [5.60, 5.93]</span></span>
+<span id="cb3-14"><a href="#cb3-14"></a><span class="co">#&gt;        3.80 |      5.68 | [5.42, 5.94]</span></span>
+<span id="cb3-15"><a href="#cb3-15"></a><span class="co">#&gt;        4.40 |      5.54 | [5.11, 5.97]</span></span></code></pre></div>
+<p>“Predictions” returned by <em>ggeffects</em> are essentially interpretations of regression coefficients in terms of <em>comparison</em>. We can compare how much our outcome (<code>Sepal.Length</code>) changes on average, when the focal term (in this case: <code>Sepal.Width</code>) varies: For example, what is the average value of <code>Sepal.Length</code> for observations with a value of, say, <code>2</code> for <code>Sepal.Width</code>, compared to observations with a <code>3</code> for <code>Sepal.Width</code>?</p>
+<p><em>ggeffects</em> returns predictions for <a href="https://strengejacke.github.io/ggeffects/articles/introduction_effectsatvalues.html">representative values</a> of the focal term(s), hence you see many predicted values (including confidence intervals) in the output for the different values of the focal term(s).</p>
+<p>If we now look at the differences between any two predicted values, we see that these are identical:</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1"></a><span class="co"># Difference between predicted values for Sepal.Width = 2 and 3</span></span>
+<span id="cb4-2"><a href="#cb4-2"></a>pr &lt;-<span class="st"> </span><span class="kw">ggpredict</span>(model1, <span class="st">&quot;Sepal.Width [2,3]&quot;</span>)</span>
+<span id="cb4-3"><a href="#cb4-3"></a><span class="kw">round</span>(<span class="kw">diff</span>(pr<span class="op">$</span>predicted), <span class="dv">4</span>)</span>
+<span id="cb4-4"><a href="#cb4-4"></a><span class="co">#&gt; [1] -0.2234</span></span>
+<span id="cb4-5"><a href="#cb4-5"></a></span>
+<span id="cb4-6"><a href="#cb4-6"></a><span class="co"># Difference between predicted values for Sepal.Width = 3 and 4</span></span>
+<span id="cb4-7"><a href="#cb4-7"></a>pr &lt;-<span class="st"> </span><span class="kw">ggpredict</span>(model1, <span class="st">&quot;Sepal.Width [4,5]&quot;</span>)</span>
+<span id="cb4-8"><a href="#cb4-8"></a><span class="kw">round</span>(<span class="kw">diff</span>(pr<span class="op">$</span>predicted), <span class="dv">4</span>)</span>
+<span id="cb4-9"><a href="#cb4-9"></a><span class="co">#&gt; [1] -0.2234</span></span></code></pre></div>
+<p>Furthermore, the difference of predicted values that differ by <code>1</code> in the focal term (<code>Sepal.Width</code>), equals the regression coefficient. This is because the interpretation of a regression coefficient can be seen as average difference in the outcome, “comparing two individuals that differ in one predictor [a difference of <code>1</code> for <code>Sepal.Width</code> in this case], while being at the same levels of all other predictors.” (Gelman, Hill, Vehtari 2020, page 494). We don’t have any other predictors in this example, so we don’t go into deeper details here.</p>
+<p>Thus, the association - or <em>effect</em> - between <code>Sepal.Length</code> and <code>Sepal.Width</code> is the same for every value of <code>Sepal.Width</code>. This means, that for simple linear models, the regression coefficient is also the <em>marginal effect</em>:</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1"></a><span class="kw">library</span>(margins)</span>
+<span id="cb5-2"><a href="#cb5-2"></a><span class="kw">margins</span>(model1)</span>
+<span id="cb5-3"><a href="#cb5-3"></a><span class="co">#&gt;  Sepal.Width</span></span>
+<span id="cb5-4"><a href="#cb5-4"></a><span class="co">#&gt;      -0.2234</span></span></code></pre></div>
+<p>The <em>marginal effect</em> here is at the same time the <em>average marginal effect</em>, because on average, the effect of <code>Sepal.Width</code> on <code>Sepal.Length</code> is -0.2234: when <code>Sepal.Width</code> changes by <code>1</code>, the value of <code>Sepal.Length</code> changes by -0.2234 on average.</p>
+</div>
+<div id="an-example-with-a-simple-logistic-regression-model" class="section level2">
+<h2>An example with a simple logistic regression model</h2>
+<p>For the next example, we simulate some data for a logistic regression model.</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1"></a><span class="kw">set.seed</span>(<span class="dv">123</span>)</span>
+<span id="cb6-2"><a href="#cb6-2"></a>y &lt;-<span class="st"> </span><span class="kw">rbinom</span>(<span class="dv">300</span>, <span class="dv">1</span>, <span class="kw">c</span>(.<span class="dv">3</span>, <span class="fl">.7</span>))</span>
+<span id="cb6-3"><a href="#cb6-3"></a>x &lt;-<span class="st"> </span><span class="kw">rnorm</span>(<span class="dv">300</span>, <span class="dv">2</span>)</span>
+<span id="cb6-4"><a href="#cb6-4"></a>y_<span class="dv">1</span> &lt;-<span class="st"> </span>y <span class="op">==</span><span class="st"> </span><span class="dv">1</span></span>
+<span id="cb6-5"><a href="#cb6-5"></a>x[y_<span class="dv">1</span>] &lt;-<span class="st"> </span>x[y_<span class="dv">1</span>] <span class="op">+</span><span class="st"> </span><span class="kw">rnorm</span>(<span class="kw">sum</span>(y_<span class="dv">1</span>), <span class="dv">3</span>)</span>
+<span id="cb6-6"><a href="#cb6-6"></a></span>
+<span id="cb6-7"><a href="#cb6-7"></a>d &lt;-<span class="st"> </span><span class="kw">data.frame</span>(x, y)</span>
+<span id="cb6-8"><a href="#cb6-8"></a>model2 &lt;-<span class="st"> </span><span class="kw">glm</span>(y <span class="op">~</span><span class="st"> </span>x, <span class="dt">family =</span> <span class="kw">binomial</span>(), <span class="dt">data =</span> d)</span>
+<span id="cb6-9"><a href="#cb6-9"></a></span>
+<span id="cb6-10"><a href="#cb6-10"></a><span class="kw">coef</span>(model2)[<span class="st">&quot;x&quot;</span>]</span>
+<span id="cb6-11"><a href="#cb6-11"></a><span class="co">#&gt;        x </span></span>
+<span id="cb6-12"><a href="#cb6-12"></a><span class="co">#&gt; 2.640768</span></span></code></pre></div>
+<p>The regression coefficient for <code>x</code> (on the logit-scale) is 2.641. However, for a logistic regression, this “slope” is not constant across all values of <code>x</code>, because we have non-linear transformations here. We can make this more clear by looking at the predicted probabilities:</p>
+<div class="sourceCode" id="cb7"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1"></a><span class="kw">plot</span>(<span class="kw">ggpredict</span>(model2, <span class="st">&quot;x [all]&quot;</span>), <span class="dt">ci =</span> <span class="ot">FALSE</span>, <span class="dt">add.data =</span> <span class="ot">TRUE</span>)</span></code></pre></div>
+<p><img src="data:image/png;base64,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" /><!-- --></p>
+<p>As we can see, we have some differences in the case of logistic regression models compared to the linear regression model:</p>
+<ol style="list-style-type: decimal">
+<li><p>We no longer have the predicted <em>average difference</em> or <em>mean</em> in our outcome, but rather the predicted <em>probability</em> that our outcome is <code>1</code> for a given value of <code>x</code>.</p></li>
+<li><p>Due to the non-linear transformation, the slope differs at different values for <code>x</code>, thus, the “marginal effect” or “association” (in terms of probabilities) is not constant across values of <code>x</code>.</p></li>
+<li><p>While the regression coefficient in linear models is already on the response scale, and hence the (average) marginal effect equals the regression coefficient, we have different scales in logistic regression models: the coefficients shown in <code>summary()</code> are on the logit-scale (the scale of the linear predictor); exponentiating that coefficient (i.e. <code>exp(coef(model2))</code>) returns an <em>odds ratio</em>; predictions are easy to interpret in terms of <em>probabilities</em>, as mentioned under 1).</p></li>
+</ol>
+<p>First, let’s look at the average marginal effect of <code>x</code> in this model:</p>
+<div class="sourceCode" id="cb8"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1"></a><span class="kw">margins</span>(model2)</span>
+<span id="cb8-2"><a href="#cb8-2"></a><span class="co">#&gt;      x</span></span>
+<span id="cb8-3"><a href="#cb8-3"></a><span class="co">#&gt;  0.154</span></span></code></pre></div>
+<p>The result indicates “the contribution of each variable on the outcome scale”, i.e. the “change in the predicted probability that the outcome equals 1” (see vignettes from the <a href="https://cran.r-project.org/package=margins"><em>margins</em> package</a>). <em>On average</em>, a unit-change in <code>x</code> changes the predicted probability that the outcome equals 1 by 15.4%.</p>
+<p>More generally speaking: The marginal effect represents the difference of (two) predictions for an (infinitesimal) change in <code>x</code> (the focal term). The <em>average</em> marginal effect represents the <em>average slope</em> of that predictor. In other words: the average marginal effects is one value per parameter (term), thus it can be considered as an “adjusted regression coefficient”, while predicted values usually predict the average outcome for <em>different</em> values of <code>x</code> - you usually don’t have just one coefficient in the latter case that represents the overall effect of <code>x</code>.</p>
+<p>I personally find it less intuitive to interpret <em>average marginal effects</em>, in particular for non-Gaussian models, because it is harder to understand an average effect where we actually have varying effects across the range of the focal term. Instead, I rather prefer to look at predictions at different values of the focal term(s), which is what <em>ggeffects</em> returns by default:</p>
+<div class="sourceCode" id="cb9"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1"></a><span class="kw">ggpredict</span>(model2, <span class="st">&quot;x&quot;</span>)</span>
+<span id="cb9-2"><a href="#cb9-2"></a><span class="co">#&gt; # Predicted probabilities of y</span></span>
+<span id="cb9-3"><a href="#cb9-3"></a><span class="co">#&gt; </span></span>
+<span id="cb9-4"><a href="#cb9-4"></a><span class="co">#&gt;  x | Predicted |       95% CI</span></span>
+<span id="cb9-5"><a href="#cb9-5"></a><span class="co">#&gt; -----------------------------</span></span>
+<span id="cb9-6"><a href="#cb9-6"></a><span class="co">#&gt; -2 |      0.00 | [0.00, 0.00]</span></span>
+<span id="cb9-7"><a href="#cb9-7"></a><span class="co">#&gt;  0 |      0.00 | [0.00, 0.00]</span></span>
+<span id="cb9-8"><a href="#cb9-8"></a><span class="co">#&gt;  2 |      0.03 | [0.01, 0.07]</span></span>
+<span id="cb9-9"><a href="#cb9-9"></a><span class="co">#&gt;  4 |      0.84 | [0.73, 0.91]</span></span>
+<span id="cb9-10"><a href="#cb9-10"></a><span class="co">#&gt;  6 |      1.00 | [0.99, 1.00]</span></span>
+<span id="cb9-11"><a href="#cb9-11"></a><span class="co">#&gt;  8 |      1.00 | [1.00, 1.00]</span></span>
+<span id="cb9-12"><a href="#cb9-12"></a><span class="co">#&gt; 10 |      1.00 | [1.00, 1.00]</span></span></code></pre></div>
+<p>For <code>x = -2</code>, the predicted probability that <code>y = 1</code>, as estimated by our model, is zero. For <code>x = 10</code>, the probability is 100%. In essence, what <code>ggpredict()</code> returns, are not <em>average</em> marginal effects, but rather the predicted values at different values of <code>x</code>. This makes clear that marginal effects require predictions: The marginal effect would be the difference between any two adjacent predicted values (if these are close enough in case of non-linear relationship between our outcome and the focal variable).</p>
+</div>
+</div>
+<div id="marginal-effects-average-marginal-effects-or-predictions" class="section level1">
+<h1>Marginal effects, average marginal effects or predictions?</h1>
+<p>Following <a href="https://clas.ucdenver.edu/marcelo-perraillon/code-and-topics/marginal-effects">these lecture-notes</a>, marginal effects are based on predictions. The main difference is how “effects” is understood. In particular in econometrics, “marginal effects” are understood as predictions for numerical derivates of the focal term, which is achieved by Stata’s <code>margins, dydx(varname)</code> or R’s <code>margins::dydx()</code>. However, marginal effects <em>at specific values</em>, in Stata <code>margins, at(var1 = 5, var2 = 10)</code>, are considered as <em>predictions</em>.</p>
+<p>More technically, these types of marginal effects (where non-focal terms are held constant at representative values) are calculated like this:</p>
+<ol style="list-style-type: decimal">
+<li>Calculate the mean of all the predictors in the dataset.</li>
+<li>Calculate the marginal effect (the 1-unit, or infinitesimal, change in the focal term) when all the predictors are held at their mean.</li>
+</ol>
+<p>In Stata language, they are also called “predictive margins”, and this is what <em>ggeffects</em> returns. Thus, the language used throughout this package considers “marginal effects” as predictions, i.e. predicted values. Depending on the response scale, these are either predicted (mean) values, predicted probabilities, predicted (mean) count (for count models) etc. Currently, <em>ggeffects</em> does <em>not</em> calculate <em>average</em> marginal effects. See the last section below for a summary of the different meanings and definitions.</p>
+<div id="estimated-marginal-means" class="section level2">
+<h2>Estimated marginal means</h2>
+<p>Sometimes, the term <em>estimated marginal means</em> is used as well, because this is commonly used in software packages likes SPSS, but there is also a prominent R package, <a href="https://cran.r-project.org/package=emmeans"><em>emmeans</em></a>.</p>
+<p>But what is the difference, for instance, between simple means and “estimated marginal” means? And why “marginal”? The idea behind marginal effects, and estimated marginal means, is that the estimated (or predicted) average outcome value is adjusted for the remaining co-variates. We shall demonstrate this with another linear model.</p>
+<p>We first simulate some fake data, where we want to see how income affects well-being. The dataset also includes a variable on health, which we will use later.</p>
+<div class="sourceCode" id="cb10"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1"></a><span class="kw">set.seed</span>(<span class="dv">123</span>)</span>
+<span id="cb10-2"><a href="#cb10-2"></a>wellbeing &lt;-<span class="st"> </span><span class="kw">runif</span>(<span class="dv">300</span>, <span class="dv">0</span>, <span class="dv">100</span>)</span>
+<span id="cb10-3"><a href="#cb10-3"></a>income &lt;-<span class="st"> </span><span class="kw">rep</span>(<span class="ot">NA</span>, <span class="dv">300</span>)</span>
+<span id="cb10-4"><a href="#cb10-4"></a>health &lt;-<span class="st"> </span><span class="kw">runif</span>(<span class="dv">300</span>, <span class="dv">30</span>, <span class="dv">80</span>)</span>
+<span id="cb10-5"><a href="#cb10-5"></a>health[wellbeing <span class="op">&lt;</span><span class="st"> </span><span class="dv">50</span>] &lt;-<span class="st"> </span>health[wellbeing <span class="op">&lt;</span><span class="st"> </span><span class="dv">50</span>] <span class="op">-</span><span class="st"> </span><span class="kw">rnorm</span>(<span class="kw">sum</span>(wellbeing <span class="op">&lt;</span><span class="st"> </span><span class="dv">50</span>), <span class="dv">30</span>, <span class="dt">sd =</span> <span class="dv">10</span>)</span>
+<span id="cb10-6"><a href="#cb10-6"></a></span>
+<span id="cb10-7"><a href="#cb10-7"></a>income[wellbeing <span class="op">&lt;</span><span class="st"> </span><span class="dv">25</span>] &lt;-<span class="st"> </span><span class="kw">sample</span>(<span class="dv">1</span><span class="op">:</span><span class="dv">3</span>, <span class="kw">sum</span>(wellbeing <span class="op">&lt;</span><span class="st"> </span><span class="dv">25</span>), </span>
+<span id="cb10-8"><a href="#cb10-8"></a>                    <span class="dt">replace =</span> <span class="ot">TRUE</span>, <span class="dt">prob =</span> <span class="kw">c</span>(.<span class="dv">7</span>, <span class="fl">.2</span>, <span class="fl">.1</span>))</span>
+<span id="cb10-9"><a href="#cb10-9"></a>income[wellbeing <span class="op">&gt;=</span><span class="st"> </span><span class="dv">25</span> <span class="op">&amp;</span><span class="st"> </span>wellbeing <span class="op">&lt;</span><span class="st"> </span><span class="dv">50</span>] &lt;-<span class="st"> </span><span class="kw">sample</span>(<span class="dv">1</span><span class="op">:</span><span class="dv">3</span>, <span class="kw">sum</span>(wellbeing <span class="op">&gt;=</span><span class="st"> </span><span class="dv">25</span> <span class="op">&amp;</span><span class="st"> </span>wellbeing <span class="op">&lt;</span><span class="st"> </span><span class="dv">50</span>), </span>
+<span id="cb10-10"><a href="#cb10-10"></a>                              <span class="dt">replace =</span> <span class="ot">TRUE</span>, <span class="dt">prob =</span> <span class="kw">c</span>(.<span class="dv">5</span>, <span class="fl">.3</span>, <span class="fl">.2</span>))</span>
+<span id="cb10-11"><a href="#cb10-11"></a>income[wellbeing <span class="op">&gt;=</span><span class="st"> </span><span class="dv">50</span> <span class="op">&amp;</span><span class="st"> </span>wellbeing <span class="op">&lt;</span><span class="st"> </span><span class="dv">75</span>] &lt;-<span class="st"> </span><span class="kw">sample</span>(<span class="dv">1</span><span class="op">:</span><span class="dv">3</span>, <span class="kw">sum</span>(wellbeing <span class="op">&gt;=</span><span class="st"> </span><span class="dv">50</span> <span class="op">&amp;</span><span class="st"> </span>wellbeing <span class="op">&lt;</span><span class="st"> </span><span class="dv">75</span>), </span>
+<span id="cb10-12"><a href="#cb10-12"></a>                              <span class="dt">replace =</span> <span class="ot">TRUE</span>, <span class="dt">prob =</span> <span class="kw">c</span>(.<span class="dv">35</span>, <span class="fl">.35</span>, <span class="fl">.3</span>))</span>
+<span id="cb10-13"><a href="#cb10-13"></a>income[wellbeing <span class="op">&gt;=</span><span class="st"> </span><span class="dv">75</span>] &lt;-<span class="st"> </span><span class="kw">sample</span>(<span class="dv">1</span><span class="op">:</span><span class="dv">3</span>, <span class="kw">sum</span>(wellbeing <span class="op">&gt;=</span><span class="st"> </span><span class="dv">75</span>), </span>
+<span id="cb10-14"><a href="#cb10-14"></a>                     <span class="dt">replace =</span> <span class="ot">TRUE</span>, <span class="dt">prob =</span> <span class="kw">c</span>(.<span class="dv">1</span>, <span class="fl">.2</span>, <span class="fl">.7</span>))</span>
+<span id="cb10-15"><a href="#cb10-15"></a></span>
+<span id="cb10-16"><a href="#cb10-16"></a>income &lt;-<span class="st"> </span><span class="kw">factor</span>(income)</span>
+<span id="cb10-17"><a href="#cb10-17"></a><span class="kw">levels</span>(income) &lt;-<span class="st"> </span><span class="kw">c</span>(<span class="st">&quot;low&quot;</span>, <span class="st">&quot;middle&quot;</span>, <span class="st">&quot;high&quot;</span>)</span>
+<span id="cb10-18"><a href="#cb10-18"></a>d &lt;-<span class="st"> </span><span class="kw">data.frame</span>(income, wellbeing, health)</span></code></pre></div>
+<p>We now fit a linear model, to look at the regression coefficients:</p>
+<div class="sourceCode" id="cb11"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1"></a><span class="kw">library</span>(parameters)</span>
+<span id="cb11-2"><a href="#cb11-2"></a>model3 &lt;-<span class="st"> </span><span class="kw">lm</span>(wellbeing <span class="op">~</span><span class="st"> </span>income, <span class="dt">data =</span> d)</span>
+<span id="cb11-3"><a href="#cb11-3"></a></span>
+<span id="cb11-4"><a href="#cb11-4"></a><span class="kw">model_parameters</span>(model3)</span>
+<span id="cb11-5"><a href="#cb11-5"></a><span class="co">#&gt; Parameter       | Coefficient |   SE |         95% CI | t(297) |      p</span></span>
+<span id="cb11-6"><a href="#cb11-6"></a><span class="co">#&gt; -----------------------------------------------------------------------</span></span>
+<span id="cb11-7"><a href="#cb11-7"></a><span class="co">#&gt; (Intercept)     |       35.45 | 2.16 | [31.20, 39.70] |  16.42 | &lt; .001</span></span>
+<span id="cb11-8"><a href="#cb11-8"></a><span class="co">#&gt; income [middle] |       15.50 | 3.50 | [ 8.61, 22.38] |   4.43 | &lt; .001</span></span>
+<span id="cb11-9"><a href="#cb11-9"></a><span class="co">#&gt; income [high]   |       33.11 | 3.30 | [26.61, 39.60] |  10.03 | &lt; .001</span></span></code></pre></div>
+<p>We can see that the average well-being is 15.5 points higher for people from middle income groups compared to those from lower income groups. People with higher income even have on average a 33.11 points higher well-being than people with lower income.</p>
+<p>We can fairly easy calculate the predicted average well-being by summing up the intercept and the coefficient for each middle and high income. This is what <code>ggpredict()</code> (or <code>ggemmeans()</code> or <code>ggeffect()</code>) also does:</p>
+<div class="sourceCode" id="cb12"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1"></a><span class="kw">ggpredict</span>(model3, <span class="st">&quot;income&quot;</span>)</span>
+<span id="cb12-2"><a href="#cb12-2"></a><span class="co">#&gt; # Predicted values of wellbeing</span></span>
+<span id="cb12-3"><a href="#cb12-3"></a><span class="co">#&gt; </span></span>
+<span id="cb12-4"><a href="#cb12-4"></a><span class="co">#&gt; income | Predicted |         95% CI</span></span>
+<span id="cb12-5"><a href="#cb12-5"></a><span class="co">#&gt; -----------------------------------</span></span>
+<span id="cb12-6"><a href="#cb12-6"></a><span class="co">#&gt; low    |     35.45 | [31.22, 39.68]</span></span>
+<span id="cb12-7"><a href="#cb12-7"></a><span class="co">#&gt; middle |     50.95 | [45.55, 56.34]</span></span>
+<span id="cb12-8"><a href="#cb12-8"></a><span class="co">#&gt; high   |     68.55 | [63.66, 73.45]</span></span></code></pre></div>
+<p>In this example, the “marginal effects” (or estimated marginal means) equal the simple average values of well-being by the different income groups:</p>
+<div class="sourceCode" id="cb13"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1"></a><span class="kw">aggregate</span>(d<span class="op">$</span>wellbeing, <span class="kw">list</span>(d<span class="op">$</span>income), mean)</span>
+<span id="cb13-2"><a href="#cb13-2"></a><span class="co">#&gt;   Group.1        x</span></span>
+<span id="cb13-3"><a href="#cb13-3"></a><span class="co">#&gt; 1     low 35.44815</span></span>
+<span id="cb13-4"><a href="#cb13-4"></a><span class="co">#&gt; 2  middle 50.94551</span></span>
+<span id="cb13-5"><a href="#cb13-5"></a><span class="co">#&gt; 3    high 68.55464</span></span></code></pre></div>
+<p>However, we may conclude that the well-being is not only depending on income, but also on other factors, such as health status. <code>health</code> would be a confounder that impacts the association between <code>income</code> and <code>wellbeing</code>.</p>
+<div class="sourceCode" id="cb14"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1"></a>model4 &lt;-<span class="st"> </span><span class="kw">lm</span>(wellbeing <span class="op">~</span><span class="st"> </span>income <span class="op">+</span><span class="st"> </span>health, <span class="dt">data =</span> d)</span>
+<span id="cb14-2"><a href="#cb14-2"></a><span class="kw">compare_parameters</span>(model3, model4)</span>
+<span id="cb14-3"><a href="#cb14-3"></a><span class="co">#&gt; Parameter       |               model3 |               model4</span></span>
+<span id="cb14-4"><a href="#cb14-4"></a><span class="co">#&gt; -------------------------------------------------------------</span></span>
+<span id="cb14-5"><a href="#cb14-5"></a><span class="co">#&gt; (Intercept)     | 35.45 (31.20, 39.70) | 16.37 (11.08, 21.65)</span></span>
+<span id="cb14-6"><a href="#cb14-6"></a><span class="co">#&gt; income (middle) | 15.50 ( 8.61, 22.38) | 11.41 ( 5.38, 17.45)</span></span>
+<span id="cb14-7"><a href="#cb14-7"></a><span class="co">#&gt; income (high)   | 33.11 (26.61, 39.60) | 24.44 (18.54, 30.33)</span></span>
+<span id="cb14-8"><a href="#cb14-8"></a><span class="co">#&gt; health          |                      |  0.58 ( 0.46,  0.69)</span></span>
+<span id="cb14-9"><a href="#cb14-9"></a><span class="co">#&gt; -------------------------------------------------------------</span></span>
+<span id="cb14-10"><a href="#cb14-10"></a><span class="co">#&gt; Observations    |                  300 |                  300</span></span></code></pre></div>
+<p>Now we see that the effect of income on well-being is less pronounced when we take the health status into account. This “adjustment” for confounding variables can be accounted for when calculating marginal effects (or estimated marginal means). These predicted average values for <code>wellbeing</code> are now no longer the same as the simple group means, due to the adjustment:</p>
+<div class="sourceCode" id="cb15"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1"></a><span class="kw">ggpredict</span>(model4, <span class="st">&quot;income&quot;</span>)</span>
+<span id="cb15-2"><a href="#cb15-2"></a><span class="co">#&gt; # Predicted values of wellbeing</span></span>
+<span id="cb15-3"><a href="#cb15-3"></a><span class="co">#&gt; </span></span>
+<span id="cb15-4"><a href="#cb15-4"></a><span class="co">#&gt; income | Predicted |         95% CI</span></span>
+<span id="cb15-5"><a href="#cb15-5"></a><span class="co">#&gt; -----------------------------------</span></span>
+<span id="cb15-6"><a href="#cb15-6"></a><span class="co">#&gt; low    |     39.26 | [35.51, 43.00]</span></span>
+<span id="cb15-7"><a href="#cb15-7"></a><span class="co">#&gt; middle |     50.67 | [45.98, 55.35]</span></span>
+<span id="cb15-8"><a href="#cb15-8"></a><span class="co">#&gt; high   |     63.69 | [59.34, 68.05]</span></span>
+<span id="cb15-9"><a href="#cb15-9"></a><span class="co">#&gt; </span></span>
+<span id="cb15-10"><a href="#cb15-10"></a><span class="co">#&gt; Adjusted for:</span></span>
+<span id="cb15-11"><a href="#cb15-11"></a><span class="co">#&gt; * health = 39.52</span></span></code></pre></div>
+<p>This is the difference between simple “means” and “estimated marginal means”. The latter are “adjusted” means, based on the model that adjusts for confounders. Thus, these predicted means are “marginalized” (i.e. averaged) over the levels of all covariates. This is what is meant by the sentence in the first paragraph, that <em>ggeffects</em> is “making predictions generated by the model when one <em>holds the non-focal variables constant</em>”. However, there are different way how to hold non-focal terms constant, and this is how <code>ggpredict()</code> differs from <code>ggemmeans()</code> and <code>ggeffect()</code> (described in detail in <a href="https://strengejacke.github.io/ggeffects/articles/technical_differencepredictemmeans.html">this vignette</a>).</p>
+</div>
+<div id="an-example-with-logistic-regression" class="section level2">
+<h2>An example with logistic regression</h2>
+<p>We can demonstrate the same aspect of “adjusted predictions” we have seen above for linear model, for logistic regression models. Therefore, we generate some fake data again.</p>
+<div class="sourceCode" id="cb16"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1"></a>smoking &lt;-<span class="st"> </span><span class="kw">data.frame</span>(</span>
+<span id="cb16-2"><a href="#cb16-2"></a>  <span class="dt">sex =</span> <span class="kw">factor</span>(<span class="kw">c</span>(<span class="st">&quot;male&quot;</span>, <span class="st">&quot;female&quot;</span>, <span class="st">&quot;female&quot;</span>, <span class="st">&quot;male&quot;</span>, <span class="st">&quot;female&quot;</span>, <span class="st">&quot;female&quot;</span>,</span>
+<span id="cb16-3"><a href="#cb16-3"></a>                 <span class="st">&quot;male&quot;</span>, <span class="st">&quot;female&quot;</span>, <span class="st">&quot;female&quot;</span>, <span class="st">&quot;male&quot;</span>, <span class="st">&quot;male&quot;</span>, <span class="st">&quot;female&quot;</span>,</span>
+<span id="cb16-4"><a href="#cb16-4"></a>                 <span class="st">&quot;female&quot;</span>), </span>
+<span id="cb16-5"><a href="#cb16-5"></a>               <span class="dt">levels =</span> <span class="kw">c</span>(<span class="st">&quot;male&quot;</span>, <span class="st">&quot;female&quot;</span>)),</span>
+<span id="cb16-6"><a href="#cb16-6"></a>  <span class="dt">smoking =</span> <span class="kw">factor</span>(<span class="kw">c</span>(<span class="st">&quot;no&quot;</span>, <span class="st">&quot;yes&quot;</span>, <span class="st">&quot;yes&quot;</span>, <span class="st">&quot;yes&quot;</span>, <span class="st">&quot;yes&quot;</span>, <span class="st">&quot;no&quot;</span>, <span class="st">&quot;no&quot;</span>, <span class="st">&quot;yes&quot;</span>,</span>
+<span id="cb16-7"><a href="#cb16-7"></a>                     <span class="st">&quot;yes&quot;</span>, <span class="st">&quot;no&quot;</span>, <span class="st">&quot;no&quot;</span>, <span class="st">&quot;no&quot;</span>, <span class="st">&quot;yes&quot;</span>), </span>
+<span id="cb16-8"><a href="#cb16-8"></a>                   <span class="dt">levels =</span> <span class="kw">c</span>(<span class="st">&quot;no&quot;</span>, <span class="st">&quot;yes&quot;</span>)),</span>
+<span id="cb16-9"><a href="#cb16-9"></a>  <span class="dt">age =</span> <span class="kw">c</span>(<span class="dv">10</span>, <span class="dv">45</span>, <span class="dv">50</span>, <span class="dv">40</span>, <span class="dv">45</span>, <span class="dv">12</span>, <span class="dv">14</span>, <span class="dv">55</span>, <span class="dv">60</span>, <span class="dv">10</span>, <span class="dv">14</span>, <span class="dv">50</span>, <span class="dv">40</span>)</span>
+<span id="cb16-10"><a href="#cb16-10"></a>)</span></code></pre></div>
+<p>Looking at the proportions of the table, we see that many more female persons are smoking compared to male persons:</p>
+<div class="sourceCode" id="cb17"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1"></a><span class="dv">100</span> <span class="op">*</span><span class="st"> </span><span class="kw">prop.table</span>(<span class="kw">table</span>(smoking<span class="op">$</span>sex, smoking<span class="op">$</span>smoking), <span class="dt">margin =</span> <span class="dv">1</span>)</span>
+<span id="cb17-2"><a href="#cb17-2"></a><span class="co">#&gt;         </span></span>
+<span id="cb17-3"><a href="#cb17-3"></a><span class="co">#&gt;          no yes</span></span>
+<span id="cb17-4"><a href="#cb17-4"></a><span class="co">#&gt;   male   80  20</span></span>
+<span id="cb17-5"><a href="#cb17-5"></a><span class="co">#&gt;   female 25  75</span></span></code></pre></div>
+<p>In this case, we have no “estimated” or “predicted” means or averages, but predicted <em>probabilities</em>. According to the table, the probability of being female and smoking is 75%, while it’s only 20% for male persons. We get the same values for the predicted probabilities, if we run a logistic regression model:</p>
+<div class="sourceCode" id="cb18"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1"></a>model5 &lt;-<span class="st"> </span><span class="kw">glm</span>(smoking <span class="op">~</span><span class="st"> </span>sex, <span class="dt">family =</span> <span class="kw">binomial</span>(), <span class="dt">data =</span> smoking)</span>
+<span id="cb18-2"><a href="#cb18-2"></a></span>
+<span id="cb18-3"><a href="#cb18-3"></a><span class="co"># Looking at the odds ratio for &quot;sex&quot;</span></span>
+<span id="cb18-4"><a href="#cb18-4"></a><span class="kw">model_parameters</span>(model5, <span class="dt">exponentiate =</span> <span class="ot">TRUE</span>)</span>
+<span id="cb18-5"><a href="#cb18-5"></a><span class="co">#&gt; Parameter    | Odds Ratio |    SE |         95% CI |     z |     p</span></span>
+<span id="cb18-6"><a href="#cb18-6"></a><span class="co">#&gt; ------------------------------------------------------------------</span></span>
+<span id="cb18-7"><a href="#cb18-7"></a><span class="co">#&gt; (Intercept)  |       0.25 |  0.28 | [0.01,   1.69] | -1.24 | 0.215</span></span>
+<span id="cb18-8"><a href="#cb18-8"></a><span class="co">#&gt; sex [female] |      12.00 | 16.61 | [1.03, 333.21] |  1.79 | 0.073</span></span>
+<span id="cb18-9"><a href="#cb18-9"></a></span>
+<span id="cb18-10"><a href="#cb18-10"></a><span class="co"># Looking at the predicted probabilities for &quot;sex&quot;</span></span>
+<span id="cb18-11"><a href="#cb18-11"></a><span class="kw">ggpredict</span>(model5, <span class="st">&quot;sex&quot;</span>)</span>
+<span id="cb18-12"><a href="#cb18-12"></a><span class="co">#&gt; # Predicted probabilities of smoking</span></span>
+<span id="cb18-13"><a href="#cb18-13"></a><span class="co">#&gt; </span></span>
+<span id="cb18-14"><a href="#cb18-14"></a><span class="co">#&gt; sex    | Predicted |       95% CI</span></span>
+<span id="cb18-15"><a href="#cb18-15"></a><span class="co">#&gt; ---------------------------------</span></span>
+<span id="cb18-16"><a href="#cb18-16"></a><span class="co">#&gt; male   |      0.20 | [0.03, 0.69]</span></span>
+<span id="cb18-17"><a href="#cb18-17"></a><span class="co">#&gt; female |      0.75 | [0.38, 0.94]</span></span></code></pre></div>
+<p>The reference category for <code>sex</code> is <em>male</em>, so we can estimate the average marginal effects for female persons using <code>margins()</code>:</p>
+<div class="sourceCode" id="cb19"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb19-1"><a href="#cb19-1"></a><span class="kw">margins</span>(model5)</span>
+<span id="cb19-2"><a href="#cb19-2"></a><span class="co">#&gt;  sexfemale</span></span>
+<span id="cb19-3"><a href="#cb19-3"></a><span class="co">#&gt;       0.55</span></span></code></pre></div>
+<p>The interpretation is like stated above: the change in the predicted probability that the outcome equals 1 for female persons is 0.55, i.e. 55%. This is exactly the difference between the predicted probabilities for male and female persons.</p>
+<p>Looking at the age distribution in the sample, we might conclude that our model produces biased estimates, and therefor biased predictions. Remember the high odds ratio of our model, as shown above. Now we include <code>age</code> as possible confounder in our model.</p>
+<div class="sourceCode" id="cb20"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1"></a>model6 &lt;-<span class="st"> </span><span class="kw">glm</span>(smoking <span class="op">~</span><span class="st"> </span>sex <span class="op">+</span><span class="st"> </span>age, <span class="dt">family =</span> <span class="kw">binomial</span>(), <span class="dt">data =</span> smoking)</span>
+<span id="cb20-2"><a href="#cb20-2"></a></span>
+<span id="cb20-3"><a href="#cb20-3"></a><span class="co"># Looking at the odds ratio for &quot;sex&quot;</span></span>
+<span id="cb20-4"><a href="#cb20-4"></a><span class="kw">compare_parameters</span>(model5, model6, <span class="dt">exponentiate =</span> <span class="ot">TRUE</span>)</span>
+<span id="cb20-5"><a href="#cb20-5"></a><span class="co">#&gt; Parameter    |               model5 |                  model6</span></span>
+<span id="cb20-6"><a href="#cb20-6"></a><span class="co">#&gt; -------------------------------------------------------------</span></span>
+<span id="cb20-7"><a href="#cb20-7"></a><span class="co">#&gt; (Intercept)  |  0.25 (0.03,   2.24) | 5.52e-03 (0.00,   2.98)</span></span>
+<span id="cb20-8"><a href="#cb20-8"></a><span class="co">#&gt; sex (female) | 12.00 (0.80, 180.97) |     0.36 (0.00, 116.05)</span></span>
+<span id="cb20-9"><a href="#cb20-9"></a><span class="co">#&gt; age          |                      |     1.18 (0.97,   1.45)</span></span>
+<span id="cb20-10"><a href="#cb20-10"></a><span class="co">#&gt; -------------------------------------------------------------</span></span>
+<span id="cb20-11"><a href="#cb20-11"></a><span class="co">#&gt; Observations |                   13 |                      13</span></span>
+<span id="cb20-12"><a href="#cb20-12"></a></span>
+<span id="cb20-13"><a href="#cb20-13"></a><span class="co"># Looking at the predicted probabilities for &quot;sex&quot;</span></span>
+<span id="cb20-14"><a href="#cb20-14"></a><span class="kw">ggpredict</span>(model6, <span class="st">&quot;sex&quot;</span>)</span>
+<span id="cb20-15"><a href="#cb20-15"></a><span class="co">#&gt; # Predicted probabilities of smoking</span></span>
+<span id="cb20-16"><a href="#cb20-16"></a><span class="co">#&gt; </span></span>
+<span id="cb20-17"><a href="#cb20-17"></a><span class="co">#&gt; sex    | Predicted |       95% CI</span></span>
+<span id="cb20-18"><a href="#cb20-18"></a><span class="co">#&gt; ---------------------------------</span></span>
+<span id="cb20-19"><a href="#cb20-19"></a><span class="co">#&gt; male   |      0.65 | [0.03, 0.99]</span></span>
+<span id="cb20-20"><a href="#cb20-20"></a><span class="co">#&gt; female |      0.39 | [0.03, 0.94]</span></span>
+<span id="cb20-21"><a href="#cb20-21"></a><span class="co">#&gt; </span></span>
+<span id="cb20-22"><a href="#cb20-22"></a><span class="co">#&gt; Adjusted for:</span></span>
+<span id="cb20-23"><a href="#cb20-23"></a><span class="co">#&gt; * age = 34.23</span></span></code></pre></div>
+<p>As we can see, the female persons were much older than the male persons. Smoking is also associated with age and it is less likely that people smoke when they are children or younger teenagers. Adjusting for age reveals that the probability of smoking is actually higher for <em>male</em> persons, not female.</p>
+</div>
+</div>
+<div id="conclusion-marginal-effects-conditional-effects-predictions" class="section level1">
+<h1>Conclusion: Marginal effects, conditional effects, predictions…</h1>
+<p><code>ggpredict()</code> holds non-focal terms constant at their mean value (if these are continuous) or at their reference level (for factors). Thus, effects returned by <code>ggpredict()</code> are actually <em>conditional effects</em> (i.e. these are conditioned on certain (reference) levels of factors). However, <code>ggeffect()</code> and <code>ggemmeans()</code> return <em>marginal effects</em>, since the effects are “marginalized” (or “averaged”) over the levels of factors.</p>
+<p>In short:</p>
+<ul>
+<li><code>ggpredict()</code>, <code>ggemmeans()</code> or <code>ggeffect()</code> help answer the question: what do I expect the outcome to be if <code>x = 1</code> (or any other specific value or level)?</li>
+<li>marginal effects help answer the question: what is the effect of a 1 unit change in <code>x</code> on <code>y</code>?</li>
+<li>average marginal effects help answer the question: what is the average effect of a 1 unit change in <code>x</code> on <code>y</code>?</li>
+</ul>
+<p>Marginal effects measure the association between a change in the predictors and a change in the outcome. It is an <em>effect</em>, not a <em>prediction</em>. It is a <em>change</em>, not a <em>level</em>. Adjusted predictions measure the average value of the outcome for specific values or levels of predictors.</p>
+<p>My impression is that there are many different terms: conditional and marginal effects, marginal effects and (estimated) marginal means, effects and predictions, … At this point, it is still not definitely clear which wording should be the most appropriate for <em>ggeffects</em>. But: Whenever “marginal effects” are mentioned here, it is about model-based predictions at different values or levels of the focal variable(s), holding the non-focal variables constant at their mean, reference level or averaged over factor levels.</p>
+<p>For linear models, adjusted predictions and marginal effects are the same. For non-Gaussian models, strictly speaking (and as usually defined in econometrics), “marginal effects” are not the same as estimated marginal means or conditional effects or adjusted predictions or predicted values. However, I’m revising the wording in the package documentation and vignettes, to avoid the term “marginal effects” as good as possible…</p>
+</div>
+<div id="references" class="section level1">
+<h1>References</h1>
+<p>Gelman A, Hill J, Vehtari A (2020): “Regression and Other Stories”. Cambridge.</p>
+</div>
+
+
+
+<!-- code folding -->
+
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>

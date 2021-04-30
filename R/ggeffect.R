@@ -1,8 +1,4 @@
 #' @rdname ggpredict
-#'
-#' @importFrom stats na.omit
-#' @importFrom sjlabelled as_numeric
-#' @importFrom insight find_predictors link_inverse print_color
 #' @export
 ggeffect <- function(model, terms, ci.lvl = .95, ...) {
 
@@ -16,6 +12,11 @@ ggeffect <- function(model, terms, ci.lvl = .95, ...) {
   # check if terms are a formula
   if (!missing(terms) && !is.null(terms) && inherits(terms, "formula")) {
     terms <- all.vars(terms)
+  }
+
+  # tidymodels?
+  if (inherits(model, "model_fit")) {
+    model <- model$fit
   }
 
   if (inherits(model, "list")  && !inherits(model, c("bamlss", "maxLik"))) {

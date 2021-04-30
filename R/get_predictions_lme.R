@@ -1,4 +1,3 @@
-#' @importFrom stats model.matrix formula vcov
 get_predictions_lme <- function(model, fitfram, ci.lvl, linv, type, terms, value_adjustment, model_class, vcov.fun, vcov.type, vcov.args, condition, ...) {
   # does user want standard errors?
   se <- (!is.null(ci.lvl) && !is.na(ci.lvl)) || !is.null(vcov.fun)
@@ -15,12 +14,18 @@ get_predictions_lme <- function(model, fitfram, ci.lvl, linv, type, terms, value
   else
     pr.type <- "response"
 
+  if (type %in% c("re", "random")) {
+    level <- 1
+  } else {
+    level <- 0
+  }
+
   prdat <-
     stats::predict(
       model,
       newdata = fitfram,
       type = pr.type,
-      level = 0,
+      level = level,
       ...
     )
 
@@ -43,7 +48,7 @@ get_predictions_lme <- function(model, fitfram, ci.lvl, linv, type, terms, value
         condition = condition
       )
 
-    if (!is.null(se.pred)) {
+    if (.check_returned_se(se.pred)) {
 
       se.fit <- se.pred$se.fit
       fitfram <- se.pred$prediction_data

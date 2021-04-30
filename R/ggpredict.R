@@ -1,4 +1,4 @@
-#' @title Marginal effects and estimated marginal means from regression models
+#' @title Marginal effects, adjusted predictions and estimated marginal means from regression models
 #' @name ggpredict
 #'
 #' @description
@@ -17,13 +17,13 @@
 #'   that is supported by \CRANpkg{effects} should work, and for
 #'   \code{ggemmeans()}, all models supported by \CRANpkg{emmeans} should work.
 #' @param terms Character vector (or a formula) with the names of those terms
-#'   from \code{model}, for which marginal effects should be displayed. At least
+#'   from \code{model}, for which predictions should be displayed. At least
 #'   one term is required to calculate effects for certain terms, maximum length is
 #'   four terms, where the second to fourth term indicate the groups, i.e.
 #'   predictions of first term are grouped at the values or levels of the remaining
-#'   terms. If \code{terms} is missing or \code{NULL}, marginal effects for each
+#'   terms. If \code{terms} is missing or \code{NULL}, adjusted predictions for each
 #'   model term are calculated. It is also possible to define specific values for
-#'   terms, at which marginal effects should be calculated (see 'Details').
+#'   terms, at which adjusted predictions should be calculated (see 'Details').
 #'   All remaining covariates that are not specified in \code{terms} are held
 #'   constant (see 'Details'). See also arguments \code{condition} and \code{typical}.
 #' @param ci.lvl Numeric, the level of the confidence intervals. For \code{ggpredict()},
@@ -89,11 +89,12 @@
 #'     models from \pkg{pscl} call \code{predict(..., type = "zero")} and for
 #'     \pkg{GLMMadaptive}, \code{predict(..., type = "zero_part")} is called.
 #'     }
-#'     \item{\code{"sim"}}{
+#'     \item{\code{"simulate"} (or \code{"sim"})}{
 #'     Predicted values and confidence resp. prediction intervals are
 #'     based on simulations, i.e. calls to \code{simulate()}. This type
 #'     of prediction takes all model uncertainty into account, including
-#'     random effects variances. Currently supported models are \code{glmmTMB}
+#'     random effects variances. Currently supported models are objects of
+#'     class \code{lm}, \code{glm}, \code{glmmTMB}, \code{wbm}, \code{MixMod}
 #'     and \code{merMod}. See \code{...} for details on number of simulations.
 #'     }
 #'     \item{\code{"survival"} and \code{"cumulative_hazard"} (or \code{"surv"} and \code{"cumhaz"})}{
@@ -156,7 +157,7 @@
 #'   \subsection{Difference between \code{ggpredict()} and \code{ggeffect()} or \code{ggemmeans()}}{
 #'   \code{ggpredict()} calls \code{predict()}, while \code{ggeffect()}
 #'   calls \code{effects::Effect()} and \code{ggemmeans()} calls
-#'   \code{emmeans::emmeans()} to compute marginal effects. Thus, effects returned
+#'   \code{emmeans::emmeans()} to compute predicted values. Thus, effects returned
 #'   by \code{ggpredict()} can be described as \emph{conditional effects} (i.e.
 #'   these are conditioned on certain (reference) levels of factors), while
 #'   \code{ggemmeans()} and \code{ggeffect()} return \emph{marginal means}, since
@@ -169,7 +170,7 @@
 #'   \code{ggemmeans()}, so factors are not averaged over their categories,
 #'   but held constant at a given level.
 #'   }
-#'   \subsection{Marginal Effects at Specific Values}{
+#'   \subsection{Marginal Effects and Adjusted Predictions at Specific Values}{
 #'   Specific values of model terms can be specified via the \code{terms}-argument.
 #'   Indicating levels in square brackets allows for selecting only
 #'   specific groups or values resp. value ranges. Term name and the start of
@@ -200,7 +201,7 @@
 #'   You can take a random sample of any size with \code{sample=n}, e.g
 #'   \code{terms = "income [sample=8]"}, which will sample eight values from
 #'   all possible values of the variable \code{income}. This option is especially
-#'   useful for plotting marginal effects at certain levels of random effects
+#'   useful for plotting predictions at certain levels of random effects
 #'   group levels, where the group factor has many levels that can be completely
 #'   plotted. For more details, see \href{https://strengejacke.github.io/ggeffects/articles/introduction_effectsatvalues.html}{this vignette}.
 #'   \cr \cr
@@ -413,7 +414,7 @@
 #' # or with ggeffects' plot-method
 #' plot(dat, ci = FALSE)}
 #'
-#' # marginal effects for polynomial terms
+#' # predictions for polynomial terms
 #' data(efc)
 #' fit <- glm(
 #'   tot_sc_e ~ c12hour + e42dep + e17age + I(e17age^2) + I(e17age^3),
@@ -421,9 +422,6 @@
 #'   family = poisson()
 #' )
 #' ggeffect(fit, terms = "e17age")
-#'
-#' @importFrom stats predict predict.glm na.omit
-#' @importFrom insight find_random find_predictors model_info find_formula
 #' @export
 ggpredict <- function(model,
                       terms,
@@ -439,7 +437,12 @@ ggpredict <- function(model,
                       interval = "confidence",
                       ...) {
   # check arguments
-  type <- match.arg(type, choices = c("fe", "fixed", "count", "re", "random", "fe.zi", "zero_inflated", "re.zi", "zi_random", "zero_inflated_random", "zi.prob", "zi_prob", "sim", "surv", "survival", "cumhaz", "cumulative_hazard", "debug"))
+  type <- match.arg(type, choices = c("fe", "fixed", "count", "re", "random",
+                                      "fe.zi", "zero_inflated", "re.zi", "zi_random",
+                                      "zero_inflated_random", "zi.prob", "zi_prob",
+                                      "sim", "simulate", "surv", "survival", "cumhaz",
+                                      "cumulative_hazard", "sim_re", "simulate_random",
+                                      "debug"))
   interval <- match.arg(interval, choices = c("confidence", "prediction"))
   model.name <- deparse(substitute(model))
 
@@ -454,13 +457,20 @@ ggpredict <- function(model,
     "zero_inflated_random" = "re.zi",
     "zi_prob" = "zi.prob",
     "survival" = "surv",
-    "cumulative_hazard" = "cumhaz"    ,
+    "cumulative_hazard" = "cumhaz",
+    "simulate" = "sim",
+    "simulate_random" = "sim_re",
     type
   )
 
   # check if terms are a formula
   if (!missing(terms) && !is.null(terms) && inherits(terms, "formula")) {
     terms <- all.vars(terms)
+  }
+
+  # tidymodels?
+  if (inherits(model, "model_fit")) {
+    model <- model$fit
   }
 
   # for gamm/gamm4 objects, we have a list with two items, mer and gam
@@ -562,13 +572,6 @@ ggpredict_helper <- function(model,
   # and are indeed existing in the data
   terms <- .check_vars(terms, model)
   cleaned_terms <- .clean_terms(terms)
-
-  # check if predictions should be made for each group level in
-  # random effects models
-  if (model_class %in% c("lmer", "glmer", "glmmTMB", "nlmer")) {
-    random_effect_terms <- insight::find_random(model, split_nested = TRUE, flatten = TRUE)
-    if (!is.null(random_effect_terms) && any(cleaned_terms %in% random_effect_terms)) ci.lvl <- NA
-  }
 
   # check model family
   model_info <- .get_model_info(model)

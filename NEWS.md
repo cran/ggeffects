@@ -1,3 +1,66 @@
+# ggeffects 1.1.0
+
+## New supported models
+
+* `orm` (package **rms**)
+
+## Breaking Changes
+
+* Prediction intervals (where possible, or when `type = "random"`), are now
+  always based on sigma^2 (i.e. `insight::get_sigma(model)^2`). This is in
+  line with `interval = "prediction"` for *lm*, or for predictions based on
+  simulations (when `type = "simulate"`).
+
+* `print()` now uses the name of the focal variable as column name (instead)
+  of `"x"`).
+
+## New function
+
+* `collapse_by_group()`, to generate a data frame where the response value of
+  the raw data is averaged over the levels of a (random effect) grouping factor.
+
+## General
+
+* A new vignette was added related to the definition and meaning of "marginal
+  effects" and "adjusted predictions". To be more strict and to avoid confusion
+  with the term "marginal effect", which meaning may vary across fields, either
+  "marginal effects" was replaced by "adjusted predictions", or "adjusted
+  predictions" was added as term throughout the package's documentation and
+  vignettes.
+
+* Allow confidence intervals when predictions are conditioned on random effect
+  groups (i.e. when `type = "random"` and `terms` includes a random effect
+  group factor).
+
+* Predicted response values based on `simulate()` (i.e. when 
+  `type = "simulate"`) is now possible for more model classes 
+  (see `?ggpredict`).
+
+* `ggpredict()` now computes confidence intervals for some edge cases where
+  it previously failed (e.g. some models that do not compute standard errors
+  for predictions, and where a factor was included in the model and not the
+  focal term).
+
+* `plot()` gains a `collapse.group` argument, which - in conjunction with
+  `add.data` - averages ("collapses") the raw data by the levels of the
+  group factors (random effects).
+
+* `data_grid()` was added as more common alias for `new_data()`.
+
+## Bug fixes
+
+* `ggpredict()` and `plot()` for survival-models now always start with time = 1.
+
+* Fixed issue in `print()` for survival-models.
+
+* Fixed issue with `type = "simulate"` for `glmmTMB` models.
+
+* Fixed issue with `gamlss` models that had `random()` function in the
+  model formula.
+
+* Fixed issue with incorrect back-transformation of predictions for 
+  `geeglm` models.
+
 # ggeffects 1.0.2
 
 ## Breaking changes
@@ -12,7 +75,7 @@
 
 ## Bug fixes
 
-* Fixed issue with unnecessary back-transformation of log-transformed offset-terms fro *glmmTMB* models.
+* Fixed issue with unnecessary back-transformation of log-transformed offset-terms from *glmmTMB* models.
 
 * Fixed issues with plotting raw data when predictor on x-axis was a character vector.
 

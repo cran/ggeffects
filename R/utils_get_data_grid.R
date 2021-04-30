@@ -1,11 +1,18 @@
-#' @importFrom utils packageVersion
-#' @importFrom stats terms median
-#' @importFrom sjlabelled as_numeric
-#' @importFrom insight find_predictors find_response find_random find_weights get_weights
-# factor_adjustment indicates if factors should be held constant or not
+# "factor_adjustment" indicates if factors should be held constant or not
 # need to be false for computing std.error for merMod objects
-.data_grid <- function(model, model_frame, terms, value_adjustment, factor_adjustment = TRUE, show_pretty_message = TRUE, condition = NULL, emmeans.only = FALSE) {
-  # special handling for coxph
+
+# value_adjustment is the function to calculate at which value non-focal
+# terms are held constant (mean, median, ...)
+
+.data_grid <- function(model,
+                       model_frame,
+                       terms,
+                       value_adjustment,
+                       factor_adjustment = TRUE,
+                       show_pretty_message = TRUE,
+                       condition = NULL,
+                       emmeans.only = FALSE) {
+    # special handling for coxph
   if (inherits(model, c("coxph", "coxme"))) {
     surv.var <- which(colnames(model_frame) == insight::find_response(model))
     model_frame <- .remove_column(model_frame, surv.var)
@@ -172,9 +179,16 @@
 
   if (!inherits(model, "wbm")) {
 
-    if (sum(!(model_predictors %in% colnames(model_frame))) > 0 && !inherits(model, "brmsfit")) {
+    if (sum(!(model_predictors %in% colnames(model_frame))) > 0 && !inherits(model, c("brmsfit", "MCMCglmm"))) {
       # get terms from model directly
-      model_predictors <- attr(stats::terms(model), "term.labels", exact = TRUE)
+      model_predictors <- tryCatch(
+        {
+          attr(stats::terms(model), "term.labels", exact = TRUE)
+        },
+        error = function(e) {
+          NULL
+        }
+      )
     }
 
     # 2nd check
@@ -305,7 +319,7 @@
     focal_terms <- lapply(focal_term_names, function(x) {
       # check for consistent vector type: numeric
       if (is.numeric(model_frame[[x]]) && !is.numeric(focal_terms[[x]]))
-        return(sjlabelled::as_numeric(focal_terms[[x]]))
+        return(.factor_to_numeric(focal_terms[[x]]))
 
       # check for consistent vector type: factor
       if (is.factor(model_frame[[x]]) && !is.factor(focal_terms[[x]]))
@@ -349,7 +363,7 @@
 
     # check for consistent vector type: numeric
     if (is.numeric(model_frame[[x]]) && !is.numeric(dat[[x]]))
-      return(sjlabelled::as_numeric(dat[[x]]))
+      return(.factor_to_numeric(dat[[x]]))
 
     # check for consistent vector type: factor
     if (is.factor(model_frame[[x]]) && !is.factor(dat[[x]]))

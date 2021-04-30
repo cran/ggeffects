@@ -1,10 +1,10 @@
 ---
-title: "Introduction: Plotting Marginal Effects"
+title: "Introduction: Plotting Adjusted Predictions and Marginal Effects"
 author: "Daniel Lüdecke"
 date: "`r Sys.Date()`"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{Introduction: Plotting Marginal Effects}
+  %\VignetteIndexEntry{Introduction: Plotting Adjusted Predictions and Marginal Effects}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
@@ -166,8 +166,8 @@ Since probabilities of survival and cumulative hazards are changing across time,
 
 ```{r}
 library(survival)
-data("lung")
-m <- coxph(Surv(time, status) ~ sex + age + ph.ecog, data = lung)
+data("lung2")
+m <- coxph(Surv(time, status) ~ sex + age + ph.ecog, data = lung2)
 
 # predicted risk-scores
 pr <- ggpredict(m, c("sex", "ph.ecog"))

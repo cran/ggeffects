@@ -1,10 +1,11 @@
 if (suppressWarnings(
   require("testthat") &&
   require("ggeffects") &&
-  require("survival")
+  require("survival") &&
+  getRversion() >= "3.6.0" &&
+  packageVersion("survival") >= "3.2.9"
 )) {
 
-  data("ovarian")
   m1 <- survreg(Surv(futime, fustat) ~ ecog.ps + rx, data = ovarian, dist = "exponential")
 
   test_that("ggpredict, survreg", {

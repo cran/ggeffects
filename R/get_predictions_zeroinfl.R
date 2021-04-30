@@ -1,4 +1,3 @@
-#' @importFrom stats qlogis predict qnorm
 get_predictions_zeroinfl <- function(model, data_grid, ci.lvl, linv, type, model_class, value_adjustment, terms, vcov.fun, vcov.type, vcov.args, condition, interval = NULL, ...) {
   # get prediction type.
   pt <- if (model_class == "zeroinfl" && type == "fe")
@@ -79,7 +78,7 @@ get_predictions_zeroinfl <- function(model, data_grid, ci.lvl, linv, type, model
     # based on quantiles of simulated draws from a multivariate normal distribution
     # (see also _Brooks et al. 2017, pp.391-392_ for details).
 
-    prdat.sim <- .simulate_predictions(model, newdata, nsim, terms, value_adjustment, condition)
+    prdat.sim <- .simulate_zi_predictions(model, newdata, nsim, terms, value_adjustment, condition)
 
     if (is.null(prdat.sim) || inherits(prdat.sim, c("error", "simpleError"))) {
 
@@ -130,7 +129,7 @@ get_predictions_zeroinfl <- function(model, data_grid, ci.lvl, linv, type, model
       )
 
 
-    if (!is.null(se.pred)) {
+    if (.check_returned_se(se.pred)) {
       se.fit <- se.pred$se.fit
       predicted_data <- se.pred$prediction_data
 

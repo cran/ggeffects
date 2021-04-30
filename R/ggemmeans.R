@@ -1,6 +1,3 @@
-#' @importFrom stats confint na.omit
-#' @importFrom sjlabelled get_labels as_numeric
-#' @importFrom insight find_response get_data model_info
 #' @rdname ggpredict
 #' @export
 ggemmeans <- function(model,
@@ -40,6 +37,11 @@ ggemmeans <- function(model,
   # check if terms are a formula
   if (!missing(terms) && !is.null(terms) && inherits(terms, "formula")) {
     terms <- all.vars(terms)
+  }
+
+  # tidymodels?
+  if (inherits(model, "model_fit")) {
+    model <- model$fit
   }
 
   if (inherits(model, c("glmmTMB", "MixMod")) && type == "zi.prob") {
@@ -125,7 +127,7 @@ ggemmeans <- function(model,
 
   # apply link inverse function
   linv <- insight::link_inverse(model)
-  if (!is.null(linv) && (inherits(model, "lrm") || pmode == "link" || (inherits(model, "MixMod") && type != "fe.zi"))) {
+  if (!is.null(linv) && (inherits(model, c("lrm", "orm")) || pmode == "link" || (inherits(model, "MixMod") && type != "fe.zi"))) {
     result$predicted <- linv(result$predicted)
     result$conf.low <- linv(result$conf.low)
     result$conf.high <- linv(result$conf.high)
@@ -150,10 +152,7 @@ ggemmeans <- function(model,
     model_info = model_info,
     type = type,
     prediction.interval = attr(prediction_data, "prediction.interval", exact = TRUE),
-    at_list = .data_grid(
-      model = model, model_frame = original_model_frame, terms = terms, value_adjustment = typical,
-      condition = condition, show_pretty_message = FALSE, emmeans.only = TRUE
-    ),
+    at_list = data_grid,
     ci.lvl = ci.lvl
   )
 }
@@ -162,7 +161,7 @@ ggemmeans <- function(model,
 .get_prediction_mode_argument <- function(model, model_info, type) {
   if (inherits(model, "betareg"))
     "response"
-  else if (inherits(model, c("polr", "clm", "clmm", "clm2", "rms")))
+  else if (inherits(model, c("polr", "clm", "clmm", "clm2", "rms", "lrm", "orm")))
     "prob"
   else if (inherits(model, "lmerMod"))
     "asymptotic"
