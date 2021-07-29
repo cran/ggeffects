@@ -350,7 +350,7 @@
 #' # to plot ggeffects-objects, you can use the 'plot()'-function.
 #' # the following examples show how to build your ggplot by hand.
 #'
-#' \donttest{
+#' \dontrun{
 #' # plot predicted values, remaining covariates held constant
 #' library(ggplot2)
 #' mydf <- ggpredict(fit, terms = "c12hour")
@@ -378,7 +378,7 @@
 #' # level indication also works for factors with non-numeric levels
 #' # and in combination with numeric levels for other variables
 #' data(efc)
-#' efc$c172code <- as_label(efc$c172code)
+#' efc$c172code <- sjlabelled::as_label(efc$c172code)
 #' fit <- lm(barthtot ~ c12hour + neg_c_7 + c161sex + c172code, data = efc)
 #' ggpredict(fit, terms = c("c12hour",
 #'   "c172code [low level of education, high level of education]",

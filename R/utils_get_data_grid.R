@@ -49,7 +49,7 @@
   all_terms <- .clean_terms(terms)
 
 
-  # check if user has any predictors with log-transformatio inside
+  # check if user has any predictors with log-transformation inside
   # model formula, but *not* used back-transformation "exp". Tell user
   # so she's aware of the problem
 
@@ -133,6 +133,30 @@
   )
   names(constant_levels) <- all_terms[conditional_terms]
   focal_terms <- c(focal_terms, constant_levels)
+
+
+  # check for monotonic terms and valid values. In case 'mo()' is used,
+  # and predictor is numeric, prettyfied values in the data grid are based
+  # on the range of the numeric variable, although only those values are allowed
+  # in the data grid that actually appear in the data
+
+  if (inherits(model, "brmsfit")) {
+    model_terms <- insight::find_terms(model, flatten = TRUE)
+    monotonics <- grepl("mo\\((.*)\\)", model_terms)
+    if (any(monotonics)) {
+      mo_terms <- gsub("mo\\((.*)\\)", "\\1", model_terms[monotonics])
+      invalid_levels <- unlist(lapply(mo_terms, function(mt) {
+        if (mt %in% names(focal_terms) && mt %in% colnames(model_frame)) {
+          !all(model_frame[[mt]] %in% focal_terms[[mt]])
+        } else {
+          FALSE
+        }
+      }))
+      if (any(invalid_levels)) {
+        stop(insight::format_message(sprintf("Variable(s) '%s' are used as monotonic effects, however, only values that are also present in the data are allowed for predictions. Consider converting variables used in 'mo()' into (ordered) factors before fitting the model.", paste0(mo_terms, collapse = ", "))), call. = FALSE)
+      }
+    }
+  }
 
 
   ## TODO check for other panelr models

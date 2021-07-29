@@ -3,7 +3,7 @@ Type: Package
 Encoding: UTF-8
 Title: Create Tidy Data Frames of Marginal Effects for 'ggplot' from
         Model Outputs
-Version: 1.1.0
+Version: 1.1.1
 Authors@R: c(
       person("Daniel", "Lüdecke", role = c("aut", "cre"), email = "d.luedecke@uke.de", comment = c(ORCID = "0000-0002-8895-3206")),
       person("Frederik", "Aust", role = "ctb", comment = c(ORCID = "0000-0003-4900-788X")),
@@ -36,10 +36,10 @@ RoxygenNote: 7.1.1
 VignetteBuilder: knitr
 Config/testthat/edition: 3
 NeedsCompilation: no
-Packaged: 2021-04-29 20:12:51 UTC; Daniel
+Packaged: 2021-07-29 12:08:51 UTC; mail
 Author: Daniel Lüdecke [aut, cre] (<https://orcid.org/0000-0002-8895-3206>),
   Frederik Aust [ctb] (<https://orcid.org/0000-0003-4900-788X>),
   Sam Crawley [ctb] (<https://orcid.org/0000-0002-7847-0411>),
   Mattan S. Ben-Shachar [ctb] (<https://orcid.org/0000-0002-4287-4801>)
 Repository: CRAN
-Date/Publication: 2021-04-30 04:10:02 UTC
+Date/Publication: 2021-07-29 13:40:02 UTC
