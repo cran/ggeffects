@@ -65,6 +65,13 @@ collapse_by_group <- function(grid, model, collapse.by = NULL, residuals = FALSE
     }
   }
 
+  if (is.factor(rawdata[[y_name]])) {
+    rawdata[[y_name]] <- as.numeric(rawdata[[y_name]])
+    if (insight::model_info(model)$is_binomial) {
+      rawdata[[y_name]] <- rawdata[[y_name]] - 1
+    } # else ordinal?
+  }
+
   rawdata$random <- factor(data[[collapse.by]])
 
   agg_data <- stats::aggregate(rawdata[[y_name]],
@@ -73,6 +80,11 @@ collapse_by_group <- function(grid, model, collapse.by = NULL, residuals = FALSE
 
   colnames(agg_data)[ncol(agg_data)] <- y_name
   colnames(agg_data)[colnames(agg_data) == "group"] <- "group_col"
+
+  # sanity check, add dummy if not present
+  if (is.null(agg_data$group_col)) {
+    agg_data$group_col <- factor(1)
+  }
 
   agg_data
 }

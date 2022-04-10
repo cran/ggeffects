@@ -3,7 +3,7 @@ Type: Package
 Encoding: UTF-8
 Title: Create Tidy Data Frames of Marginal Effects for 'ggplot' from
         Model Outputs
-Version: 1.1.1
+Version: 1.1.2
 Authors@R: c(
       person("Daniel", "Lüdecke", role = c("aut", "cre"), email = "d.luedecke@uke.de", comment = c(ORCID = "0000-0002-8895-3206")),
       person("Frederik", "Aust", role = "ctb", comment = c(ORCID = "0000-0003-4900-788X")),
@@ -20,26 +20,26 @@ Description: Compute marginal effects and adjusted predictions from statistical
     results using 'ggplot2'.
 License: GPL-3
 Depends: R (>= 3.4)
-Imports: graphics, insight (>= 0.13.0), MASS, sjlabelled (>= 1.1.2),
+Imports: graphics, insight (>= 0.17.0), MASS, sjlabelled (>= 1.1.2),
         stats
 Suggests: AER, aod, betareg, brms, clubSandwich, effects (>= 4.1-2),
         emmeans (>= 1.4.1), gam, gamlss, gamm4, gee, geepack, ggplot2,
         GLMMadaptive, glmmTMB (>= 1.0.0), gridExtra, haven, httr,
         knitr, lme4, logistf, magrittr, margins, Matrix, mice,
-        MCMCglmm, mgcv, nlme, ordinal, parameters, prediction, pscl,
-        quantreg, rmarkdown, rms, robustbase, rstanarm, rstantools,
-        sandwich, see, sjstats, sjmisc (>= 2.8.2), survey, survival,
-        testthat, VGAM
+        MCMCglmm, mgcv, nlme, ordinal, parameters, patchwork,
+        prediction, pscl, quantreg, rmarkdown, rms, robustbase,
+        rstanarm, rstantools, sandwich, see, sjstats, sjmisc (>=
+        2.8.2), survey, survival, testthat, VGAM
 URL: https://strengejacke.github.io/ggeffects/
 BugReports: https://github.com/strengejacke/ggeffects/issues/
-RoxygenNote: 7.1.1
+RoxygenNote: 7.1.2
 VignetteBuilder: knitr
 Config/testthat/edition: 3
 NeedsCompilation: no
-Packaged: 2021-07-29 12:08:51 UTC; mail
+Packaged: 2022-04-10 11:37:48 UTC; DL
 Author: Daniel Lüdecke [aut, cre] (<https://orcid.org/0000-0002-8895-3206>),
   Frederik Aust [ctb] (<https://orcid.org/0000-0003-4900-788X>),
   Sam Crawley [ctb] (<https://orcid.org/0000-0002-7847-0411>),
   Mattan S. Ben-Shachar [ctb] (<https://orcid.org/0000-0002-4287-4801>)
 Repository: CRAN
-Date/Publication: 2021-07-29 13:40:02 UTC
+Date/Publication: 2022-04-10 21:32:33 UTC
