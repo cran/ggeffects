@@ -6,12 +6,13 @@ simulate_predictions <- function(model, nsim, clean_terms, ci, type) {
     stop("Can't simulate predictions from models with binary, categorical or ordinal outcome. Please use another option for argument `type`.", call. = FALSE)
 
   if (type == "sim") {
-    ref <- NULL
+    sims <- suppressWarnings(tryCatch(
+      stats::simulate(model, nsim = nsim, re.form = NULL),
+      error = function(e) stats::simulate(model, nsim = nsim, re.form = NA)
+    ))
   } else {
-    ref <- NA
+    sims <- stats::simulate(model, nsim = nsim, re.form = NA)
   }
-
-  sims <- stats::simulate(model, nsim = nsim, re.form = ref)
 
   fitfram$predicted <- apply(sims, 1, mean)
   fitfram$conf.low <- apply(sims, 1, stats::quantile, probs = 1 - ci)

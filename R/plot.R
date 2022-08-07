@@ -205,10 +205,12 @@ plot.ggeffects <- function(x,
     # log-scale, and that axis limits cover the range of the plotted geoms
     # I think there's a more elegant solution, so please let me know...
 
-    if (y.limits[1] > min(x$conf.low)) y.limits[1] <- y.limits[1] / 2
-    if (y.limits[2] < max(x$conf.high)) y.limits[2] <- y.limits[2] * 2
-    if (y.limits[1] > min(x$conf.low)) y.limits[1] <- y.limits[1] / 2
-    if (y.limits[2] < max(x$conf.high)) y.limits[2] <- y.limits[2] * 2
+    while (y.limits[1] > min(x$conf.low) && !(y.limits[1] <= 1e-5)) {
+      y.limits[1] <- y.limits[1] / 2
+    }
+    while (y.limits[2] < max(x$conf.high)) {
+      y.limits[2] <- y.limits[2] * 2
+    }
   }
 
 
@@ -581,7 +583,7 @@ plot_panel <- function(x,
         p <- p + ggplot2::geom_errorbar(
           ggplot2::aes_string(ymin = "conf.low", ymax = "conf.high"),
           position = ggplot2::position_dodge(width = dodge),
-          width = .1,
+          width = 0,
           size = line.size
         )
       } else {
@@ -595,7 +597,7 @@ plot_panel <- function(x,
         p <- p + ggplot2::geom_errorbar(
           ggplot2::aes_string(ymin = "conf.low", ymax = "conf.high", linetype = NULL),
           position = ggplot2::position_dodge(width = dodge),
-          width = .1,
+          width = 0,
           linetype = lt,
           size = line.size
         )
