@@ -7,9 +7,11 @@
 collapse_by_group(grid, model, collapse.by = NULL, residuals = FALSE)
 }
 \arguments{
-\item{grid}{A data frame representing the data grid, or an object of class \code{ggeffects}, as returned by \code{ggpredict()} and others.}
+\item{grid}{A data frame representing the data grid, or an object of class
+\code{ggeffects}, as returned by \code{ggpredict()} and others.}
 
-\item{model}{The model for which to compute partial residuals. The data grid \code{grid} should match to predictors in the model.}
+\item{model}{The model for which to compute partial residuals. The data grid
+\code{grid} should match to predictors in the model.}
 
 \item{collapse.by}{Name of the (random effects) grouping factor. Data is
 collapsed by the levels of this factor.}
@@ -19,14 +21,14 @@ of raw data by the levels of the grouping factor.}
 }
 \value{
 A data frame with raw data points, averaged over the levels of
-  the given grouping factor from the random effects. The group level of
-  the random effect is saved in the column \code{"random"}.
+the given grouping factor from the random effects. The group level of
+the random effect is saved in the column \code{"random"}.
 }
 \description{
 This function extracts the raw data points (i.e. the data
-  that was used to fit the model) and "averages" (i.e. "collapses") the
-  response variable over the levels of the grouping factor given in
-  \code{collapse.by}. Only works with mixed models.
+that was used to fit the model) and "averages" (i.e. "collapses") the
+response variable over the levels of the grouping factor given in
+\code{collapse.by}. Only works with mixed models.
 }
 \examples{
 library(ggeffects)

@@ -1,9 +1,7 @@
 #' @rdname plot
 #' @export
 theme_ggeffects <- function(base_size = 11, base_family = "") {
-  if (!requireNamespace("ggplot2", quietly = FALSE)) {
-    stop("Package `ggplot2` needed to for this function.", call. = FALSE)
-  }
+  insight::check_if_installed("ggplot2")
 
   (ggplot2::theme_minimal(base_size = base_size, base_family = base_family) +
      ggplot2::theme(
@@ -48,7 +46,7 @@ ggeffects_pal <- function(palette = "metro", n = NULL) {
 
   if (!is.null(n) && n <= length(pl)) {
     if (.is_cont_scale(palette)) {
-      pl <- pl[stats::quantile(1:length(pl), probs = seq(0, 1, length.out = n))]
+      pl <- pl[stats::quantile(seq_along(pl), probs = seq(0, 1, length.out = n))]
     } else {
       pl <- pl[1:n]
     }
@@ -67,11 +65,9 @@ ggeffects_pal <- function(palette = "metro", n = NULL) {
 #' @rdname plot
 #' @export
 show_pals <- function() {
-  if (!requireNamespace("ggplot2", quietly = FALSE)) {
-    stop("Package `ggplot2` needed to for this function.", call. = FALSE)
-  }
+  insight::check_if_installed("ggplot2")
 
-  longest.pal <- max(sapply(ggeffects_colors, length))
+  longest.pal <- max(lengths(ggeffects_colors))
 
   color_pal <- lapply(ggeffects_colors, function(.x) {
     if (length(.x) == longest.pal)
@@ -81,17 +77,18 @@ show_pals <- function() {
   })
 
   x <- as.data.frame(color_pal)
-  x <- .gather(x[nrow(x):1, , drop = FALSE])
+  x <- .gather(x[rev(seq_len(nrow(x))), , drop = FALSE])
   x <- x[order(x$key), , drop = FALSE]
 
   x$y <- rep_len(1:longest.pal, nrow(x))
-  x$cols = as.factor(1:nrow(x))
+  x$cols <- as.factor(seq_len(nrow(x)))
 
   x$key <- factor(x$key, levels = rev(unique(x$key)))
 
   x$group <- "Other Palettes"
   x$group[.is_cont_scale(x$key)] <- "Continuous Palettes"
-  x$group[x$key %in% c("breakfast.club", "flat", "metro", "quadro", "set1", "simply", "social")] <- "Red-Blue-Green Palettes"
+  x$group[x$key %in% c("breakfast.club", "flat", "metro", "quadro", "set1",
+                       "simply", "social")] <- "Red-Blue-Green Palettes"
 
   ggplot2::ggplot(x, ggplot2::aes_string(x = "key", fill = "cols")) +
     ggplot2::geom_bar(width = .7) +

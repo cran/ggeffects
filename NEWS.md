@@ -1,3 +1,25 @@
+# ggeffects 1.1.4
+
+## General
+
+* Reduced package dependencies. Packages *sjlabelled* and *MASS* were moved
+  from imports to suggests. *ggeffects* is now a very lightweight package to
+  compute adjusted predictions and estimated marginal means.
+
+## New supported models
+
+* `logitr` (package **logitr**)
+
+## Bug fixes
+
+* Fixed issue with wrong standard errors for predicting random effect groups
+  for more multiple levels.
+
+* Fixed issue in `ggemmeans()`, which did not correctly averaged over character
+  vectors when these were hold constant.
+
+* Fixed bug for models of class `lme` when `type = "re"` was requested.
+
 # ggeffects 1.1.3
 
 ## Bug fixes

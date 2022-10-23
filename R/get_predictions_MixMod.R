@@ -6,7 +6,7 @@ get_predictions_MixMod <- function(model, data_grid, ci.lvl, linv, type, terms, 
   if (!is.null(ci.lvl) && !is.na(ci.lvl))
     ci <- (1 + ci.lvl) / 2
   else
-    ci <- .975
+    ci <- 0.975
 
   # get info about model
   model_info <- insight::model_info(model)
@@ -16,13 +16,13 @@ get_predictions_MixMod <- function(model, data_grid, ci.lvl, linv, type, terms, 
 
   if (!model_info$is_zero_inflated && type %in% c("fe.zi", "re.zi", "zi.prob")) {
     if (type == "zi.prob")
-      stop("Model has no zero-inflation part.")
+      stop("Model has no zero-inflation part.", call. = FALSE)
     else if (type == "fe.zi")
       type <- "fe"
     else
       type <- "re"
 
-    message(sprintf("Model has no zero-inflation part. Changing prediction-type to \"%s\".", type))
+    insight::format_alert(sprintf("Model has no zero-inflation part. Changing prediction-type to \"%s\".", type))
   }
 
   if (model_info$is_zero_inflated && type %in% c("fe", "re")) {
@@ -31,7 +31,7 @@ get_predictions_MixMod <- function(model, data_grid, ci.lvl, linv, type, terms, 
     else
       type <- "re.zi"
 
-    message(sprintf("Model has zero-inflation part, predicted values can only be conditioned on zero-inflation part. Changing prediction-type to \"%s\".", type))
+    insight::format_alert(sprintf("Model has zero-inflation part, predicted values can only be conditioned on zero-inflation part. Changing prediction-type to \"%s\".", type))
   }
 
   if (type == "sim") {
@@ -42,7 +42,7 @@ get_predictions_MixMod <- function(model, data_grid, ci.lvl, linv, type, terms, 
 
     response_name <- insight::find_response(model)
     if (is.null(condition) || !(response_name %in% names(condition))) {
-      warning(sprintf("Results for MixMod-objects may vary depending on which value the response is conditioned on. Make sure to choose a sensible value for '%s' using the 'condition'-argument.", response_name), call. = FALSE)
+      insight::format_warning(sprintf("Results for MixMod-objects may vary depending on which value the response is conditioned on. Make sure to choose a sensible value for '%s' using the 'condition'-argument.", response_name))
     }
 
     prtype <- switch(
@@ -104,8 +104,8 @@ get_predictions_MixMod <- function(model, data_grid, ci.lvl, linv, type, terms, 
       if (is.null(prdat.sim) || inherits(prdat.sim, c("error", "simpleError"))) {
         insight::print_color("Error: Confidence intervals could not be computed.\n", "red")
         if (inherits(prdat.sim, c("error", "simpleError"))) {
-          cat(sprintf("* Reason: %s\n", .safe_deparse(prdat.sim[[1]])))
-          cat(sprintf("* Source: %s\n", .safe_deparse(prdat.sim[[2]])))
+          cat(sprintf("* Reason: %s\n", insight::safe_deparse(prdat.sim[[1]])))
+          cat(sprintf("* Source: %s\n", insight::safe_deparse(prdat.sim[[2]])))
         }
 
         predicted_data$conf.low <- NA

@@ -4,17 +4,17 @@
 #' @description This function extracts the raw data points (i.e. the data
 #'   that was used to fit the model) and "averages" (i.e. "collapses") the
 #'   response variable over the levels of the grouping factor given in
-#'   \code{collapse.by}. Only works with mixed models.
+#'   `collapse.by`. Only works with mixed models.
 #'
 #' @param collapse.by Name of the (random effects) grouping factor. Data is
 #'   collapsed by the levels of this factor.
-#' @param residuals Logical, if \code{TRUE}, collapsed partial residuals instead
+#' @param residuals Logical, if `TRUE`, collapsed partial residuals instead
 #'   of raw data by the levels of the grouping factor.
 #' @inheritParams residualize_over_grid
 #'
 #' @return A data frame with raw data points, averaged over the levels of
 #'   the given grouping factor from the random effects. The group level of
-#'   the random effect is saved in the column \code{"random"}.
+#'   the random effect is saved in the column `"random"`.
 #'
 #' @examples
 #' library(ggeffects)
@@ -32,7 +32,7 @@
 collapse_by_group <- function(grid, model, collapse.by = NULL, residuals = FALSE) {
 
   if (!insight::is_mixed_model(model)) {
-    stop("This function only works with mixed effects models.", call. = FALSE)
+    insight::format_error("This function only works with mixed effects models.")
   }
 
   data <- insight::get_data(model)
@@ -43,12 +43,14 @@ collapse_by_group <- function(grid, model, collapse.by = NULL, residuals = FALSE
 
   if (length(collapse.by) > 1) {
     collapse.by <- collapse.by[1]
-    warning("More than one random grouping variable found.",
-            "\n  Using `", collapse.by, "`.", call. = FALSE)
+    insight::format_warning(
+      "More than one random grouping variable found.",
+      paste0("Using `", collapse.by, "`.")
+    )
   }
 
   if (!collapse.by %in% colnames(data)) {
-    stop("Could not find `", collapse.by, "` column.", call. = FALSE)
+    insight::format_error("Could not find `", collapse.by, "` column.")
   }
 
   if (residuals) {
@@ -60,8 +62,7 @@ collapse_by_group <- function(grid, model, collapse.by = NULL, residuals = FALSE
 
     if (any(sapply(rawdata[-(1:2)], Negate(is.factor))) ||
         attr(grid, "x.is.factor", exact = TRUE) == "0") {
-      warning("Collapsing usually not informative across a continuous variable.",
-              call. = FALSE)
+      insight::format_warning("Collapsing usually not informative across a continuous variable.")
     }
   }
 

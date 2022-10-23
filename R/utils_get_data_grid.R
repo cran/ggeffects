@@ -30,8 +30,10 @@
   model_frame[] <- lapply(model_frame, function(i) if (isTRUE(attributes(i)$factor)) as.factor(i) else i)
 
   # check for logical variables, might not work
-  if (any(sapply(model_frame, is.logical))) {
-    stop("Variables of type 'logical' do not work, please coerce to factor and fit the model again.", call. = FALSE)
+  if (any(vapply(model_frame, is.logical, logical(1)))) {
+    insight::format_error(
+      "Variables of type `logical` do not work, please coerce to factor and fit the model again."
+    )
   }
 
   # any weights?
@@ -72,16 +74,19 @@
           # try to back-transform
           offset_function <- .get_offset_transformation(model)
           if (identical(offset_function, "log")) {
-            warning(sprintf("Model uses a transformed offset term. Predictions may not be correct. Please apply transformation of offset term to the data before fitting the model and use 'offset(%s)' in the model formula.\n", clean.term), call. = FALSE)
+            insight::format_warning(
+              "Model uses a transformed offset term. Predictions may not be correct.",
+              sprintf("Please apply transformation of offset term to the data before fitting the model and use `offset(%s)` in the model formula.", clean.term)
+            )
             olt <- clean.term
           }
         }
       }
       olt
     },
-    error = function(x) { NULL },
-    warning = function(x) { NULL },
-    finally = function(x) { NULL }
+    error = function(x) NULL,
+    warning = function(x) NULL,
+    finally = function(x) NULL
   )
 
 
@@ -101,7 +106,9 @@
     if (inherits(model, all_values_models)) {
       use_all_values <- TRUE
     } else if (show_pretty_message) {
-      message(sprintf("Model contains splines or polynomial terms. Consider using `terms=\"%s [all]\"` to get smooth plots. See also package-vignette 'Marginal Effects at Specific Values'.", all_terms[1]))
+      insight::format_alert(sprintf(
+        "Model contains splines or polynomial terms. Consider using `terms=\"%s [all]\"` to get smooth plots. See also package-vignette 'Marginal Effects at Specific Values'.", all_terms[1]
+      ))
       show_pretty_message <- FALSE
     }
   }
@@ -110,7 +117,9 @@
     if (inherits(model, all_values_models)) {
       use_all_values <- TRUE
     } else if (show_pretty_message) {
-      message(sprintf("Model contains polynomial or cubic / quadratic terms. Consider using `terms=\"%s [all]\"` to get smooth plots. See also package-vignette 'Marginal Effects at Specific Values'.", all_terms[1]))
+      insight::format_alert(sprintf(
+        "Model contains polynomial or cubic / quadratic terms. Consider using `terms=\"%s [all]\"` to get smooth plots. See also package-vignette 'Marginal Effects at Specific Values'.", all_terms[1]
+      ))
       show_pretty_message <- FALSE
     }
   }
@@ -120,7 +129,9 @@
     if (inherits(model, all_values_models)) {
       use_all_values <- TRUE
     } else if (show_pretty_message) {
-      message(sprintf("Model contains trigonometric terms (sinus, cosinus, ...). Consider using `terms=\"%s [all]\"` to get smooth plots. See also package-vignette 'Marginal Effects at Specific Values'.", all_terms[1]))
+      insight::format_alert(sprintf(
+        "Model contains trigonometric terms (sinus, cosinus, ...). Consider using `terms=\"%s [all]\"` to get smooth plots. See also package-vignette 'Marginal Effects at Specific Values'.", all_terms[1]
+      ))
       show_pretty_message <- FALSE
     }
   }
@@ -159,7 +170,10 @@
         }
       }))
       if (any(invalid_levels)) {
-        stop(insight::format_message(sprintf("Variable(s) '%s' are used as monotonic effects, however, only values that are also present in the data are allowed for predictions. Consider converting variables used in 'mo()' into (ordered) factors before fitting the model.", paste0(mo_terms, collapse = ", "))), call. = FALSE)
+        insight::format_error(
+          sprintf("Variable(s) %s are used as monotonic effects, however, only values that are also present in the data are allowed for predictions.", toString(mo_terms)),
+          "Consider converting variables used in `mo()` into (ordered) factors before fitting the model."
+        )
       }
     }
   }
@@ -175,9 +189,17 @@
   # }
 
   offset_term <- .offset_term(model, show_pretty_message)
-  model_predictors <- c(insight::find_predictors(model, effects = "all", component = "all", flatten = TRUE), offset_term)
+  model_predictors <- c(
+    insight::find_predictors(model, effects = "all", component = "all", flatten = TRUE),
+    offset_term
+  )
   if (inherits(model, "wbm")) {
-    model_predictors <- unique(c(insight::find_response(model), model_predictors, model@call_info$id, model@call_info$wave))
+    model_predictors <- unique(c(
+      insight::find_response(model),
+      model_predictors,
+      model@call_info$id,
+      model@call_info$wave
+    ))
   }
 
   # check if offset term is in model frame
@@ -211,14 +233,8 @@
 
     if (sum(!(model_predictors %in% colnames(model_frame))) > 0 && !inherits(model, c("brmsfit", "MCMCglmm"))) {
       # get terms from model directly
-      model_predictors <- tryCatch(
-        {
-          attr(stats::terms(model), "term.labels", exact = TRUE)
-        },
-        error = function(e) {
-          NULL
-        }
-      )
+      model_predictors <- tryCatch(attr(stats::terms(model), "term.labels", exact = TRUE),
+                                        error = function(e) NULL)
     }
 
     # 2nd check
@@ -261,6 +277,7 @@
   # held constant, use "typical" values - mean/median for numeric values,
   # reference level for factors and most common element for character vectors
 
+  # special handling for emmeans
   if (isTRUE(emmeans.only)) {
     # check for log-terms, and if in focal terms, remove "0" from values
     log_terms <- .which_log_terms(model)
@@ -274,24 +291,26 @@
     # adjust constant values, special handling for emmeans only
     constant_values <- lapply(model_predictors, function(x) {
       pred <- model_frame[[x]]
-      if (!is.factor(pred) && !x %in% random_effect_terms) {
-        .typical_value(pred, fun = value_adjustment, weights = w, predictor = x, 
+      if (!is.factor(pred) && !is.character(pred) && !x %in% random_effect_terms) {
+        .typical_value(pred, fun = value_adjustment, weights = w, predictor = x,
                        log_terms = .which_log_terms(model), emmeans.only = emmeans.only)
       }
     })
     names(constant_values) <- model_predictors
     constant_values <- .compact_list(constant_values)
+
+  # adjust constant values, factors set to reference level
   } else if (factor_adjustment) {
-    # adjust constant values, factors set to reference level
     constant_values <- lapply(model_predictors, function(x) {
       pred <- model_frame[[x]]
       if (is.factor(pred)) pred <- droplevels(pred)
-      .typical_value(pred, fun = value_adjustment, weights = w, predictor = x, 
+      .typical_value(pred, fun = value_adjustment, weights = w, predictor = x,
                      log_terms = .which_log_terms(model))
     })
     names(constant_values) <- model_predictors
+
+  # adjust constant values, use all factor levels
   } else {
-    # adjust constant values, use all factor levels
     re.grp <- insight::find_random(model, split_nested = TRUE, flatten = TRUE)
     # if factors should not be held constant (needed when computing
     # std.error for merMod objects), we need all factor levels,
@@ -329,7 +348,7 @@
           }
         }
       },
-      error = function(x) { NULL }
+      error = function(x) NULL
     )
   }
 
@@ -349,7 +368,10 @@
 
     # remove grouping factor of RE from constant values
     # only applicable for MixMod objects
-    if (inherits(model, "MixMod") && !is.null(random_effect_terms) && !.is_empty(constant_values) && any(random_effect_terms %in% names(constant_values))) {
+    if (inherits(model, "MixMod") &&
+        !is.null(random_effect_terms) &&
+        !.is_empty(constant_values) &&
+        any(random_effect_terms %in% names(constant_values))) {
       constant_values <- constant_values[!(names(constant_values) %in% random_effect_terms)]
     }
 
@@ -505,7 +527,7 @@
 
   w <- insight::find_weights(model)
   if (!is.null(w) && !inherits(model, "brmsfit")) {
-    datlist$.w <- as.numeric(NA)
+    datlist$.w <- NA_real_
     colnames(datlist)[ncol(datlist)] <- w
   }
 

@@ -1,8 +1,9 @@
 if (suppressWarnings(
-  require("testthat") &&
-  require("ggeffects") &&
-  require("glmmTMB") &&
-  require("pscl")
+  requiet("testthat") &&
+  requiet("ggeffects") &&
+  requiet("glmmTMB") &&
+  requiet("pscl") &&
+  getRversion() >= "4.0.0"
 )) {
 
   data(Salamanders)

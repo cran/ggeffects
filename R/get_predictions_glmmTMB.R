@@ -6,7 +6,7 @@ get_predictions_glmmTMB <- function(model, data_grid, ci.lvl, linv, type, terms,
   if (!is.null(ci.lvl) && !is.na(ci.lvl))
     ci <- (1 + ci.lvl) / 2
   else
-    ci <- .975
+    ci <- 0.975
 
   # copy object
   predicted_data <- data_grid
@@ -17,13 +17,13 @@ get_predictions_glmmTMB <- function(model, data_grid, ci.lvl, linv, type, terms,
   # check if we have zero-inflated model part
   if (!model_info$is_zero_inflated && type %in% c("fe.zi", "re.zi", "zi.prob")) {
     if (type == "zi.prob")
-      stop("Model has no zero-inflation part.")
+      stop("Model has no zero-inflation part.", call. = FALSE)
     else if (type == "fe.zi")
       type <- "fe"
     else
       type <- "re"
 
-    message(sprintf("Model has no zero-inflation part. Changing prediction-type to \"%s\".", type))
+    insight::format_alert(sprintf("Model has no zero-inflation part. Changing prediction-type to \"%s\".", type))
   }
 
 
@@ -90,15 +90,17 @@ get_predictions_glmmTMB <- function(model, data_grid, ci.lvl, linv, type, terms,
       prdat.sim <- .simulate_zi_predictions(model, newdata, nsim, terms, value_adjustment, condition)
 
       if (any(sapply(prdat.sim, nrow) == 0)) {
-        stop("Could not simulate predictions. Maybe you have used 'scale()' in the formula? If so, please standardize your data before fitting the model.", call. = FALSE)
+        insight::format_error(
+          "Could not simulate predictions. Maybe you have used 'scale()' in the formula? If so, please standardize your data before fitting the model."
+        )
       }
 
       if (is.null(prdat.sim) || inherits(prdat.sim, c("error", "simpleError"))) {
 
         insight::print_color("Error: Confidence intervals could not be computed.\n", "red")
         if (inherits(prdat.sim, c("error", "simpleError"))) {
-          cat(sprintf("* Reason: %s\n", .safe_deparse(prdat.sim[[1]])))
-          cat(sprintf("* Source: %s\n", .safe_deparse(prdat.sim[[2]])))
+          cat(sprintf("* Reason: %s\n", insight::safe_deparse(prdat.sim[[1]])))
+          cat(sprintf("* Source: %s\n", insight::safe_deparse(prdat.sim[[2]])))
         }
 
         predicted_data$predicted <- prdat

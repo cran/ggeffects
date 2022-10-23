@@ -22,10 +22,11 @@
   at_levels <- lapply(strsplit(at_levels, ",", fixed = TRUE), trimws)
 
   # moderator pattern
-  at_pattern <- c("minmax", "meansd", "zeromax", "quart2", "all", "quart")
+  at_pattern <- c("minmax", "meansd", "zeromax", "quart2", "all", "quart",
+                  "fivenum", "terciles", "terciles2", "quartiles", "quartiles2")
 
   # now check for ranges
-  at_levels <- mapply(function(x, y) {
+  at_levels <- Map(function(x, y) {
 
     # Here we may have a range of values. we then create the
     # sequence with all values from this range
@@ -117,7 +118,7 @@
     }
 
     x
-  }, at_levels, at_terms, SIMPLIFY = FALSE)
+  }, at_levels, at_terms)
 
   # check if levels were numeric or not...
   suppressWarnings(

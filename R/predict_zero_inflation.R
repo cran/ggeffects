@@ -3,7 +3,7 @@
   # multivariate normal distribution, we need to prepare the data and
   # calculate "bootstrapped" estimates and CIs.
 
-  prediction_data$sort__id <- 1:nrow(prediction_data)
+  prediction_data$sort__id <- seq_len(nrow(prediction_data))
   column_matches <- sapply(colnames(prediction_data), function(.x) any(unique(prediction_data[[.x]]) %in% newdata[[.x]]))
 
   # we need two data grids here: one for all combination of levels from the
@@ -100,7 +100,12 @@
 
 
 
-.simulate_zi_predictions <- function(model, newdata, nsim = 1000, terms = NULL, value_adjustment = NULL, condition = NULL) {
+.simulate_zi_predictions <- function(model,
+                                     newdata,
+                                     nsim = 1000,
+                                     terms = NULL,
+                                     value_adjustment = NULL,
+                                     condition = NULL) {
 
   # Since the zero inflation and the conditional model are working in "opposite
   # directions", confidence intervals can not be derived directly  from the
@@ -122,12 +127,13 @@
 
 
 
-.simulate_predictions_glmmTMB <- function(model, newdata, nsim, terms = NULL, value_adjustment = NULL, condition = NULL) {
-
-  if (!requireNamespace("lme4", quietly = TRUE)) {
-    stop("You need to install package `lme4` first to compute marginal effects.", call. = FALSE)
-  }
-
+.simulate_predictions_glmmTMB <- function(model,
+                                          newdata,
+                                          nsim,
+                                          terms = NULL,
+                                          value_adjustment = NULL,
+                                          condition = NULL) {
+  insight::check_if_installed("lme4")
 
   # Since the zero inflation and the conditional model are working in "opposite
   # directions", confidence intervals can not be derived directly  from the
@@ -163,9 +169,9 @@
       cond.varcov <- insight::get_varcov(model, component = "conditional")
       zi.varcov <- insight::get_varcov(model, component = "zero_inflated")
 
-      pred.condpar.psim <- MASS::mvrnorm(n = nsim, mu = beta.cond, Sigma = cond.varcov)
+      pred.condpar.psim <- .mvrnorm(n = nsim, mu = beta.cond, Sigma = cond.varcov)
       pred.cond.psim <- x.cond %*% t(pred.condpar.psim)
-      pred.zipar.psim <- MASS::mvrnorm(n = nsim, mu = beta.zi, Sigma = zi.varcov)
+      pred.zipar.psim <- .mvrnorm(n = nsim, mu = beta.zi, Sigma = zi.varcov)
       pred.zi.psim <- x.zi %*% t(pred.zipar.psim)
 
       if (!.is_empty(keep)) {
@@ -175,18 +181,20 @@
 
       list(cond = pred.cond.psim, zi = pred.zi.psim)
     },
-    error = function(x) { x },
-    warning = function(x) { NULL },
-    finally = function(x) { NULL }
+    error = function(x) x,
+    warning = function(x) NULL,
+    finally = function(x) NULL
   )
 }
 
 
-.simulate_predictions_MixMod <- function(model, newdata, nsim, terms = NULL, value_adjustment = NULL, condition = NULL) {
-
-  if (!requireNamespace("lme4", quietly = TRUE)) {
-    stop("You need to install package `lme4` first to compute marginal effects.", call. = FALSE)
-  }
+.simulate_predictions_MixMod <- function(model,
+                                         newdata,
+                                         nsim,
+                                         terms = NULL,
+                                         value_adjustment = NULL,
+                                         condition = NULL) {
+  insight::check_if_installed("lme4")
 
   tryCatch(
     {
@@ -216,9 +224,9 @@
       cond.varcov <- insight::get_varcov(model, component = "conditional")
       zi.varcov <- insight::get_varcov(model, component = "zero_inflated")
 
-      pred.condpar.psim <- MASS::mvrnorm(n = nsim, mu = beta.cond, Sigma = cond.varcov)
+      pred.condpar.psim <- .mvrnorm(n = nsim, mu = beta.cond, Sigma = cond.varcov)
       pred.cond.psim <- x.cond %*% t(pred.condpar.psim)
-      pred.zipar.psim <- MASS::mvrnorm(n = nsim, mu = beta.zi, Sigma = zi.varcov)
+      pred.zipar.psim <- .mvrnorm(n = nsim, mu = beta.zi, Sigma = zi.varcov)
       pred.zi.psim <- x.zi %*% t(pred.zipar.psim)
 
       if (!.is_empty(keep)) {
@@ -228,9 +236,9 @@
 
       list(cond = pred.cond.psim, zi = pred.zi.psim)
     },
-    error = function(x) { x },
-    warning = function(x) { NULL },
-    finally = function(x) { NULL }
+    error = function(x) x,
+    warning = function(x) NULL,
+    finally = function(x) NULL
   )
 }
 
@@ -238,8 +246,8 @@
 .simulate_predictions_zeroinfl <- function(model, newdata, nsim = 1000, terms = NULL, value_adjustment = NULL, condition = NULL) {
   tryCatch(
     {
-      condformula <- stats::as.formula(paste0("~", .safe_deparse(stats::formula(model)[[3]][[2]])))
-      ziformula <- stats::as.formula(paste0("~", .safe_deparse(stats::formula(model)[[3]][[3]])))
+      condformula <- stats::as.formula(paste0("~", insight::safe_deparse(stats::formula(model)[[3]][[2]])))
+      ziformula <- stats::as.formula(paste0("~", insight::safe_deparse(stats::formula(model)[[3]][[3]])))
 
       # if formula has a polynomial term, and this term is one that is held
       # constant, model.matrix() with "newdata" will throw an error - so we
@@ -264,10 +272,10 @@
       cond.varcov <- insight::get_varcov(model, component = "conditional")
       zi.varcov <- insight::get_varcov(model, component = "zero_inflated")
 
-      pred.condpar.psim <- MASS::mvrnorm(nsim, mu = beta.cond, Sigma = cond.varcov)
+      pred.condpar.psim <- .mvrnorm(nsim, mu = beta.cond, Sigma = cond.varcov)
       pred.cond.psim <- x.cond %*% t(pred.condpar.psim)
 
-      pred.zipar.psim <- MASS::mvrnorm(nsim, mu = beta.zi, Sigma = zi.varcov)
+      pred.zipar.psim <- .mvrnorm(nsim, mu = beta.zi, Sigma = zi.varcov)
       pred.zi.psim <- x.zi %*% t(pred.zipar.psim)
 
       if (!.is_empty(keep)) {
@@ -277,9 +285,9 @@
 
       list(cond = pred.cond.psim, zi = pred.zi.psim)
     },
-    error = function(x) { x },
-    warning = function(x) { NULL },
-    finally = function(x) { NULL }
+    error = function(x) x,
+    warning = function(x) NULL,
+    finally = function(x) NULL
   )
 }
 
@@ -295,8 +303,8 @@
   # these are hold constant.
 
   const.values <- attr(newdata, "constant.values")
-  condformula_string <- .safe_deparse(condformula)
-  ziformula_string <- .safe_deparse(ziformula)
+  condformula_string <- insight::safe_deparse(condformula)
+  ziformula_string <- insight::safe_deparse(ziformula)
 
   keep <- NULL
 
@@ -391,16 +399,16 @@
       varcov.cond <- stats::vcov(model)[cond, cond]
       varcov.zi <- stats::vcov(model)[zi, zi]
 
-      psim.cond <- MASS::mvrnorm(nsim, mu = beta.cond, Sigma = varcov.cond)
+      psim.cond <- .mvrnorm(nsim, mu = beta.cond, Sigma = varcov.cond)
       pred.cond <- x.cond %*% t(psim.cond)
 
-      psim.zi <- MASS::mvrnorm(nsim, mu = beta.zi, Sigma = varcov.zi)
+      psim.zi <- .mvrnorm(nsim, mu = beta.zi, Sigma = varcov.zi)
       pred.zi <- x.zi %*% t(psim.zi)
 
       list(cond = pred.cond, zi = pred.zi)
     },
-    error = function(x) { x },
-    warning = function(x) { NULL },
-    finally = function(x) { NULL }
+    error = function(x) x,
+    warning = function(x) NULL,
+    finally = function(x) NULL
   )
 }

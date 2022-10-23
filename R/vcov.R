@@ -1,20 +1,20 @@
 #' @title Calculate variance-covariance matrix for marginal effects
 #' @name vcov
 #'
-#' @description Returns the variance-covariance matrix for the predicted values from \code{object}.
+#' @description Returns the variance-covariance matrix for the predicted values from `object`.
 #'
-#' @param object An object of class \code{"ggeffects"}, as returned by \code{ggpredict()}.
+#' @param object An object of class `"ggeffects"`, as returned by `ggpredict()`.
 #' @param ... Currently not used.
 #' @inheritParams ggpredict
 #'
-#' @return The variance-covariance matrix for the predicted values from \code{object}.
+#' @return The variance-covariance matrix for the predicted values from `object`.
 #'
 #' @details The returned matrix has as many rows (and columns) as possible combinations
-#'   of predicted values from the \code{ggpredict()} call. For example, if there
-#'   are two variables in the \code{terms}-argument of \code{ggpredict()} with 3 and 4
+#'   of predicted values from the `ggpredict()` call. For example, if there
+#'   are two variables in the `terms`-argument of `ggpredict()` with 3 and 4
 #'   levels each, there will be 3*4 combinations of predicted values, so the returned
-#'   matrix has a 12x12 dimension. In short, \code{nrow(object)} is always equal to
-#'   \code{nrow(vcov(object))}. See also 'Examples'.
+#'   matrix has a 12x12 dimension. In short, `nrow(object)` is always equal to
+#'   `nrow(vcov(object))`. See also 'Examples'.
 #'
 #' @examples
 #' data(efc)
@@ -39,14 +39,13 @@
 #' vcov(result)
 #' @export
 vcov.ggeffects <- function(object, vcov.fun = NULL, vcov.type = NULL, vcov.args = NULL, ...) {
-  model <- tryCatch({
-      get(attr(object, "model.name"), envir = parent.frame())
-    },
-    error = function(e) { NULL }
-    )
+  model <- tryCatch(get(attr(object, "model.name"), envir = parent.frame()),
+                    error = function(e) NULL)
 
   if (is.null(model)) {
-    warning("Can't access original model to compute variance-covariance matrix of predictions.", call. = FALSE)
+    warning(insight::format_message(
+      "Can't access original model to compute variance-covariance matrix of predictions."
+    ), call. = FALSE)
     return(NULL)
   }
 
@@ -101,19 +100,6 @@ vcov.ggeffects <- function(object, vcov.fun = NULL, vcov.type = NULL, vcov.args 
   }
 
 
-  # make sure we have enough values to compute CI
-  # nlevels_terms <- sapply(
-  #   colnames(newdata),
-  #   function(.x) !(.x %in% random_effect_terms) && is.factor(newdata[[.x]]) && nlevels(newdata[[.x]]) == 1
-  # )
-  #
-  # if (any(nlevels_terms)) {
-  #   not_enough <- colnames(newdata)[which(nlevels_terms)[1]]
-  #   remove_lvl <- paste0("[", gsub(pattern = "(.*)\\[(.*)\\]", replacement = "\\2", x = terms[which(.clean_terms(terms) == not_enough)]), "]", collapse = "")
-  #   stop(sprintf("`%s` does not have enough factor levels. Try to remove `%s`.", not_enough, remove_lvl), call. = TRUE)
-  # }
-
-
   # add response to newdata. For models fitted with "glmmPQL",
   # the response variable is renamed internally to "zz".
 
@@ -151,10 +137,15 @@ vcov.ggeffects <- function(object, vcov.fun = NULL, vcov.type = NULL, vcov.args 
   rownames(newdata) <- NULL
   tryCatch(
     {
-      .vcov_helper(model, model_frame, get_predict_function(model), newdata, vcov.fun, vcov.type, vcov.args, terms, full.vcov = TRUE)
+      .vcov_helper(
+        model, model_frame, get_predict_function(model), newdata,
+        vcov.fun, vcov.type, vcov.args, terms, full.vcov = TRUE
+      )
     },
     error = function(e) {
-      message("Could not compute variance-covariance matrix of predictions. No confidence intervals are returned.")
+      message(insight::format_message(
+        "Could not compute variance-covariance matrix of predictions. No confidence intervals are returned."
+      ))
       NULL
     }
   )
@@ -174,15 +165,11 @@ vcov.ggeffects <- function(object, vcov.fun = NULL, vcov.type = NULL, vcov.args 
       vcov.type <- "CR0"
     }
     if (!is.null(vcov.type) && vcov.type %in% c("CR0", "CR1", "CR1p", "CR1S", "CR2", "CR3")) {
-      if (!requireNamespace("clubSandwich", quietly = TRUE)) {
-        stop("Package `clubSandwich` needed for this function. Please install and try again.")
-      }
+      insight::check_if_installed("clubSandwich")
       robust_package <- "clubSandwich"
       vcov.fun <- "vcovCR"
     } else {
-      if (!requireNamespace("sandwich", quietly = TRUE)) {
-        stop("Package `sandwich` needed for this function. Please install and try again.")
-      }
+      insight::check_if_installed("sandwich")
       robust_package <- "sandwich"
     }
     # compute robust standard errors based on vcov
@@ -208,7 +195,7 @@ vcov.ggeffects <- function(object, vcov.fun = NULL, vcov.type = NULL, vcov.args 
 
   # exception for gamlss, who may have "random()" function in formula
   # we need to remove this term...
-  if (inherits(model, "gamlss") && grepl("random\\((.*\\))", .safe_deparse(stats::formula(model)))) {
+  if (inherits(model, "gamlss") && grepl("random\\((.*\\))", insight::safe_deparse(stats::formula(model)))) {
     model_terms <- insight::find_formula(model)$conditional
   }
 

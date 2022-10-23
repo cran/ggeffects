@@ -1,4 +1,15 @@
-get_predictions_coxph <- function(model, fitfram, ci.lvl, model_class, value_adjustment, terms, vcov.fun, vcov.type, vcov.args, condition, interval, ...) {
+get_predictions_coxph <- function(model,
+                                  fitfram,
+                                  ci.lvl,
+                                  model_class,
+                                  value_adjustment,
+                                  terms,
+                                  vcov.fun,
+                                  vcov.type,
+                                  vcov.args,
+                                  condition,
+                                  interval,
+                                  ...) {
   # does user want standard errors?
   se <- !is.null(ci.lvl) && !is.na(ci.lvl)
 
@@ -6,7 +17,7 @@ get_predictions_coxph <- function(model, fitfram, ci.lvl, model_class, value_adj
   if (!is.null(ci.lvl) && !is.na(ci.lvl))
     ci <- (1 + ci.lvl) / 2
   else
-    ci <- .975
+    ci <- 0.975
 
   prdat <-
     stats::predict(

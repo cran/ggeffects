@@ -9,12 +9,12 @@ data_frame <- function(...) {
 
 .check_vars <- function(terms, model) {
   if (missing(terms) || is.null(terms)) {
-    stop("`terms` needs to be a character vector with at least one predictor names: one term used for the x-axis, more optional terms as grouping factors.", call. = FALSE)
+    insight::format_error("`terms` needs to be a character vector with at least one predictor names: one term used for the x-axis, more optional terms as grouping factors.")
   }
 
   # check for correct length of vector
   if (length(terms) > 4) {
-    message("`terms` must have not more than four values. Using first four values now.")
+    insight::format_alert("`terms` must have not more than four values. Using first four values now.")
     terms <- terms[1:4]
   }
 
@@ -30,7 +30,7 @@ data_frame <- function(...) {
 
         }
       },
-      error = function(x) { NULL }
+      error = function(x) NULL
     )
   }
 
@@ -41,13 +41,13 @@ data_frame <- function(...) {
 
 .offset_term <- function(model, verbose = TRUE) {
   tryCatch({
-    off <- .safe_deparse(model$call$offset)
+    off <- insight::safe_deparse(model$call$offset)
     if (identical(off, "NULL")) {
       return(NULL)
     }
     cleaned_off <- insight::clean_names(off)
     if (!identical(off, cleaned_off) && isTRUE(verbose) && !inherits(model, "glmmTMB")) {
-      warning(sprintf("Model uses a transformed offset term. Predictions may not be correct. Please apply transformation of offset term to the data before fitting the model and use 'offset(%s)' in the model formula.\n", cleaned_off), call. = FALSE)
+      insight::format_warning(sprintf("Model uses a transformed offset term. Predictions may not be correct. Please apply transformation of offset term to the data before fitting the model and use 'offset(%s)' in the model formula.", cleaned_off))
     }
     cleaned_off
   },
@@ -89,7 +89,7 @@ data_frame <- function(...) {
   # add optional grouping variable
   if (length(terms) > 1) {
     group <-
-      sjlabelled::as_label(
+      .as_label(
         mf[[terms[2]]],
         prefix = FALSE,
         drop.na = TRUE,
@@ -101,7 +101,7 @@ data_frame <- function(...) {
 
   if (length(terms) > 2) {
     facet <-
-      sjlabelled::as_label(
+      .as_label(
         mf[[terms[3]]],
         prefix = FALSE,
         drop.na = TRUE,
@@ -116,60 +116,46 @@ data_frame <- function(...) {
     {
       data_frame(response = response, x = x, group = group, facet = facet)
     },
-    error = function(x) { NULL },
-    warning = function(x) { NULL },
-    finally = function(x) { NULL }
+    error = function(x) NULL,
+    warning = function(x) NULL,
+    finally = function(x) NULL
   )
 }
 
 
-.prettify_data <- function(conditional_terms, original_model_frame, terms, use_all_values = FALSE, show_pretty_message = FALSE) {
+.prettify_data <- function(conditional_terms, original_model_frame, terms,
+                          use_all_values = FALSE, show_pretty_message = FALSE) {
   lapply(conditional_terms, function(.x) {
     pr <- original_model_frame[[terms[.x]]]
     if (is.numeric(pr)) {
-      if (.x > 1 && .n_distinct(pr) >= 10)
+      if (.x > 1 && .n_distinct(pr) >= 10) {
         values_at(pr)
-      else if (.n_distinct(pr) < 20 || isTRUE(use_all_values)) {
+      } else if (.n_distinct(pr) < 20 || isTRUE(use_all_values)) {
         sort(stats::na.omit(unique(pr)))
       } else {
         if (show_pretty_message) {
-          message(sprintf("Data were 'prettified'. Consider using `terms=\"%s [all]\"` to get smooth plots.", terms[.x]))
+          message(insight::format_message(sprintf(
+            "Data were 'prettified'. Consider using `terms=\"%s [all]\"` to get smooth plots.", terms[.x]
+          )))
           show_pretty_message <- FALSE
         }
         pretty_range(pr)
       }
-    } else if (is.factor(pr))
+    } else if (is.factor(pr)) {
       levels(droplevels(pr))
-    else
+    } else {
       stats::na.omit(unique(pr))
+    }
   })
 }
 
 
 .get_residual_variance <- function(x) {
-  out <- tryCatch(
-    {
-      insight::get_sigma(x, ci = NULL, verbose = FALSE)^2
-      # info <- insight::model_info(x)
-      # if (info$is_mixed || inherits(x, c("merMod", "rlmerMod", "lmerMod", "glmerMod", "glmmTMB", "stanreg", "MixMod"))) {
-      #   re.var <- insight::get_variance_random(x)
-      # } else if (inherits(x, c("lme", "nlme"))) {
-      #   re.var <- x$sigma^2
-      # } else {
-      #   re.var <- insight::get_sigma(x, ci = NULL, verbose = FALSE)
-      #   if (is.null(re.var)) {
-      #     re.var <- 0
-      #   }
-      # }
-      # re.var
-    },
-    error = function(x) { 0 }
-  )
-
+  out <- tryCatch(insight::get_sigma(x, ci = NULL, verbose = FALSE)^2,
+                  error = function(x) 0)
   if (!length(out)) {
     return(0)
   }
-
   out
 }
 
@@ -178,8 +164,9 @@ data_frame <- function(...) {
 .frac_length <- function(x) {
   if (is.numeric(x)) {
     max(nchar(gsub(pattern = "(.\\.)(.*)", "\\2", sprintf("%f", abs(x) %% 1))))
-  } else
+  } else {
     0
+  }
 }
 
 
@@ -205,12 +192,7 @@ is.whole.number <- function(x) {
 
 .get_poly_degree <- function(x) {
   p <- "(.*)poly\\(([^,]*)([^)])*\\)(.*)"
-  tryCatch(
-    {
-      as.numeric(sub(p, "\\3", x))
-    },
-    error = function(x) { 1 }
-  )
+  tryCatch(as.numeric(sub(p, "\\3", x)), error = function(x) 1)
 }
 
 
@@ -219,7 +201,7 @@ is_brms_trial <- function(model) {
 
   if (inherits(model, "brmsfit") && is.null(stats::formula(model)$responses)) {
     is.trial <- tryCatch({
-      rv <- .safe_deparse(stats::formula(model)$formula[[2L]])
+      rv <- insight::safe_deparse(stats::formula(model)$formula[[2L]])
       trimws(sub("(.*)\\|(.*)\\(([^,)]*).*", "\\2", rv)) %in% c("trials", "resp_trials")
     },
     error = function(x) {
@@ -247,12 +229,6 @@ is_brms_trial <- function(model) {
   }
   x[!sapply(x, function(i) length(i) == 0 || is.null(i) || any(i == "NULL"))]
 }
-
-
-.safe_deparse <- function(string) {
-  paste0(sapply(deparse(string, width.cutoff = 500), trimws, simplify = TRUE), collapse = " ")
-}
-
 
 
 is.gamm <- function(x) {
@@ -336,4 +312,29 @@ is.gamm4 <- function(x) {
 
 .check_returned_se <- function(se.pred) {
   !is.null(se.pred) && length(se.pred) > 0 && !is.null(se.pred$se.fit) && length(se.pred$se.fit) > 0
+}
+
+
+.mvrnorm <- function(n = 1, mu, Sigma, tol = 1e-06) {
+  p <- length(mu)
+  if (!all(dim(Sigma) == c(p, p))) {
+    insight::format_error("Incompatible arguments to calculate multivariate normal distribution.")
+  }
+  eS <- eigen(Sigma, symmetric = TRUE)
+  ev <- eS$values
+  if (!all(ev >= -tol * abs(ev[1L]))) {
+    insight::format_error("`Sigma` is not positive definite.")
+  }
+  X <- drop(mu) + eS$vectors %*% diag(sqrt(pmax(ev, 0)), p) %*%
+    t(matrix(stats::rnorm(p * n), n))
+  nm <- names(mu)
+  if (is.null(nm) && !is.null(dn <- dimnames(Sigma))) {
+    nm <- dn[[1L]]
+  }
+  dimnames(X) <- list(nm, NULL)
+  if (n == 1) {
+    drop(X)
+  } else {
+    t(X)
+  }
 }

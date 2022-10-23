@@ -5,7 +5,7 @@
   if (!is.null(ci.lvl) && !is.na(ci.lvl))
     ci <- (1 + ci.lvl) / 2
   else
-    ci <- .975
+    ci <- 0.975
 
   # data grid
   newdata <- .data_grid(
@@ -38,7 +38,9 @@
   prdat.sim <- .simulate_zi_predictions(model, newdata, nsim, terms, value_adjustment, condition)
 
   if (is.null(prdat.sim)) {
-    stop("Predicted values could not be computed. Try reducing number of simulation, using argument `nsim` (e.g. `nsim = 100`)", call. = FALSE)
+    insight::format_error(
+      "Predicted values could not be computed. Try reducing number of simulation, using argument `nsim` (e.g. `nsim = 100`)"
+    )
   }
 
   # we need two data grids here: one for all combination of levels from the

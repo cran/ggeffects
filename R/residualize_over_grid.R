@@ -4,25 +4,31 @@
 #' @description This function computes partial residuals based on a data grid,
 #'   where the data grid is usually a data frame from all combinations of factor
 #'   variables or certain values of numeric vectors. This data grid is usually used
-#'   as \code{newdata} argument in \code{predict()}, and can be created with
-#'   \code{\link{new_data}}.
+#'   as `newdata` argument in `predict()`, and can be created with
+#'   [`new_data()`].
 #'
-#' @param grid A data frame representing the data grid, or an object of class \code{ggeffects}, as returned by \code{ggpredict()} and others.
-#' @param model The model for which to compute partial residuals. The data grid \code{grid} should match to predictors in the model.
-#' @param pred_name The name of the focal predictor, for which partial residuals are computed.
-#' @param protect_names Logical, if \code{TRUE}, preserves column names from the \code{ggeffects} objects that is used as \code{grid}.
+#' @param grid A data frame representing the data grid, or an object of class
+#'   `ggeffects`, as returned by `ggpredict()` and others.
+#' @param model The model for which to compute partial residuals. The data grid
+#'   `grid` should match to predictors in the model.
+#' @param pred_name The name of the focal predictor, for which partial residuals
+#'   are computed.
+#' @param protect_names Logical, if `TRUE`, preserves column names from the
+#'   `ggeffects` objects that is used as `grid`.
 #' @param ... Currently not used.
-#' @param type Deprecated. Formally was the residual type. Now is always \code{"working"}.
 #'
 #' @section Partial Residuals:
-#' For \strong{generalized linear models} (glms), residualized scores are
-#' computed as \code{inv.link(link(Y) + r)} where \code{Y} are the predicted
-#' values on the response scale, and \code{r} are the \emph{working} residuals.
+#' For **generalized linear models** (glms), residualized scores are
+#' computed as `inv.link(link(Y) + r)` where `Y` are the predicted
+#' values on the response scale, and `r` are the *working* residuals.
 #' \cr\cr
-#' For (generalized) linear \strong{mixed models}, the random effect are also
+#' For (generalized) linear **mixed models**, the random effect are also
 #' partialled out.
 #'
-#' @references Fox J, Weisberg S. Visualizing Fit and Lack of Fit in Complex Regression Models with Predictor Effect Plots and Partial Residuals. Journal of Statistical Software 2018;87.
+#' @references
+#' Fox J, Weisberg S. Visualizing Fit and Lack of Fit in Complex Regression
+#' Models with Predictor Effect Plots and Partial Residuals. Journal of Statistical
+#' Software 2018;87.
 #'
 #' @return A data frame with residuals for the focal predictor.
 #'
@@ -48,9 +54,7 @@ residualize_over_grid <- function(grid, model, ...) {
 
 #' @rdname residualize_over_grid
 #' @export
-residualize_over_grid.data.frame <- function(grid, model, pred_name, type, ...) {
-
-  if (!missing(type)) warning("'residuals.type' is deprecated. Using 'working' residuals.")
+residualize_over_grid.data.frame <- function(grid, model, pred_name, ...) {
 
   old_d <- insight::get_predictors(model)
   fun_link <- insight::link_function(model)
@@ -59,7 +63,7 @@ residualize_over_grid.data.frame <- function(grid, model, pred_name, type, ...) 
   grid[[pred_name]] <- NULL
 
   is_fixed <- sapply(grid, function(x) length(unique(x))) == 1
-  grid <- grid[,!is_fixed, drop = FALSE]
+  grid <- grid[, !is_fixed, drop = FALSE]
   old_d <- old_d[, colnames(grid)[colnames(grid) %in% colnames(old_d)], drop = FALSE]
 
   if (!.is_grid(grid)) {
@@ -87,7 +91,7 @@ residualize_over_grid.data.frame <- function(grid, model, pred_name, type, ...) 
 
   res <- tryCatch(
     stats::residuals(model, type = "working"),
-    error = function(e) { NULL }
+    error = function(e) NULL
   )
 
   if (is.null(res)) {
@@ -109,13 +113,13 @@ residualize_over_grid.ggeffects <- function(grid, model, protect_names = TRUE, .
   new_d <- as.data.frame(grid)
   new_d <- new_d[colnames(new_d) %in% c("x", "group", "facet", "panel", "predicted")]
 
-  colnames(new_d)[colnames(new_d) %in% c("x", "group", "facet","panel")] <- attr(grid, "terms")
+  colnames(new_d)[colnames(new_d) %in% c("x", "group", "facet", "panel")] <- attr(grid, "terms")
 
   points <- residualize_over_grid(new_d, model, pred_name = "predicted", ...)
 
   if (protect_names && !is.null(points)) {
-    colnames_gge <- c("x", "group", "facet","panel")
-    colnames_orig <- attr(grid,"terms")
+    colnames_gge <- c("x", "group", "facet", "panel")
+    colnames_orig <- attr(grid, "terms")
     for (i in seq_along(colnames_orig)) {
       colnames(points)[colnames(points) == colnames_orig[i]] <- colnames_gge[i]
     }
@@ -136,7 +140,7 @@ residualize_over_grid.ggeffects <- function(grid, model, protect_names = TRUE, .
   df2 <- do.call(expand.grid, args = unq)
   df2$..1 <- 1
 
-  res <- merge(df,df2, by = colnames(df), all = TRUE)
+  res <- merge(df, df2, by = colnames(df), all = TRUE)
 
   return(sum(res$..1) == sum(df2$..1))
 }

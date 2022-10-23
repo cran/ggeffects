@@ -6,11 +6,9 @@ get_predictions_survival <- function(model, fitfram, ci.lvl, type, terms, ...) {
   if (!is.null(ci.lvl) && !is.na(ci.lvl))
     ci <- (1 + ci.lvl) / 2
   else
-    ci <- .975
+    ci <- 0.975
 
-  if (!requireNamespace("survival", quietly = TRUE)) {
-    stop("Package `survival` required. Please install it.", call. = FALSE)
-  }
+  insight::check_if_installed("survival")
 
   # get survial probabilities and cumulative hazards
 
@@ -63,9 +61,9 @@ get_predictions_survival <- function(model, fitfram, ci.lvl, type, terms, ...) {
 
   if (min(out$time, na.rm = TRUE) > 1) {
     time <- 1
-    predicted <- ifelse(type == "surv", 1, 0)
-    conf.low <- ifelse(type == "surv", 1, 0)
-    conf.high <- ifelse(type == "surv", 1, 0)
+    predicted <- as.numeric(type == "surv")
+    conf.low <- as.numeric(type == "surv")
+    conf.high <- as.numeric(type == "surv")
 
     dat <- expand.grid(lapply(out[clean_terms], unique))
     names(dat) <- clean_terms
