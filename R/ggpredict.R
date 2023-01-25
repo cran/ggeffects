@@ -148,6 +148,7 @@
 #'    or `?clubSandwich::vcovCR` for details).
 #' @param vcov.args List of named vectors, used as additional arguments that
 #'    are passed down to `vcov.fun`.
+#' @param verbose Toggle messages or warnings.
 #' @param ... For `ggpredict()`, further arguments passed down to
 #'    `predict()`; for `ggeffect()`, further arguments passed
 #'    down to `effects::Effect()`; and for `ggemmeans()`,
@@ -237,9 +238,9 @@
 #' `newdata`-argument for `predict()`. In this case,
 #' all remaining covariates that are not specified in `terms` are
 #' held constant: Numeric values are set to the mean (unless changed with
-#' the `condition` or `typical`-argument), factors are set to their
-#' reference level (may also be changed with `condition`) and character
-#' vectors to their mode (most common element).
+#' the `condition` or `typical`-argument), integer values are set to their
+#' median, factors are set to their reference level (may also be changed with
+#' `condition`) and character vectors to their mode (most common element).
 #'
 #' `ggeffect()` and `ggemmeans()`, by default, set remaining numeric
 #' covariates to their mean value, while for factors, a kind of "average" value,
@@ -460,6 +461,7 @@ ggpredict <- function(model,
                       vcov.type = NULL,
                       vcov.args = NULL,
                       interval = "confidence",
+                      verbose = TRUE,
                       ...) {
   # check arguments
   type <- match.arg(type, choices = c("fe", "fixed", "count", "re", "random",
@@ -517,6 +519,7 @@ ggpredict <- function(model,
         vcov.type = vcov.type,
         vcov.args = vcov.args,
         interval = interval,
+        verbose = verbose,
         ...
       )
     })
@@ -540,6 +543,7 @@ ggpredict <- function(model,
             vcov.type = vcov.type,
             vcov.args = vcov.args,
             interval = interval,
+            verbose = verbose,
             ...
           )
 
@@ -563,6 +567,7 @@ ggpredict <- function(model,
         vcov.type = vcov.type,
         vcov.args = vcov.args,
         interval = interval,
+        verbose = verbose,
         ...
       )
     }
@@ -587,6 +592,7 @@ ggpredict_helper <- function(model,
                              vcov.type,
                              vcov.args,
                              interval,
+                             verbose = TRUE,
                              ...) {
 
   # check class of fitted model, to make sure we have just one class-attribute
@@ -604,12 +610,12 @@ ggpredict_helper <- function(model,
   if (model_class == "coxph" && type == "surv") model_info$is_binomial <- TRUE
 
   # get model frame
-  model_frame <- insight::get_data(model)
+  model_frame <- insight::get_data(model, source = "frame")
 
   # expand model frame to data grid of unique combinations
   data_grid <- .data_grid(
     model = model, model_frame = model_frame, terms = terms, value_adjustment = typical,
-    condition = condition
+    condition = condition, show_pretty_message = verbose
   )
 
   # save original frame, for labels, and original terms
