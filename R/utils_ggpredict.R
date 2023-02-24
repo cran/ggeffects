@@ -22,24 +22,23 @@
           mydf$conf.high <- exp(mydf$conf.high) - plus_minus
         }
       }
-
       insight::format_alert("Model has log-transformed response. Back-transforming predictions to original response scale. Standard errors are still on the log-scale.")
     } else {
-      message("Model has log-transformed response. Predictions are on log-scale.")
+      insight::format_alert("Model has log-transformed response. Predictions are on log-scale.")
     }
   }
 
+  trans_fun <- NULL
   if (any(grepl("log1p\\((.*)\\)", rv))) {
-    if (back.transform) {
-      mydf$predicted <- expm1(mydf$predicted)
-      if (.obj_has_name(mydf, "conf.low") && .obj_has_name(mydf, "conf.high")) {
-        mydf$conf.low <- expm1(mydf$conf.low)
-        mydf$conf.high <- expm1(mydf$conf.high)
-      }
-      insight::format_alert("Model has log-transformed response. Back-transforming predictions to original response scale. Standard errors are still on the log-scale.")
-    } else {
-      message("Model has log-transformed response. Predictions are on log(mu + 1) scale.")
-    }
+    trans_fun <- function(x) expm1(x)
+  }
+
+  if (any(grepl("log10\\((.*)\\)", rv))) {
+    trans_fun <- function(x) 10^x
+  }
+
+  if (any(grepl("log2\\((.*)\\)", rv))) {
+    trans_fun <- function(x) 2^x
   }
 
   if (any(grepl("sqrt\\((.*)\\)", rv))) {
@@ -53,7 +52,20 @@
       }
       insight::format_alert("Model has sqrt-transformed response. Back-transforming predictions to original response scale. Standard errors are still on the sqrt-scale.")
     } else {
-      message("Model has sqrt-transformed response. Predictions are on sqrt-scale.")
+      insight::format_alert("Model has sqrt-transformed response. Predictions are on sqrt-scale.")
+    }
+  }
+
+  if (!is.null(trans_fun)) {
+    if (back.transform) {
+      mydf$predicted <- trans_fun(mydf$predicted)
+      if (.obj_has_name(mydf, "conf.low") && .obj_has_name(mydf, "conf.high")) {
+        mydf$conf.low <- trans_fun(mydf$conf.low)
+        mydf$conf.high <- trans_fun(mydf$conf.high)
+      }
+      insight::format_alert("Model has log-transformed response. Back-transforming predictions to original response scale. Standard errors are still on the log-scale.")
+    } else {
+      insight::format_alert("Model has log-transformed response. Predictions are on log-scale.")
     }
   }
 

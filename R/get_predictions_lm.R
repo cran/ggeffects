@@ -1,4 +1,4 @@
-get_predictions_lm <- function(model, fitfram, ci.lvl, model_class, value_adjustment, terms, vcov.fun, vcov.type, vcov.args, condition, interval, type, ...) {
+get_predictions_lm <- function(model, data_grid, ci.lvl, model_class, value_adjustment, terms, vcov.fun, vcov.type, vcov.args, condition, interval, type, ...) {
   # does user want standard errors?
   se <- !is.null(ci.lvl) && !is.na(ci.lvl) && is.null(vcov.fun)
 
@@ -8,33 +8,37 @@ get_predictions_lm <- function(model, fitfram, ci.lvl, model_class, value_adjust
   else
     ci <- 0.975
 
-  prdat <-
-    stats::predict(
-      model,
-      newdata = fitfram,
-      type = "response",
-      se.fit = se,
-      ...
-    )
+  # degrees of freedom
+  dof <- .get_df(model)
+  tcrit <- stats::qt(ci, df = dof)
+
+  prdat <- stats::predict(
+    model,
+    newdata = data_grid,
+    type = "response",
+    se.fit = se,
+    ...
+  )
 
   if (type == "sim") {
 
     # simulate predictions
-    fitfram <- .do_simulate(model, terms, ci, ...)
+    data_grid <- .do_simulate(model, terms, ci, ...)
 
   } else if (!is.null(vcov.fun) || (!is.null(interval) && interval == "prediction")) {
 
     # did user request standard errors? if yes, compute CI
 
     # copy predictions
-    if ("fit" %in% names(prdat))
-      fitfram$predicted <- as.vector(prdat$fit)
-    else
-      fitfram$predicted <- as.vector(prdat)
+    if ("fit" %in% names(prdat)) {
+      data_grid$predicted <- as.vector(prdat$fit)
+    } else {
+      data_grid$predicted <- as.vector(prdat)
+    }
 
     se.pred <- .standard_error_predictions(
       model = model,
-      prediction_data = fitfram,
+      prediction_data = data_grid,
       value_adjustment = value_adjustment,
       terms = terms,
       model_class = model_class,
@@ -47,39 +51,39 @@ get_predictions_lm <- function(model, fitfram, ci.lvl, model_class, value_adjust
 
     if (.check_returned_se(se.pred)) {
       se.fit <- se.pred$se.fit
-      fitfram <- se.pred$prediction_data
+      data_grid <- se.pred$prediction_data
 
       # CI
-      fitfram$conf.low <- fitfram$predicted - stats::qnorm(ci) * se.fit
-      fitfram$conf.high <- fitfram$predicted + stats::qnorm(ci) * se.fit
+      data_grid$conf.low <- data_grid$predicted - tcrit * se.fit
+      data_grid$conf.high <- data_grid$predicted + tcrit * se.fit
 
       # copy standard errors
-      attr(fitfram, "std.error") <- se.fit
-      attr(fitfram, "prediction.interval") <- attr(se.pred, "prediction_interval")
+      attr(data_grid, "std.error") <- se.fit
+      attr(data_grid, "prediction.interval") <- attr(se.pred, "prediction_interval")
     } else {
       # CI
-      fitfram$conf.low <- NA
-      fitfram$conf.high <- NA
+      data_grid$conf.low <- NA
+      data_grid$conf.high <- NA
     }
   } else if (se) {
     # copy predictions
-    fitfram$predicted <- prdat$fit
+    data_grid$predicted <- prdat$fit
 
     # calculate CI
-    fitfram$conf.low <- prdat$fit - stats::qnorm(ci) * prdat$se.fit
-    fitfram$conf.high <- prdat$fit + stats::qnorm(ci) * prdat$se.fit
+    data_grid$conf.low <- prdat$fit - tcrit * prdat$se.fit
+    data_grid$conf.high <- prdat$fit + tcrit * prdat$se.fit
 
     # copy standard errors
-    attr(fitfram, "std.error") <- prdat$se.fit
+    attr(data_grid, "std.error") <- prdat$se.fit
 
   } else {
     # check if we have a multivariate response model
     pdim <- dim(prdat)
     if (!is.null(pdim) && pdim[2] > 1) {
-      tmp <- cbind(fitfram, as.data.frame(prdat))
-      gather.vars <- (ncol(fitfram) + 1):ncol(tmp)
+      tmp <- cbind(data_grid, as.data.frame(prdat))
+      gather.vars <- (ncol(data_grid) + 1):ncol(tmp)
 
-      fitfram <- .gather(
+      data_grid <- .gather(
         tmp,
         names_to = "response.level",
         values_to = "predicted",
@@ -87,13 +91,13 @@ get_predictions_lm <- function(model, fitfram, ci.lvl, model_class, value_adjust
       )
     } else {
       # copy predictions
-      fitfram$predicted <- as.vector(prdat)
+      data_grid$predicted <- as.vector(prdat)
     }
 
     # no CI
-    fitfram$conf.low <- NA
-    fitfram$conf.high <- NA
+    data_grid$conf.low <- NA
+    data_grid$conf.high <- NA
   }
 
-  fitfram
+  data_grid
 }

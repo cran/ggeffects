@@ -13,6 +13,7 @@ select_prediction_method <- function(model_class,
                                      vcov.args,
                                      condition,
                                      interval,
+                                     verbose = TRUE,
                                      ...) {
   # get link-inverse-function
   linv <- insight::link_inverse(model)
@@ -23,7 +24,7 @@ select_prediction_method <- function(model_class,
   } else if (model_class == "svyglm.nb") {
     prediction_data <- get_predictions_svyglmnb(model, data_grid, ci.lvl, linv, model_class, value_adjustment, terms, vcov.fun, vcov.type, vcov.args, condition, interval, ...)
   } else if (model_class == "stanreg") {
-    prediction_data <- get_predictions_stan(model, data_grid, ci.lvl, type, model_info, ppd, terms, ...)
+    prediction_data <- get_predictions_stan(model, data_grid, ci.lvl, type, model_info, ppd, terms, verbose = verbose, ...)
   } else if (model_class == "brmsfit") {
     prediction_data <- get_predictions_stan(model, data_grid, ci.lvl, type, model_info, ppd, terms, ...)
   } else if (model_class == "coxph" && type != "surv" && type != "cumhaz") {
@@ -39,7 +40,7 @@ select_prediction_method <- function(model_class,
   } else if (model_class == "glimML") {
     prediction_data <- get_predictions_glimML(model, data_grid, ci.lvl, linv, ...)
   } else if (model_class == "glmmTMB") {
-    prediction_data <- get_predictions_glmmTMB(model, data_grid, ci.lvl, linv, type, terms, value_adjustment, condition, ...)
+    prediction_data <- get_predictions_glmmTMB(model, data_grid, ci.lvl, linv, type, terms, value_adjustment, condition, verbose = verbose, ...)
   } else if (model_class == "wbm") {
     prediction_data <- get_predictions_wbm(model, data_grid, ci.lvl, linv, type, terms, condition, ...)
   } else if (model_class %in% c("lmer", "nlmer", "glmer")) {
@@ -109,15 +110,23 @@ select_prediction_method <- function(model_class,
   } else if (model_class == "MCMCglmm") {
     prediction_data <- get_predictions_MCMCglmm(model, data_grid, ci.lvl, interval, terms, value_adjustment, condition, ...)
   } else {
-    prediction_data <- get_predictions_generic(model, data_grid, linv, ...)
+    prediction_data <- get_predictions_generic(model, data_grid, ci.lvl, linv, ...)
   }
 
   prediction_data
 }
 
 
+.get_df <- function(model) {
+  dof <- tryCatch(unique(insight::get_df(model, type = "wald")), error = function(e) Inf)
+  if (length(dof) > 1) {
+    dof <- Inf
+  }
+  dof
+}
 
-.generic_prediction_data <- function(model, fitfram, linv, prdat, se, ci.lvl, model_class, value_adjustment, terms, vcov.fun, vcov.type, vcov.args, condition = NULL, interval = NULL) {
+
+.generic_prediction_data <- function(model, data_grid, linv, prdat, se, ci.lvl, model_class, value_adjustment, terms, vcov.fun, vcov.type, vcov.args, condition = NULL, interval = NULL) {
 
   # compute ci, two-ways
 
@@ -126,6 +135,9 @@ select_prediction_method <- function(model_class,
   else
     ci <- 0.975
 
+  # degrees of freedom
+  dof <- .get_df(model)
+  tcrit <- stats::qt(ci, df = dof)
 
   # copy predictions
 
@@ -146,7 +158,7 @@ select_prediction_method <- function(model_class,
   }
 
   # get predicted values, on link-scale
-  fitfram$predicted <- .predicted
+  data_grid$predicted <- .predicted
 
   # did user request robust standard errors?
 
@@ -154,7 +166,7 @@ select_prediction_method <- function(model_class,
     se.pred <-
       .standard_error_predictions(
         model = model,
-        prediction_data = fitfram,
+        prediction_data = data_grid,
         value_adjustment = value_adjustment,
         terms = terms,
         model_class = model_class,
@@ -181,20 +193,20 @@ select_prediction_method <- function(model_class,
   # did user request standard errors? if yes, compute CI
 
   if (se && !is.null(se.fit)) {
-    fitfram$conf.low <- linv(fitfram$predicted - stats::qnorm(ci) * se.fit)
-    fitfram$conf.high <- linv(fitfram$predicted + stats::qnorm(ci) * se.fit)
+    data_grid$conf.low <- linv(data_grid$predicted - tcrit * se.fit)
+    data_grid$conf.high <- linv(data_grid$predicted + tcrit * se.fit)
     # copy standard errors
-    attr(fitfram, "std.error") <- se.fit
+    attr(data_grid, "std.error") <- se.fit
     if (!is.null(se.pred) && length(se.pred) > 0)
-      attr(fitfram, "prediction.interval") <- attr(se.pred, "prediction_interval")
+      attr(data_grid, "prediction.interval") <- attr(se.pred, "prediction_interval")
   } else {
     # No CI
-    fitfram$conf.low <- NA
-    fitfram$conf.high <- NA
+    data_grid$conf.low <- NA
+    data_grid$conf.high <- NA
   }
 
   # transform predicted values
-  fitfram$predicted <- linv(fitfram$predicted)
+  data_grid$predicted <- linv(data_grid$predicted)
 
-  fitfram
+  data_grid
 }

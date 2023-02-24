@@ -1,4 +1,13 @@
-get_predictions_glmmTMB <- function(model, data_grid, ci.lvl, linv, type, terms, value_adjustment, condition, ...) {
+get_predictions_glmmTMB <- function(model,
+                                    data_grid,
+                                    ci.lvl,
+                                    linv,
+                                    type,
+                                    terms,
+                                    value_adjustment,
+                                    condition,
+                                    verbose = TRUE,
+                                    ...) {
   # does user want standard errors?
   se <- !is.null(ci.lvl) && !is.na(ci.lvl)
 
@@ -7,6 +16,10 @@ get_predictions_glmmTMB <- function(model, data_grid, ci.lvl, linv, type, terms,
     ci <- (1 + ci.lvl) / 2
   else
     ci <- 0.975
+
+  # degrees of freedom
+  dof <- .get_df(model)
+  tcrit <- stats::qt(ci, df = dof)
 
   # copy object
   predicted_data <- data_grid
@@ -17,7 +30,7 @@ get_predictions_glmmTMB <- function(model, data_grid, ci.lvl, linv, type, terms,
   # check if we have zero-inflated model part
   if (!model_info$is_zero_inflated && type %in% c("fe.zi", "re.zi", "zi.prob")) {
     if (type == "zi.prob")
-      stop("Model has no zero-inflation part.", call. = FALSE)
+      insight::format_error("Model has no zero-inflation part.")
     else if (type == "fe.zi")
       type <- "fe"
     else
@@ -78,7 +91,8 @@ get_predictions_glmmTMB <- function(model, data_grid, ci.lvl, linv, type, terms,
         value_adjustment = value_adjustment,
         factor_adjustment = FALSE,
         show_pretty_message = FALSE,
-        condition = condition
+        condition = condition,
+        verbose = verbose
       )
 
       # Since the zero inflation and the conditional model are working in "opposite
@@ -97,10 +111,12 @@ get_predictions_glmmTMB <- function(model, data_grid, ci.lvl, linv, type, terms,
 
       if (is.null(prdat.sim) || inherits(prdat.sim, c("error", "simpleError"))) {
 
-        insight::print_color("Error: Confidence intervals could not be computed.\n", "red")
-        if (inherits(prdat.sim, c("error", "simpleError"))) {
-          cat(sprintf("* Reason: %s\n", insight::safe_deparse(prdat.sim[[1]])))
-          cat(sprintf("* Source: %s\n", insight::safe_deparse(prdat.sim[[2]])))
+        if (verbose) {
+          insight::print_color("Error: Confidence intervals could not be computed.\n", "red")
+          if (inherits(prdat.sim, c("error", "simpleError"))) {
+            cat(sprintf("* Reason: %s\n", insight::safe_deparse(prdat.sim[[1]])))
+            cat(sprintf("* Source: %s\n", insight::safe_deparse(prdat.sim[[2]])))
+          }
         }
 
         predicted_data$predicted <- prdat
@@ -126,8 +142,8 @@ get_predictions_glmmTMB <- function(model, data_grid, ci.lvl, linv, type, terms,
           # to original scale, so we compute proper CI
           if (!is.null(revar)) {
             lf <- insight::link_function(model)
-            predicted_data$conf.low <- exp(lf(predicted_data$conf.low) - stats::qnorm(ci) * sqrt(revar))
-            predicted_data$conf.high <- exp(lf(predicted_data$conf.high) + stats::qnorm(ci) * sqrt(revar))
+            predicted_data$conf.low <- exp(lf(predicted_data$conf.low) - tcrit * sqrt(revar))
+            predicted_data$conf.high <- exp(lf(predicted_data$conf.high) + tcrit * sqrt(revar))
             predicted_data$std.error <- sqrt(predicted_data$std.error^2 + revar)
           }
         }
@@ -176,8 +192,8 @@ get_predictions_glmmTMB <- function(model, data_grid, ci.lvl, linv, type, terms,
       }
 
       # calculate CI
-      predicted_data$conf.low <- linv(prdat$fit - stats::qnorm(ci) * prdat$se.fit)
-      predicted_data$conf.high <- linv(prdat$fit + stats::qnorm(ci) * prdat$se.fit)
+      predicted_data$conf.low <- linv(prdat$fit - tcrit * prdat$se.fit)
+      predicted_data$conf.high <- linv(prdat$fit + tcrit * prdat$se.fit)
       predicted_data$std.error <- prdat$se.fit
     } else {
       # copy predictions

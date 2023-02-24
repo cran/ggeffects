@@ -11,8 +11,9 @@
                        factor_adjustment = TRUE,
                        show_pretty_message = TRUE,
                        condition = NULL,
-                       emmeans.only = FALSE) {
-    # special handling for coxph
+                       emmeans.only = FALSE,
+                       verbose = TRUE) {
+  # special handling for coxph
   if (inherits(model, c("coxph", "coxme"))) {
     surv.var <- which(colnames(model_frame) == insight::find_response(model))
     model_frame <- .remove_column(model_frame, surv.var)
@@ -74,10 +75,12 @@
           # try to back-transform
           offset_function <- .get_offset_transformation(model)
           if (identical(offset_function, "log")) {
-            insight::format_warning(
-              "Model uses a transformed offset term. Predictions may not be correct.",
-              sprintf("Please apply transformation of offset term to the data before fitting the model and use `offset(%s)` in the model formula.", clean.term)
-            )
+            if (verbose) {
+              insight::format_warning(
+                "Model uses a transformed offset term. Predictions may not be correct.",
+                sprintf("Please apply transformation of offset term to the data before fitting the model and use `offset(%s)` in the model formula.", clean.term)
+              )
+            }
             olt <- clean.term
           }
         }
@@ -105,7 +108,7 @@
   if (.has_splines(model) && !.uses_all_tag(terms)) {
     if (inherits(model, all_values_models)) {
       use_all_values <- TRUE
-    } else if (show_pretty_message) {
+    } else if (show_pretty_message && verbose) {
       insight::format_alert(sprintf(
         "Model contains splines or polynomial terms. Consider using `terms=\"%s [all]\"` to get smooth plots. See also package-vignette 'Marginal Effects at Specific Values'.", all_terms[1]
       ))
@@ -116,7 +119,7 @@
   if (.has_poly(model) && !.uses_all_tag(terms) && !use_all_values) {
     if (inherits(model, all_values_models)) {
       use_all_values <- TRUE
-    } else if (show_pretty_message) {
+    } else if (show_pretty_message && verbose) {
       insight::format_alert(sprintf(
         "Model contains polynomial or cubic / quadratic terms. Consider using `terms=\"%s [all]\"` to get smooth plots. See also package-vignette 'Marginal Effects at Specific Values'.", all_terms[1]
       ))
@@ -128,7 +131,7 @@
   if (.has_trigonometry(model) && !.uses_all_tag(terms) && !use_all_values) {
     if (inherits(model, all_values_models)) {
       use_all_values <- TRUE
-    } else if (show_pretty_message) {
+    } else if (show_pretty_message && verbose) {
       insight::format_alert(sprintf(
         "Model contains trigonometric terms (sinus, cosinus, ...). Consider using `terms=\"%s [all]\"` to get smooth plots. See also package-vignette 'Marginal Effects at Specific Values'.", all_terms[1]
       ))
@@ -299,8 +302,8 @@
     names(constant_values) <- model_predictors
     constant_values <- .compact_list(constant_values)
 
-  # adjust constant values, factors set to reference level
   } else if (factor_adjustment) {
+    # adjust constant values, factors set to reference level
     constant_values <- lapply(model_predictors, function(x) {
       pred <- model_frame[[x]]
       if (is.factor(pred)) pred <- droplevels(pred)
@@ -309,8 +312,8 @@
     })
     names(constant_values) <- model_predictors
 
-  # adjust constant values, use all factor levels
   } else {
+    # adjust constant values, use all factor levels
     re.grp <- insight::find_random(model, split_nested = TRUE, flatten = TRUE)
     # if factors should not be held constant (needed when computing
     # std.error for merMod objects), we need all factor levels,
@@ -368,10 +371,8 @@
 
     # remove grouping factor of RE from constant values
     # only applicable for MixMod objects
-    if (inherits(model, "MixMod") &&
-        !is.null(random_effect_terms) &&
-        !.is_empty(constant_values) &&
-        any(random_effect_terms %in% names(constant_values))) {
+    if (inherits(model, "MixMod") && !is.null(random_effect_terms) &&
+          !.is_empty(constant_values) && any(random_effect_terms %in% names(constant_values))) {
       constant_values <- constant_values[!(names(constant_values) %in% random_effect_terms)]
     }
 
@@ -538,25 +539,11 @@
 
 .add_offset_to_mf <- function(x, model_frame, offset_term) {
   # first try, parent frame
-  dat <- tryCatch(
-    {
-      eval(x$call$data, envir = parent.frame())
-    },
-    error = function(e) {
-      NULL
-    }
-  )
+  dat <- tryCatch(eval(x$call$data, envir = parent.frame()), error = function(e) NULL)
 
   if (is.null(dat)) {
     # second try, global env
-    dat <- tryCatch(
-      {
-        eval(x$call$data, envir = globalenv())
-      },
-      error = function(e) {
-        NULL
-      }
-    )
+    dat <- tryCatch(eval(x$call$data, envir = globalenv()), error = function(e) NULL)
   }
 
 

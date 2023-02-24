@@ -8,13 +8,16 @@ get_predictions_polr <- function(model, fitfram, ci.lvl, linv, value_adjustment,
   else
     ci <- 0.975
 
-  prdat <-
-    stats::predict(
-      model,
-      newdata = fitfram,
-      type = "probs",
-      ...
-    )
+  # degrees of freedom
+  dof <- .get_df(model)
+  tcrit <- stats::qt(ci, df = dof)
+
+  prdat <- stats::predict(
+    model,
+    newdata = fitfram,
+    type = "probs",
+    ...
+  )
 
   prdat <- as.data.frame(prdat)
 
@@ -35,27 +38,26 @@ get_predictions_polr <- function(model, fitfram, ci.lvl, linv, value_adjustment,
 
   fitfram <- .gather(fitfram, names_to = "response.level", values_to = "predicted", colnames(prdat))
 
-  se.pred <-
-    .standard_error_predictions(
-      model = model,
-      prediction_data = fitfram,
-      value_adjustment = value_adjustment,
-      terms = terms,
-      model_class = model_class,
-      vcov.fun = vcov.fun,
-      vcov.type = vcov.type,
-      vcov.args = vcov.args,
-      condition = condition,
-      interval = interval
-    )
+  se.pred <- .standard_error_predictions(
+    model = model,
+    prediction_data = fitfram,
+    value_adjustment = value_adjustment,
+    terms = terms,
+    model_class = model_class,
+    vcov.fun = vcov.fun,
+    vcov.type = vcov.type,
+    vcov.args = vcov.args,
+    condition = condition,
+    interval = interval
+  )
 
   if (.check_returned_se(se.pred) && isTRUE(se)) {
     se.fit <- se.pred$se.fit
     fitfram <- se.pred$prediction_data
 
     # CI
-    fitfram$conf.low <- linv(stats::qlogis(fitfram$predicted) - stats::qnorm(ci) * se.fit)
-    fitfram$conf.high <- linv(stats::qlogis(fitfram$predicted) + stats::qnorm(ci) * se.fit)
+    fitfram$conf.low <- linv(stats::qlogis(fitfram$predicted) - tcrit * se.fit)
+    fitfram$conf.high <- linv(stats::qlogis(fitfram$predicted) + tcrit * se.fit)
 
     # copy standard errors
     attr(fitfram, "std.error") <- se.fit

@@ -51,16 +51,16 @@
 
 
 .safe_se_from_vcov <- function(model,
-                              prediction_data,
-                              value_adjustment,
-                              terms,
-                              model_class,
-                              type,
-                              vcov.fun,
-                              vcov.type,
-                              vcov.args,
-                              condition,
-                              interval) {
+                               prediction_data,
+                               value_adjustment,
+                               terms,
+                               model_class,
+                               type,
+                               vcov.fun,
+                               vcov.type,
+                               vcov.args,
+                               condition,
+                               interval) {
 
   model_frame <- insight::get_data(model, source = "frame")
 
@@ -159,7 +159,7 @@
   pr_int <- FALSE
 
   if (is.null(vmatrix)) {
-    message("Could not compute variance-covariance matrix of predictions. No confidence intervals are returned.")
+    insight::format_alert("Could not compute variance-covariance matrix of predictions. No confidence intervals are returned.")
     se.fit <- NULL
   } else {
     pvar <- vmatrix

@@ -1,4 +1,35 @@
-# ggeffects 1.1.4
+# ggeffects 1.2.0
+
+## Breaking
+
+* Confidence intervals of adjusted predictions now take the model's degrees of
+  freedom into account, thereby leading to slightly larger intervals for models
+  that do not have infinite degrees of freedom (like linear models with
+  t-statistic).
+
+## New functions
+
+* `hypothesis_test()`, to compute contrasts and comparisons of predictions and
+  test differences for statistical significance. Additionally, an accompanying
+  vignette that explains the new function in detail is added.
+
+* `install_latest()`, to install the latest official package version from
+  CRAN, or the latest development version from r-universe.
+
+* An `as.data.frame()` method was added, which converts `ggeffects` objects
+  returned by `ggpredict()` into data frame, where standard column names are
+  replaced by their related variable names.
+
+## General
+
+* Response values are now also back-transformed when these were transformed
+  using `log2()`, `log10()` or `log1p()`.
+
+* The `terms` argument can now also be a named list. Thus, instead of
+  `terms = c("score [30,50,70]", "status [low, middle]")` one could also write
+  `terms = list(score = c(30,50,70), status = c("low", "middle"))`.
+
+# ggeffects 1.1.5
 
 ## General
 

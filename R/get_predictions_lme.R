@@ -1,4 +1,16 @@
-get_predictions_lme <- function(model, fitfram, ci.lvl, linv, type, terms, value_adjustment, model_class, vcov.fun, vcov.type, vcov.args, condition, ...) {
+get_predictions_lme <- function(model,
+                                fitfram,
+                                ci.lvl,
+                                linv,
+                                type,
+                                terms,
+                                value_adjustment,
+                                model_class,
+                                vcov.fun,
+                                vcov.type,
+                                vcov.args,
+                                condition,
+                                ...) {
   # does user want standard errors?
   se <- (!is.null(ci.lvl) && !is.na(ci.lvl)) || !is.null(vcov.fun)
 
@@ -8,39 +20,40 @@ get_predictions_lme <- function(model, fitfram, ci.lvl, linv, type, terms, value
   else
     ci <- 0.975
 
+  # degrees of freedom
+  dof <- .get_df(model)
+  tcrit <- stats::qt(ci, df = dof)
 
   if (inherits(model, "glmmPQL"))
     pr.type <- "link"
   else
     pr.type <- "response"
 
-  prdat <-
-    stats::predict(
-      model,
-      newdata = fitfram,
-      type = pr.type,
-      level = 0, # always population level, see #267
-      ...
-    )
+  prdat <- stats::predict(
+    model,
+    newdata = fitfram,
+    type = pr.type,
+    level = 0, # always population level, see #267
+    ...
+  )
 
   # copy predictions
   fitfram$predicted <- as.vector(prdat)
 
   # did user request standard errors? if yes, compute CI
   if (se) {
-    se.pred <-
-      .standard_error_predictions(
-        model = model,
-        prediction_data = fitfram,
-        value_adjustment = value_adjustment,
-        terms = terms,
-        model_class = model_class,
-        type = type,
-        vcov.fun = vcov.fun,
-        vcov.type = vcov.type,
-        vcov.args = vcov.args,
-        condition = condition
-      )
+    se.pred <- .standard_error_predictions(
+      model = model,
+      prediction_data = fitfram,
+      value_adjustment = value_adjustment,
+      terms = terms,
+      model_class = model_class,
+      type = type,
+      vcov.fun = vcov.fun,
+      vcov.type = vcov.type,
+      vcov.args = vcov.args,
+      condition = condition
+    )
 
     if (.check_returned_se(se.pred)) {
 
@@ -48,8 +61,8 @@ get_predictions_lme <- function(model, fitfram, ci.lvl, linv, type, terms, value
       fitfram <- se.pred$prediction_data
 
       # calculate CI
-      fitfram$conf.low <- fitfram$predicted - stats::qnorm(ci) * se.fit
-      fitfram$conf.high <- fitfram$predicted + stats::qnorm(ci) * se.fit
+      fitfram$conf.low <- fitfram$predicted - tcrit * se.fit
+      fitfram$conf.high <- fitfram$predicted + tcrit * se.fit
 
       # copy standard errors
       attr(fitfram, "std.error") <- se.fit

@@ -8,22 +8,25 @@ get_predictions_ols <- function(model, fitfram, ci.lvl, ...) {
   else
     ci <- 0.975
 
-  prdat <-
-    stats::predict(
-      model,
-      newdata = fitfram,
-      type = "lp",
-      se.fit = se,
-      ...
-    )
+  # degrees of freedom
+  dof <- .get_df(model)
+  tcrit <- stats::qt(ci, df = dof)
+
+  prdat <- stats::predict(
+    model,
+    newdata = fitfram,
+    type = "lp",
+    se.fit = se,
+    ...
+  )
 
   if (se) {
     # copy predictions
     fitfram$predicted <- prdat$linear.predictors
 
     # calculate CI
-    fitfram$conf.low <- prdat$linear.predictors - stats::qnorm(ci) * prdat$se.fit
-    fitfram$conf.high <- prdat$linear.predictors + stats::qnorm(ci) * prdat$se.fit
+    fitfram$conf.low <- prdat$linear.predictors - tcrit * prdat$se.fit
+    fitfram$conf.high <- prdat$linear.predictors + tcrit * prdat$se.fit
 
     # copy standard errors
     attr(fitfram, "std.error") <- prdat$se.fit

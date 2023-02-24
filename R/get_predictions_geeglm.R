@@ -7,33 +7,35 @@ get_predictions_geeglm <- function(model, fitfram, ci.lvl, linv, type, model_cla
   else
     ci <- 0.975
 
+  # degrees of freedom
+  dof <- .get_df(model)
+  tcrit <- stats::qt(ci, df = dof)
+
   # get predictions
-  prdat <-
-    stats::predict(
-      model,
-      newdata = fitfram,
-      ...
-    )
+  prdat <- stats::predict(
+    model,
+    newdata = fitfram,
+    ...
+  )
 
 
   fitfram$predicted <- as.vector(prdat)
 
 
   # get standard errors from variance-covariance matrix
-  se.pred <-
-    .standard_error_predictions(
-      model = model,
-      prediction_data = fitfram,
-      value_adjustment = value_adjustment,
-      type = type,
-      terms = terms,
-      model_class = model_class,
-      vcov.fun = NULL,
-      vcov.type = NULL,
-      vcov.args = NULL,
-      condition = condition,
-      interval = NULL
-    )
+  se.pred <- .standard_error_predictions(
+    model = model,
+    prediction_data = fitfram,
+    value_adjustment = value_adjustment,
+    type = type,
+    terms = terms,
+    model_class = model_class,
+    vcov.fun = NULL,
+    vcov.type = NULL,
+    vcov.args = NULL,
+    condition = condition,
+    interval = NULL
+  )
 
 
   if (.check_returned_se(se.pred) && isTRUE(se)) {
@@ -41,8 +43,8 @@ get_predictions_geeglm <- function(model, fitfram, ci.lvl, linv, type, model_cla
     fitfram <- se.pred$prediction_data
 
     # CI
-    fitfram$conf.low <- linv(fitfram$predicted - stats::qnorm(ci) * se.fit)
-    fitfram$conf.high <- linv(fitfram$predicted + stats::qnorm(ci) * se.fit)
+    fitfram$conf.low <- linv(fitfram$predicted - tcrit * se.fit)
+    fitfram$conf.high <- linv(fitfram$predicted + tcrit * se.fit)
 
     # copy standard errors
     attr(fitfram, "std.error") <- se.fit

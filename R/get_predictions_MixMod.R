@@ -8,6 +8,10 @@ get_predictions_MixMod <- function(model, data_grid, ci.lvl, linv, type, terms, 
   else
     ci <- 0.975
 
+  # degrees of freedom
+  dof <- .get_df(model)
+  tcrit <- stats::qt(ci, df = dof)
+
   # get info about model
   model_info <- insight::model_info(model)
 
@@ -16,7 +20,7 @@ get_predictions_MixMod <- function(model, data_grid, ci.lvl, linv, type, terms, 
 
   if (!model_info$is_zero_inflated && type %in% c("fe.zi", "re.zi", "zi.prob")) {
     if (type == "zi.prob")
-      stop("Model has no zero-inflation part.", call. = FALSE)
+      insight::format_error("Model has no zero-inflation part.")
     else if (type == "fe.zi")
       type <- "fe"
     else
@@ -135,8 +139,8 @@ get_predictions_MixMod <- function(model, data_grid, ci.lvl, linv, type, terms, 
           lf <- insight::link_function(model)
           if (is.null(lf)) lf <- function(x) x
         }
-        predicted_data$conf.low <- linv(lf(predicted_data$predicted) - stats::qnorm(ci) * prdat$se.fit)
-        predicted_data$conf.high <- linv(lf(predicted_data$predicted) + stats::qnorm(ci) * prdat$se.fit)
+        predicted_data$conf.low <- linv(lf(predicted_data$predicted) - tcrit * prdat$se.fit)
+        predicted_data$conf.high <- linv(lf(predicted_data$predicted) + tcrit * prdat$se.fit)
       } else {
         predicted_data$conf.low <- NA
         predicted_data$conf.high <- NA

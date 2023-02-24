@@ -1,14 +1,9 @@
 
 # ggeffects - Estimated Marginal Means and Adjusted Predictions from Regression Models<img src="man/figures/logo.png" align="right" />
 
-[![CRAN_Status_Badge](http://www.r-pkg.org/badges/version/ggeffects)](https://cran.r-project.org/package=ggeffects)
-  
 [![DOI](http://joss.theoj.org/papers/10.21105/joss.00772/status.svg)](https://doi.org/10.21105/joss.00772)
-  
 [![Documentation](https://img.shields.io/badge/documentation-ggeffects-orange.svg?colorB=E91E63)](https://strengejacke.github.io/ggeffects/)
-  
 [![downloads](http://cranlogs.r-pkg.org/badges/ggeffects)](https://cranlogs.r-pkg.org/)
-  
 [![total](http://cranlogs.r-pkg.org/badges/grand-total/ggeffects)](https://cranlogs.r-pkg.org/)
 
 Lüdecke D (2018). *ggeffects: Tidy Data Frames of Marginal Effects from
@@ -52,6 +47,22 @@ This means, users do not need to care about any expensive steps after
 modeling to visualize the results. The returned as data frame is ready
 to use with the **ggplot2**-package, however, there is also a
 `plot()`-method to easily create publication-ready figures.
+
+## Installation
+
+[![CRAN](https://www.r-pkg.org/badges/version/ggeffects)](https://cran.r-project.org/package=ggeffects)
+[![parameters status
+badge](https://strengejacke.r-universe.dev/badges/ggeffects)](https://strengejacke.r-universe.dev)
+
+| Type        | Source       | Command                                                                        |
+|-------------|--------------|--------------------------------------------------------------------------------|
+| Release     | CRAN         | `install.packages("ggeffects")`                                                |
+| Development | r - universe | `install.packages("ggeffects", repos = "https://strengejacke.r-universe.dev")` |
+| Development | GitHub       | `remotes::install_github("strengejacke/ggeffects")`                            |
+
+Or you can run
+[`ggeffects::install_latest()`](https://strengejacke.github.io/ggeffects/reference/install_latest.html)
+to install the latest development version from r-universe.
 
 ## Definition of “marginal effects”
 
@@ -265,27 +276,6 @@ plot(mydf)
 
 More features are explained in detail in the
 [package-vignettes](https://strengejacke.github.io/ggeffects/).
-
-## Installation
-
-### Latest development build
-
-To install the latest development snapshot (see latest changes below),
-type following commands into the R console:
-
-``` r
-library(devtools)
-devtools::install_github("strengejacke/ggeffects")
-```
-
-### Officiale, stable release
-
-To install the latest stable release from CRAN, type following command
-into the R console:
-
-``` r
-install.packages("ggeffects")
-```
 
 ## Citation
 

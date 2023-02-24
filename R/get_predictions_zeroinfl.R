@@ -27,6 +27,10 @@ get_predictions_zeroinfl <- function(model, data_grid, ci.lvl, linv, type, model
   else
     ci <- 0.975
 
+  # degrees of freedom
+  dof <- .get_df(model)
+  tcrit <- stats::qt(ci, df = dof)
+
   # copy object
   predicted_data <- data_grid
 
@@ -39,13 +43,12 @@ get_predictions_zeroinfl <- function(model, data_grid, ci.lvl, linv, type, model
 
 
   # get predictions
-  prdat <-
-    stats::predict(
-      model,
-      newdata = data_grid,
-      type = pt,
-      ...
-    )
+  prdat <- stats::predict(
+    model,
+    newdata = data_grid,
+    type = pt,
+    ...
+  )
 
   if (type == "zi.prob") {
     linv <- stats::plogis
@@ -113,29 +116,27 @@ get_predictions_zeroinfl <- function(model, data_grid, ci.lvl, linv, type, model
   } else {
 
     # get standard errors from variance-covariance matrix
-    se.pred <-
-      .standard_error_predictions(
-        model = model,
-        prediction_data = predicted_data,
-        value_adjustment = value_adjustment,
-        type = type,
-        terms = terms,
-        model_class = model_class,
-        vcov.fun = vcov.fun,
-        vcov.type = vcov.type,
-        vcov.args = vcov.args,
-        condition = condition,
-        interval = interval
-      )
-
+    se.pred <- .standard_error_predictions(
+      model = model,
+      prediction_data = predicted_data,
+      value_adjustment = value_adjustment,
+      type = type,
+      terms = terms,
+      model_class = model_class,
+      vcov.fun = vcov.fun,
+      vcov.type = vcov.type,
+      vcov.args = vcov.args,
+      condition = condition,
+      interval = interval
+    )
 
     if (.check_returned_se(se.pred)) {
       se.fit <- se.pred$se.fit
       predicted_data <- se.pred$prediction_data
 
       # CI
-      predicted_data$conf.low <- linv(predicted_data$predicted - stats::qnorm(ci) * se.fit)
-      predicted_data$conf.high <- linv(predicted_data$predicted + stats::qnorm(ci) * se.fit)
+      predicted_data$conf.low <- linv(predicted_data$predicted - tcrit * se.fit)
+      predicted_data$conf.high <- linv(predicted_data$predicted + tcrit * se.fit)
 
       # copy standard errors and attributes
       attr(predicted_data, "std.error") <- se.fit

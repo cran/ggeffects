@@ -1,4 +1,4 @@
-get_predictions_merMod <- function(model, fitfram, ci.lvl, linv, type, terms, value_adjustment, condition, ...) {
+get_predictions_merMod <- function(model, data_grid, ci.lvl, linv, type, terms, value_adjustment, condition, ...) {
   # does user want standard errors?
   se <- !is.null(ci.lvl) && !is.na(ci.lvl)
 
@@ -7,6 +7,10 @@ get_predictions_merMod <- function(model, fitfram, ci.lvl, linv, type, terms, va
     ci <- (1 + ci.lvl) / 2
   else
     ci <- 0.975
+
+  # degrees of freedom
+  dof <- .get_df(model)
+  tcrit <- stats::qt(ci, df = dof)
 
   # check whether predictions should be conditioned
   # on random effects (grouping level) or not.
@@ -18,13 +22,13 @@ get_predictions_merMod <- function(model, fitfram, ci.lvl, linv, type, terms, va
   if (type %in% c("sim", "sim_re")) {
 
     # simulate predictions
-    fitfram <- .do_simulate(model, terms, ci, type, ...)
+    data_grid <- .do_simulate(model, terms, ci, type, ...)
 
   } else {
 
-    fitfram$predicted <- suppressWarnings(stats::predict(
+    data_grid$predicted <- suppressWarnings(stats::predict(
       model,
-      newdata = fitfram,
+      newdata = data_grid,
       type = "response",
       re.form = ref,
       allow.new.levels = TRUE,
@@ -33,48 +37,47 @@ get_predictions_merMod <- function(model, fitfram, ci.lvl, linv, type, terms, va
 
     if (se) {
       # get standard errors from variance-covariance matrix
-      se.pred <-
-        .standard_error_predictions(
-          model = model,
-          prediction_data = fitfram,
-          value_adjustment = value_adjustment,
-          terms = terms,
-          type = type,
-          condition = condition
-        )
+      se.pred <- .standard_error_predictions(
+        model = model,
+        prediction_data = data_grid,
+        value_adjustment = value_adjustment,
+        terms = terms,
+        type = type,
+        condition = condition
+      )
 
       if (.check_returned_se(se.pred)) {
         se.fit <- se.pred$se.fit
-        fitfram <- se.pred$prediction_data
+        data_grid <- se.pred$prediction_data
 
         if (is.null(linv)) {
           # calculate CI for linear mixed models
-          fitfram$conf.low <- fitfram$predicted - stats::qnorm(ci) * se.fit
-          fitfram$conf.high <- fitfram$predicted + stats::qnorm(ci) * se.fit
+          data_grid$conf.low <- data_grid$predicted - tcrit * se.fit
+          data_grid$conf.high <- data_grid$predicted + tcrit * se.fit
         } else {
           # get link-function and back-transform fitted values
           # to original scale, so we compute proper CI
           lf <- insight::link_function(model)
 
           # calculate CI for glmm
-          fitfram$conf.low <- linv(lf(fitfram$predicted) - stats::qnorm(ci) * se.fit)
-          fitfram$conf.high <- linv(lf(fitfram$predicted) + stats::qnorm(ci) * se.fit)
+          data_grid$conf.low <- linv(lf(data_grid$predicted) - tcrit * se.fit)
+          data_grid$conf.high <- linv(lf(data_grid$predicted) + tcrit * se.fit)
         }
 
         # copy standard errors
-        attr(fitfram, "std.error") <- se.fit
-        attr(fitfram, "prediction.interval") <- attr(se.pred, "prediction_interval")
+        attr(data_grid, "std.error") <- se.fit
+        attr(data_grid, "prediction.interval") <- attr(se.pred, "prediction_interval")
       } else {
-        fitfram$conf.low <- NA
-        fitfram$conf.high <- NA
+        data_grid$conf.low <- NA
+        data_grid$conf.high <- NA
       }
 
     } else {
-      fitfram$conf.low <- NA
-      fitfram$conf.high <- NA
+      data_grid$conf.low <- NA
+      data_grid$conf.high <- NA
     }
 
   }
 
-  fitfram
+  data_grid
 }
