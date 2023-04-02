@@ -8,7 +8,7 @@
 \alias{as.data.frame.ggeffects}
 \title{Marginal effects, adjusted predictions and estimated marginal means from regression models}
 \usage{
-ggeffect(model, terms, ci.lvl = 0.95, ...)
+ggeffect(model, terms, ci.lvl = 0.95, verbose = TRUE, ...)
 
 ggemmeans(
   model,
@@ -74,6 +74,8 @@ based on the standard errors as returned by the \code{predict()} function
 are returned, assuming normal distribution (i.e. \verb{+/- 1.96 * SE}).
 See introduction of \href{https://strengejacke.github.io/ggeffects/articles/ggeffects.html}{this vignette}
 for more details.}
+
+\item{verbose}{Toggle messages or warnings.}
 
 \item{...}{For \code{ggpredict()}, further arguments passed down to
 \code{predict()}; for \code{ggeffect()}, further arguments passed
@@ -176,8 +178,6 @@ as \code{interval = "prediction"} is equivalent to \code{type = "random"}
 (and \code{interval = "confidence"} is equivalent to \code{type = "fixed"}).
 Note that prediction intervals are not available for all models, but only
 for models that work with \code{\link[insight:get_sigma]{insight::get_sigma()}}.}
-
-\item{verbose}{Toggle messages or warnings.}
 
 \item{ppd}{Logical, if \code{TRUE}, predictions for Stan-models are
 based on the posterior predictive distribution
@@ -441,9 +441,11 @@ ggpredict(fit, terms = ~ c12hour + c172code + c161sex)
 # only range of 40 to 60 for variable 'c12hour'
 ggpredict(fit, terms = "c12hour [40:60]")
 
-# using "summary()" shows that covariate "neg_c_7" is held
-# constant at a value of 11.84 (its mean value). To use a
-# different value, use "condition"
+# terms as named list
+ggpredict(fit, terms = list(c12hour = 40:60))
+
+# covariate "neg_c_7" is held constant at a value of 11.84 (its mean value).
+# To use a different value, use "condition"
 ggpredict(fit, terms = "c12hour [40:60]", condition = c(neg_c_7 = 20))
 
 # to plot ggeffects-objects, you can use the 'plot()'-function.

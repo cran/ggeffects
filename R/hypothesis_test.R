@@ -14,6 +14,16 @@
 #'   contrasts or comparisons for the *slopes* of this numeric predictor are
 #'   computed (possibly grouped by the levels of further categorical focal
 #'   predictors).
+#' @param equivalence ROPE's lower and higher bounds. Should be `"default"` or
+#'   a vector of length two (e.g., c(-0.1, 0.1)). If `"default"`,
+#'   [`bayestestR::rope_range()`] is used. Instead of using the `equivalence`
+#'   argument, it is also possible to call the `equivalence_test()` method
+#'   directly. This requires the **parameters** package to be loaded. When
+#'   using `equivalence_test()`, two more columns with information about the
+#'   ROPE coverage and decision on H0 are added. Furthermore, it is possible
+#'   to `plot()` the results from `equivalence_test()`. See
+#'   [`bayestestR::equivalence_test()`] resp. [`parameters::equivalence_test.lm()`]
+#'   for details.
 #' @param p_adjust Character vector, if not `NULL`, indicates the method to
 #'   adjust p-values. See [`stats::p.adjust()`] for details. Further possible
 #'   adjustment methods are `"tukey"` or `"sidak"`. Some caution is necessary
@@ -22,9 +32,22 @@
 #' @param df Degrees of freedom that will be used to compute the p-values and
 #'   confidence intervals. If `NULL`, degrees of freedom will be extracted from
 #'   the model using [`insight::get_df()`] with `type = "wald"`.
+#' @param ci.lvl Numeric, the level of the confidence intervals.
 #' @param verbose Toggle messages and warnings.
 #' @param ... Arguments passed down to [`data_grid()`] when creating the reference
-#'   grid.
+#'   grid and to [`marginaleffects::predictions()`] resp. [`marginaleffects::slopes()`].
+#'
+#' @seealso There is also an `equivalence_test()` method in the **parameters**
+#'   package ([`parameters::equivalence_test.lm()`]), which can be used to
+#'   test contrasts or comparisons for practical equivalence. This method also
+#'   has a `plot()` method, hence it is possible to do something like:
+#'   ```
+#'   library(parameters)
+#'   ggpredict(model, focal_terms) |>
+#'     equivalence_test() |>
+#'     plot()
+#'  ```
+#'
 #' @section Introduction into contrasts and pairwise comparisons:
 #'
 #' There are many ways to test contrasts or pairwise comparisons. A
@@ -95,8 +118,10 @@ hypothesis_test <- function(model, ...) {
 hypothesis_test.default <- function(model,
                                     terms = NULL,
                                     test = "pairwise",
+                                    equivalence = NULL,
                                     p_adjust = NULL,
                                     df = NULL,
+                                    ci.lvl = 0.95,
                                     verbose = TRUE,
                                     ...) {
   insight::check_if_installed("marginaleffects", minimum_version = "0.10.0")
@@ -124,11 +149,36 @@ hypothesis_test.default <- function(model,
   }
   grid <- data_grid(model, terms, ...)
 
+  # sanity check - variable names in the grid should not "mask" standard names
+  # from the marginal effects output
+  reserved <- c(
+    "rowid", "group", "term", "contrast", "estimate",
+    "std.error", "statistic", "conf.low", "conf.high", "p.value",
+    "p.value.nonsup", "p.value.noninf", "type"
+  )
+  invalid_names <- reserved %in% colnames(grid)
+  if (any(invalid_names)) {
+    insight::format_error(
+      "Some variable names in the model are not allowed when using `hyothesis_test()` because they are reserved by the internally used {.pkg marginaleffects} package.",
+      paste0("Please rename following variables and fit your model again: ", toString(paste0("`", reserved[invalid_names], "`")))
+    )
+  }
+
   # comparisons only make sense if we have at least two predictors, or if
   # we have one categorical
   focal_numeric <- vapply(grid[focal], is.numeric, TRUE)
   focal_other <- !focal_numeric
-  hypothesis_label <- NULL
+  hypothesis_label <- rope_range <- NULL
+
+  # do we want an equivalence-test?
+  if (!is.null(equivalence)) {
+    if (all(equivalence == "default")) {
+      insight::check_if_installed("bayestestR")
+      rope_range <- bayestestR::rope_range(model)
+    } else {
+      rope_range <- equivalence
+    }
+  }
 
   # extract degrees of freedom
   if (is.null(df)) {
@@ -144,7 +194,13 @@ hypothesis_test.default <- function(model,
     if (length(focal) == 1) {
       # argument "test" will be ignored for average slopes
       test <- NULL
-      .comparisons <- marginaleffects::avg_slopes(model, variables = focal, df = df)
+      .comparisons <- marginaleffects::avg_slopes(
+        model,
+        variables = focal,
+        df = df,
+        conf_level = ci.lvl,
+        ...
+      )
       out <- data.frame(x_ = "slope", stringsAsFactors = FALSE)
       colnames(out) <- focal
 
@@ -157,8 +213,12 @@ hypothesis_test.default <- function(model,
         by = focal[2:length(focal)],
         newdata = grid,
         hypothesis = test,
-        df = df
+        df = df,
+        conf_level = ci.lvl,
+        ...
       )
+
+      ## here comes the code for extracting nice term labels ==============
 
       # for pairwise comparisons, we need to extract contrasts
       if (!is.null(test) && all(test == "pairwise")) {
@@ -226,7 +286,9 @@ hypothesis_test.default <- function(model,
             variables = focal[1],
             by = focal[2:length(focal)],
             hypothesis = NULL,
-            df = df
+            df = df,
+            conf_level = ci.lvl,
+            ...
           )
           # replace "hypothesis" labels with names/levels of focal predictors
           hypothesis_label <- .extract_labels(
@@ -246,22 +308,33 @@ hypothesis_test.default <- function(model,
 
     # testing groups (factors) ======
 
+    by_variables <- focal # for average predictions
     if (need_average_predictions) {
+      # marginaleffects handles single and multiple variables differently here
+      if (length(focal) > 1) {
+        by_variables <- sapply(focal, function(i) unique(grid[[i]]), simplify = FALSE)
+      }
       .comparisons <- marginaleffects::avg_predictions(
         model,
-        variables = sapply(focal, function(i) unique(grid[[i]])),
+        variables = by_variables,
         newdata = grid,
         hypothesis = test,
-        df = df
+        df = df,
+        conf_level = ci.lvl,
+        ...
       )
     } else {
       .comparisons <- marginaleffects::predictions(
         model,
         newdata = grid,
         hypothesis = test,
-        df = df
+        df = df,
+        conf_level = ci.lvl,
+        ...
       )
     }
+
+    ## here comes the code for extracting nice term labels ==============
 
     # pairwise comparisons - we now extract the group levels from the "term"
     # column and create separate columns for contrats of focal predictors
@@ -274,11 +347,15 @@ hypothesis_test.default <- function(model,
       # etc. we first want to have a data frame, where each column is one
       # combination of levels, so we split at "," and/or "-".
       contrast_terms <- data.frame(
-        do.call(rbind, strsplit(.comparisons$term, "(,|-)")),
+        do.call(rbind, strsplit(.comparisons$term, "(,| - )")),
         stringsAsFactors = FALSE
       )
       contrast_terms[] <- lapply(contrast_terms, function(i) {
-        insight::trim_ws(gsub("Row", "", i, fixed = TRUE))
+        # remove certain chars
+        for (j in c("(", ")", "Row")) {
+          i <- gsub(j, "", i, fixed = TRUE)
+        }
+        insight::trim_ws(i)
       })
 
       if (need_average_predictions) {
@@ -286,7 +363,7 @@ hypothesis_test.default <- function(model,
         # levels, we just need to re-arrange, so that each column represents a
         # pairwise combination of factor levels for each factor
         out <- as.data.frame(lapply(seq_along(focal), function(i) {
-          tmp <- contrast_terms[, seq(i, ncol(contrast_terms), by = length(focal))]
+          tmp <- contrast_terms[seq(i, ncol(contrast_terms), by = length(focal))]
           unlist(lapply(seq_len(nrow(tmp)), function(j) {
             .contrasts <- as.character(unlist(tmp[j, ]))
             .contrasts_string <- paste(.contrasts, collapse = "-")
@@ -328,17 +405,21 @@ hypothesis_test.default <- function(model,
         if (need_average_predictions) {
           .full_comparisons <- marginaleffects::avg_predictions(
             model,
-            variables = sapply(focal, function(i) unique(grid[[i]])),
+            variables = by_variables,
             newdata = grid,
             hypothesis = NULL,
-            df = df
+            df = df,
+            conf_level = ci.lvl,
+            ...
           )
         } else {
           .full_comparisons <- marginaleffects::predictions(
             model,
             newdata = grid,
             hypothesis = NULL,
-            df = df
+            df = df,
+            conf_level = ci.lvl,
+            ...
           )
         }
         # replace "hypothesis" labels with names/levels of focal predictors
@@ -355,12 +436,16 @@ hypothesis_test.default <- function(model,
     estimate_name <- ifelse(is.null(test), "Predicted", "Contrast")
   }
 
-  # yield message for non-Gaussian models
-  if (identical(estimate_name, "Contrast") &&
-        verbose &&
-        identical(attributes(.comparisons)$type, "link") &&
-        !insight::model_info(model)$is_linear) {
-    insight::format_alert("Contrasts are presented on the link-scale.")
+  # save information about scale of contrasts for non-Gaussian models
+  link_scale <- identical(attributes(.comparisons)$type, "link") &&
+    !insight::model_info(model)$is_linear
+
+  response_scale <- !link_scale && !insight::model_info(model)$is_linear
+
+  # add result from equivalence test
+  if (!is.null(rope_range)) {
+    .comparisons <- marginaleffects::hypotheses(.comparisons, equivalence = rope_range, conf_level = ci.lvl)
+    .comparisons$p.value <- .comparisons$p.value.equiv
   }
 
   # further results
@@ -375,11 +460,15 @@ hypothesis_test.default <- function(model,
   }
 
   class(out) <- c("ggcomparisons", "data.frame")
-  attr(out, "ci") <- 0.95
+  attr(out, "ci.lvl") <- ci.lvl
   attr(out, "test") <- test
   attr(out, "p_adjust") <- p_adjust
   attr(out, "df") <- df
+  attr(out, "rope_range") <- rope_range
+  attr(out, "link_scale") <- link_scale
+  attr(out, "response_scale") <- response_scale
   attr(out, "hypothesis_label") <- hypothesis_label
+  attr(out, "estimate_name") <- estimate_name
   out
 }
 
@@ -388,20 +477,26 @@ hypothesis_test.default <- function(model,
 #' @export
 hypothesis_test.ggeffects <- function(model,
                                       test = "pairwise",
+                                      equivalence = NULL,
                                       p_adjust = NULL,
                                       df = NULL,
                                       verbose = TRUE,
                                       ...) {
   # retrieve focal predictors
   focal <- attributes(model)$original.terms
+  # retrieve focal predictors
+  ci.lvl <- attributes(model)$ci.lvl
   # retrieve relevant information and generate data grid for predictions
   model <- .get_model_object(model)
+
   hypothesis_test.default(
     model,
     terms = focal,
     test = test,
+    equivalence = equivalence,
     p_adjust = p_adjust,
     df = df,
+    ci.lvl = ci.lvl,
     verbose = verbose,
     ...
   )
@@ -442,15 +537,25 @@ hypothesis_test.ggeffects <- function(model,
 
 #' @export
 format.ggcomparisons <- function(x, ...) {
-  insight::format_table(insight::standardize_names(x), ...)
+  ci <- attributes(x)$ci.lvl
+  out <- insight::standardize_names(x)
+  attr(out, "ci") <- ci
+  insight::format_table(out, ...)
 }
 
 #' @export
 print.ggcomparisons <- function(x, ...) {
   test_pairwise <- identical(attributes(x)$test, "pairwise")
+  link_scale <- isTRUE(attributes(x)$link_scale)
+  response_scale <- isTRUE(attributes(x)$response_scale)
+  estimate_name <- attributes(x)$estimate_name
+  rope_range <- attributes(x)$rope_range
+
   x <- format(x, ...)
   slopes <- vapply(x, function(i) all(i == "slope"), TRUE)
-  if (any(slopes)) {
+  if (!is.null(rope_range)) {
+    caption <- c("# TOST-test for Practical Equivalence", "blue")
+  } else if (any(slopes)) {
     x[slopes] <- NULL
     caption <- c(paste0("# Linear trend for ", names(slopes)[slopes]), "blue")
   } else if (test_pairwise) {
@@ -463,7 +568,102 @@ print.ggcomparisons <- function(x, ...) {
     footer <- insight::format_message(paste0("Tested hypothesis: ", footer))
     footer <- paste0("\n", footer, "\n")
   }
+  newline <- ifelse(is.null(footer), "\n", "")
   cat(insight::export_table(x, title = caption, footer = footer, ...))
+
+  # tell user about scale of contrasts
+  type <- switch(estimate_name,
+    "Predicted" = "Predictions",
+    "Contrast" = "Contrasts",
+    "Slope" = "Slopes",
+    "Estimates"
+  )
+  if (link_scale) {
+    insight::format_alert(paste0(newline, type, " are presented on the link-scale."))
+  }
+  if (response_scale) {
+    insight::format_alert(paste0(newline, type, " are presented on the response-scale."))
+  }
+}
+
+#' @export
+plot.see_equivalence_test_ggeffects <- function(x,
+                                                size_point = 0.7,
+                                                rope_color = "#0171D3",
+                                                rope_alpha = 0.2,
+                                                show_intercept = FALSE,
+                                                n_columns = 1,
+                                                ...) {
+  insight::check_if_installed("ggplot2")
+  .rope <- c(x$ROPE_low[1], x$ROPE_high[1])
+
+  # check for user defined arguments
+
+  fill.color <- c("#CD423F", "#018F77", "#FCDA3B")
+  legend.title <- "Decision on H0"
+  x.title <- NULL
+
+  fill.color <- fill.color[sort(unique(match(x$ROPE_Equivalence, c("Accepted", "Rejected", "Undecided"))))]
+
+  add.args <- lapply(match.call(expand.dots = FALSE)$`...`, function(x) x)
+  if ("colors" %in% names(add.args)) fill.color <- eval(add.args[["colors"]])
+  if ("x.title" %in% names(add.args)) x.title <- eval(add.args[["x.title"]])
+  if ("legend.title" %in% names(add.args)) legend.title <- eval(add.args[["legend.title"]])
+  if ("labels" %in% names(add.args)) labels <- eval(add.args[["labels"]])
+
+  rope.line.alpha <- 1.25 * rope_alpha
+  if (rope.line.alpha > 1) rope.line.alpha <- 1
+
+  # make sure we have standardized column names for parameters and estimates
+  parameter_columns <- attributes(x)$parameter_columns
+  estimate_columns <- which(colnames(x) %in% c("Estimate", "Slope", "Predicted", "Contrast"))
+  colnames(x)[estimate_columns[1]] <- "Estimate"
+
+  if (length(parameter_columns) > 1) {
+    x$Parameter <- unname(apply(x[parameter_columns], MARGIN = 1, toString))
+  } else {
+    x$Parameter <- x[[parameter_columns]]
+  }
+
+  p <- ggplot2::ggplot(
+    x,
+    ggplot2::aes_string(
+      y = "Parameter",
+      x = "Estimate",
+      xmin = "CI_low",
+      xmax = "CI_high",
+      colour = "ROPE_Equivalence"
+    )
+  ) +
+    ggplot2::annotate(
+      "rect",
+      xmin = .rope[1],
+      xmax = .rope[2],
+      ymin = 0,
+      ymax = Inf,
+      fill = rope_color,
+      alpha = (rope_alpha / 3)
+    ) +
+    ggplot2::geom_vline(
+      xintercept = .rope,
+      linetype = "dashed",
+      colour = rope_color,
+      linewidth = 0.8,
+      alpha = rope.line.alpha
+    ) +
+    ggplot2::geom_vline(
+      xintercept = 0,
+      colour = rope_color,
+      linewidth = 0.8,
+      alpha = rope.line.alpha
+    ) +
+    ggplot2::geom_pointrange(size = size_point) +
+    ggplot2::scale_colour_manual(values = fill.color) +
+    ggplot2::labs(y = x.title, x = NULL, colour = legend.title) +
+    ggplot2::theme(legend.position = "bottom") +
+    ggplot2::scale_y_discrete()
+
+  p
 }
 
 

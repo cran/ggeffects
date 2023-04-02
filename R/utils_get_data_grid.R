@@ -149,7 +149,7 @@
     original_model_frame = model_frame,
     terms = all_terms,
     use_all_values = use_all_values,
-    show_pretty_message = show_pretty_message && model_info$is_binomial
+    show_pretty_message = show_pretty_message && model_info$is_binomial && verbose
   )
   names(constant_levels) <- all_terms[conditional_terms]
   focal_terms <- c(focal_terms, constant_levels)
@@ -528,8 +528,14 @@
 
   w <- insight::find_weights(model)
   if (!is.null(w) && !inherits(model, "brmsfit")) {
-    datlist$.w <- NA_real_
-    colnames(datlist)[ncol(datlist)] <- w
+    # don't overwrite variables
+    w <- setdiff(w, colnames(datlist))
+    # for lme, can't be NA
+    if (inherits(model, c("lme", "gls"))) {
+      datlist[w] <- 1
+    } else {
+      datlist[w] <- NA_real_
+    }
   }
 
   datlist

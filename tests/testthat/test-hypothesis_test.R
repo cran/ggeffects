@@ -83,7 +83,7 @@ if (suppressWarnings(requiet("testthat") && requiet("ggeffects") && requiet("mar
   })
 
   if (suppressWarnings(requiet("lme4"))) {
-    model3 <- lmer(outcome ~ groups * episode + sex + (1 | ID), data = d)
+    model3 <- suppressMessages(lmer(outcome ~ groups * episode + sex + (1 | ID), data = d))
     test_that("hypothesis_test, categorical, pairwise", {
       out <- hypothesis_test(model3, c("groups", "episode"))
       expect_identical(colnames(out), c("groups", "episode", "Contrast", "conf.low", "conf.high", "p.value"))
@@ -117,6 +117,74 @@ if (suppressWarnings(requiet("testthat") && requiet("ggeffects") && requiet("mar
       expect_equal(
         out$groups,
         structure(c(1L, 1L, 1L, 2L, 2L, 2L), levels = c("control", "treatment"), class = "factor")
+      )
+    })
+
+    if (suppressWarnings(requiet("nlme"))) {
+      d <- nlme::Orthodont
+      m <- lmer(distance ~ age * Sex + (1 | Subject), data = d)
+      test_that("hypothesis_test, numeric, one focal, pairwise", {
+        out <- hypothesis_test(m, "age")
+        expect_identical(colnames(out), c("age", "Slope", "conf.low", "conf.high", "p.value"))
+        expect_equal(out$Slope, 0.6602, tolerance = 1e-3, ignore_attr = FALSE)
+      })
+      test_that("hypothesis_test, numeric, one focal, NULL", {
+        out <- hypothesis_test(m, "age", test = NULL)
+        expect_identical(colnames(out), c("age", "Slope", "conf.low", "conf.high", "p.value"))
+        expect_equal(out$Slope, 0.6602, tolerance = 1e-3, ignore_attr = FALSE)
+      })
+      test_that("hypothesis_test, categorical, one focal, pairwise", {
+        out <- hypothesis_test(m, "Sex")
+        expect_identical(colnames(out), c("Sex", "Contrast", "conf.low", "conf.high", "p.value"))
+        expect_equal(out$Contrast, 2.321023, tolerance = 1e-3, ignore_attr = FALSE)
+      })
+      test_that("hypothesis_test, categorical, one focal, NULL", {
+        out <- hypothesis_test(m, "Sex", test = NULL)
+        expect_identical(colnames(out), c("Sex", "Predicted", "conf.low", "conf.high", "p.value"))
+        expect_equal(out$Predicted, c(24.9688, 22.6477), tolerance = 1e-3, ignore_attr = FALSE)
+      })
+    }
+  }
+
+  if (suppressWarnings(requiet("lme4"))) {
+    set.seed(123)
+    n <- 200
+    d <- data.frame(
+      outcome = rnorm(n),
+      groups = as.factor(sample(c("ta-ca", "tb-cb"), n, TRUE)),
+      episode = as.factor(sample(1:3, n, TRUE)),
+      ID = as.factor(rep(1:10, n / 10)),
+      sex = as.factor(sample(c("1", "2"), n, TRUE, prob = c(.4, .6)))
+    )
+
+    model <- suppressMessages(lmer(outcome ~ groups * sex + episode + (1 | ID), data = d))
+    test_that("hypothesis_test, masked chars in levels", {
+      out <- hypothesis_test(model, c("groups", "sex"))
+      expect_identical(colnames(out), c("groups", "sex", "Contrast", "conf.low", "conf.high", "p.value"))
+      expect_equal(
+        out$Contrast,
+        c(-0.1854, -0.4473, -0.2076, -0.2619, -0.0222, 0.2397),
+        tolerance = 1e-3,
+        ignore_attr = FALSE
+      )
+      expect_identical(
+        out$groups,
+        c(
+          "ta-ca-ta-ca", "ta-ca-tb-cb", "ta-ca-tb-cb", "ta-ca-tb-cb",
+          "ta-ca-tb-cb", "tb-cb-tb-cb"
+        )
+      )
+    })
+  }
+
+  if (suppressWarnings(requiet("lme4"))) {
+    test_that("hypothesis_test, don't drop single columns", {
+      data(iris)
+      iris$Sepal.Width.factor <- factor(ifelse(iris$Sepal.Width < 3, 0, 1))
+      m <- lmer(Petal.Length ~ Petal.Width * Sepal.Width.factor + (1 | Species), data = iris)
+      expect_s3_class(
+        hypothesis_test(m, c("Sepal.Width.factor", "Petal.Width [0.5]")),
+        "ggcomparisons"
       )
     })
   }

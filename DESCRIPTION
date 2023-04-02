@@ -3,7 +3,7 @@ Type: Package
 Encoding: UTF-8
 Title: Create Tidy Data Frames of Marginal Effects for 'ggplot' from
         Model Outputs
-Version: 1.2.0
+Version: 1.2.1
 Authors@R: c(
       person("Daniel", "Lüdecke", role = c("aut", "cre"), email = "d.luedecke@uke.de", comment = c(ORCID = "0000-0002-8895-3206")),
       person("Frederik", "Aust", role = "ctb", comment = c(ORCID = "0000-0003-4900-788X")),
@@ -21,10 +21,10 @@ Description: Compute marginal effects and adjusted predictions from statistical
 License: GPL-3
 Depends: R (>= 3.6)
 Imports: graphics, insight (>= 0.19.0), stats
-Suggests: AER, aod, betareg, brms, clubSandwich, effects (>= 4.1-2),
-        emmeans (>= 1.4.1), gam, gamlss, gamm4, gee, geepack, ggplot2,
-        GLMMadaptive, glmmTMB (>= 1.0.0), gridExtra, haven, httr,
-        jsonlite, knitr, lme4, logistf, magrittr, margins,
+Suggests: AER, aod, bayestestR, betareg, brms, clubSandwich, effects
+        (>= 4.1-2), emmeans (>= 1.4.1), gam, gamlss, gamm4, gee,
+        geepack, ggplot2, GLMMadaptive, glmmTMB (>= 1.0.0), gridExtra,
+        haven, httr, jsonlite, knitr, lme4, logistf, magrittr, margins,
         marginaleffects (>= 0.10.0), MASS, Matrix, mice, MCMCglmm,
         mgcv, nlme, ordinal, parameters, patchwork, pscl, quantreg,
         rmarkdown, rms, robustbase, rstanarm, rstantools, sandwich,
@@ -36,10 +36,10 @@ RoxygenNote: 7.2.3
 VignetteBuilder: knitr
 Config/testthat/edition: 3
 NeedsCompilation: no
-Packaged: 2023-02-24 09:38:30 UTC; mail
+Packaged: 2023-04-02 15:11:56 UTC; Daniel
 Author: Daniel Lüdecke [aut, cre] (<https://orcid.org/0000-0002-8895-3206>),
   Frederik Aust [ctb] (<https://orcid.org/0000-0003-4900-788X>),
   Sam Crawley [ctb] (<https://orcid.org/0000-0002-7847-0411>),
   Mattan S. Ben-Shachar [ctb] (<https://orcid.org/0000-0002-4287-4801>)
 Repository: CRAN
-Date/Publication: 2023-02-24 11:00:08 UTC
+Date/Publication: 2023-04-02 15:50:02 UTC

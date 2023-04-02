@@ -12,8 +12,10 @@ hypothesis_test(model, ...)
   model,
   terms = NULL,
   test = "pairwise",
+  equivalence = NULL,
   p_adjust = NULL,
   df = NULL,
+  ci.lvl = 0.95,
   verbose = TRUE,
   ...
 )
@@ -21,6 +23,7 @@ hypothesis_test(model, ...)
 \method{hypothesis_test}{ggeffects}(
   model,
   test = "pairwise",
+  equivalence = NULL,
   p_adjust = NULL,
   df = NULL,
   verbose = TRUE,
@@ -31,7 +34,7 @@ hypothesis_test(model, ...)
 \item{model}{A fitted model object, or an object of class \code{ggeffects}.}
 
 \item{...}{Arguments passed down to \code{\link[=data_grid]{data_grid()}} when creating the reference
-grid.}
+grid and to \code{\link[marginaleffects:predictions]{marginaleffects::predictions()}} resp. \code{\link[marginaleffects:slopes]{marginaleffects::slopes()}}.}
 
 \item{terms}{Character vector with the names of the focal terms from \code{model},
 for which contrasts or comparisons should be displayed. At least one term
@@ -43,6 +46,17 @@ predictors).}
 \item{test}{Hypothesis to test. By default, pairwise-comparisons are
 conducted. See section \emph{Introduction into contrasts and pairwise comparisons}.}
 
+\item{equivalence}{ROPE's lower and higher bounds. Should be \code{"default"} or
+a vector of length two (e.g., c(-0.1, 0.1)). If \code{"default"},
+\code{\link[bayestestR:rope_range]{bayestestR::rope_range()}} is used. Instead of using the \code{equivalence}
+argument, it is also possible to call the \code{equivalence_test()} method
+directly. This requires the \strong{parameters} package to be loaded. When
+using \code{equivalence_test()}, two more columns with information about the
+ROPE coverage and decision on H0 are added. Furthermore, it is possible
+to \code{plot()} the results from \code{equivalence_test()}. See
+\code{\link[bayestestR:equivalence_test]{bayestestR::equivalence_test()}} resp. \code{\link[parameters:equivalence_test.lm]{parameters::equivalence_test.lm()}}
+for details.}
+
 \item{p_adjust}{Character vector, if not \code{NULL}, indicates the method to
 adjust p-values. See \code{\link[stats:p.adjust]{stats::p.adjust()}} for details. Further possible
 adjustment methods are \code{"tukey"} or \code{"sidak"}. Some caution is necessary
@@ -52,6 +66,8 @@ when adjusting p-value for multiple comparisons. See also section
 \item{df}{Degrees of freedom that will be used to compute the p-values and
 confidence intervals. If \code{NULL}, degrees of freedom will be extracted from
 the model using \code{\link[insight:get_df]{insight::get_df()}} with \code{type = "wald"}.}
+
+\item{ci.lvl}{Numeric, the level of the confidence intervals.}
 
 \item{verbose}{Toggle messages and warnings.}
 }
@@ -125,4 +141,16 @@ if (requireNamespace("marginaleffects") && interactive()) {
   hypothesis_test(m, c("neg_c_7", "c172code"))
 }
 }
+}
+\seealso{
+There is also an \code{equivalence_test()} method in the \strong{parameters}
+package (\code{\link[parameters:equivalence_test.lm]{parameters::equivalence_test.lm()}}), which can be used to
+test contrasts or comparisons for practical equivalence. This method also
+has a \code{plot()} method, hence it is possible to do something like:
+
+\if{html}{\out{<div class="sourceCode">}}\preformatted{library(parameters)
+ggpredict(model, focal_terms) |>
+  equivalence_test() |>
+  plot()
+}\if{html}{\out{</div>}}
 }

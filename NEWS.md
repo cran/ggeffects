@@ -1,3 +1,26 @@
+# ggeffects 1.2.1
+
+## General
+
+* Support for `mblogit` (*mclogit*), `phylolm` and `phyloglm` (*phylolm*) models.
+
+## Changes to functions
+
+* `hypothesis_test()` gains an `equivalence` argument, to compute tests of
+  practical equivalence for contrasts and comparisons.
+
+* The message whether contrasts or comparisons from `hypothesis_test()` are on
+  the link-scale is now printed below the table.
+
+* Dot arguments (`...`) in `hypothesis_test()` are now passed to the functions
+  in *marginaleffects*, thereby allowing to use further options in functions
+  `marginaleffects::predictions()`, like `transform_post` etc.
+
+## Bug fixes
+
+* Fixed issues in `hypothesis_test()` for mixed models with one focal term only,
+  and when this term was categorical.
+
 # ggeffects 1.2.0
 
 ## Breaking

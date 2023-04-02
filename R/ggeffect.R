@@ -1,9 +1,11 @@
 #' @rdname ggpredict
 #' @export
-ggeffect <- function(model, terms, ci.lvl = .95, ...) {
+ggeffect <- function(model, terms, ci.lvl = .95, verbose = TRUE, ...) {
 
   if (!requireNamespace("effects", quietly = TRUE)) {
-    insight::format_alert("Package `effects` is not available, but needed for `ggeffect()`. Either install package `effects`, or use `ggpredict()`. Calling `ggpredict()` now.")
+    if (verbose) {
+      insight::format_alert("Package `effects` is not available, but needed for `ggeffect()`. Either install package `effects`, or use `ggpredict()`. Calling `ggpredict()` now.")
+    }
     return(ggpredict(model = model, terms = terms, ci.lvl = ci.lvl))
   }
 
@@ -25,14 +27,14 @@ ggeffect <- function(model, terms, ci.lvl = .95, ...) {
   }
 
   if (inherits(model, "list")  && !inherits(model, c("bamlss", "maxLik"))) {
-    res <- lapply(model, ggeffect_helper, terms, ci.lvl, ...)
+    res <- lapply(model, ggeffect_helper, terms, ci.lvl, verbose, ...)
   } else {
     if (missing(terms) || is.null(terms)) {
       predictors <- insight::find_predictors(model, effects = "fixed", component = "conditional", flatten = TRUE)
       res <- lapply(
         predictors,
         function(.x) {
-          tmp <- ggeffect_helper(model, terms = .x, ci.lvl, ...)
+          tmp <- ggeffect_helper(model, terms = .x, ci.lvl, verbose, ...)
           if (!is.null(tmp)) tmp$group <- .x
           tmp
         }
@@ -46,7 +48,7 @@ ggeffect <- function(model, terms, ci.lvl = .95, ...) {
         res <- NULL
       }
     } else {
-      res <- ggeffect_helper(model, terms, ci.lvl, ...)
+      res <- ggeffect_helper(model, terms, ci.lvl, verbose, ...)
     }
   }
 
@@ -57,7 +59,7 @@ ggeffect <- function(model, terms, ci.lvl = .95, ...) {
 }
 
 
-ggeffect_helper <- function(model, terms, ci.lvl, ...) {
+ggeffect_helper <- function(model, terms, ci.lvl, verbose = TRUE, ...) {
 
   # check terms argument
   original_terms <- terms <- .check_vars(terms, model)
@@ -108,7 +110,7 @@ ggeffect_helper <- function(model, terms, ci.lvl, ...) {
   # compute marginal effects for each model term
   eff <- tryCatch(
     {
-      suppressWarnings(
+      suppressMessages(suppressWarnings(
         effects::Effect(
           focal.predictors = terms,
           mod = model,
@@ -116,12 +118,14 @@ ggeffect_helper <- function(model, terms, ci.lvl, ...) {
           confidence.level = ci.lvl,
           ...
         )
-      )
+      ))
     },
     error = function(e) {
-      insight::print_color("Can't compute marginal effects, 'effects::Effect()' returned an error.\n\n", "red")
-      cat(sprintf("Reason: %s\n", e$message))
-      cat("You may try 'ggpredict()' or 'ggemmeans()'.\n\n")
+      if (verbose) {
+        insight::print_color("Can't compute marginal effects, 'effects::Effect()' returned an error.\n\n", "red")
+        cat(sprintf("Reason: %s\n", e$message))
+        cat("You may try 'ggpredict()' or 'ggemmeans()'.\n\n")
+      }
       NULL
     }
   )
