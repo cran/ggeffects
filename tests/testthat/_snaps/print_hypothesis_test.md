@@ -142,3 +142,128 @@
       
       Predictions are presented on the response-scale.
 
+# print hypothesis_test comma and dash levels
+
+    Code
+      print(ht)
+    Output
+      # Pairwise comparisons
+      
+      f1                                      |  f2 | Contrast |        95% CI |     p
+      --------------------------------------------------------------------------------
+      and, another, comma-and, another, comma | a-b |     0.02 | [-0.12, 0.16] | 0.796
+      and, another, comma-no comma            | a-a |    -0.15 | [-0.33, 0.03] | 0.099
+      and, another, comma-no comma            | a-b |    -0.13 | [-0.36, 0.10] | 0.255
+      and, another, comma-with, comma         | a-a |    -0.07 | [-0.24, 0.09] | 0.380
+      and, another, comma-with, comma         | a-b |    -0.06 | [-0.27, 0.16] | 0.610
+      and, another, comma-no comma            | b-a |    -0.17 | [-0.40, 0.06] | 0.147
+      and, another, comma-no comma            | b-b |    -0.15 | [-0.33, 0.03] | 0.099
+      and, another, comma-with, comma         | b-a |    -0.09 | [-0.32, 0.13] | 0.412
+      and, another, comma-with, comma         | b-b |    -0.07 | [-0.24, 0.09] | 0.380
+      no comma-no comma                       | a-b |     0.02 | [-0.12, 0.16] | 0.796
+      no comma-with, comma                    | a-a |     0.08 | [-0.10, 0.26] | 0.402
+      no comma-with, comma                    | a-b |     0.10 | [-0.13, 0.32] | 0.407
+      no comma-with, comma                    | b-a |     0.06 | [-0.18, 0.29] | 0.625
+      no comma-with, comma                    | b-b |     0.08 | [-0.10, 0.26] | 0.402
+      with, comma-with, comma                 | a-b |     0.02 | [-0.12, 0.16] | 0.796
+
+---
+
+    Code
+      print(ht)
+    Output
+      # Pairwise comparisons
+      
+      f1                                      |                      f2 | Contrast |        95% CI |     p
+      ----------------------------------------------------------------------------------------------------
+      and, another, comma-and, another, comma |     comma, here-nothere |     0.02 | [-0.12, 0.16] | 0.796
+      and, another, comma-no comma            | comma, here-comma, here |    -0.15 | [-0.33, 0.03] | 0.099
+      and, another, comma-no comma            |     comma, here-nothere |    -0.13 | [-0.36, 0.10] | 0.255
+      and, another, comma-with, comma         | comma, here-comma, here |    -0.07 | [-0.24, 0.09] | 0.380
+      and, another, comma-with, comma         |     comma, here-nothere |    -0.06 | [-0.27, 0.16] | 0.610
+      and, another, comma-no comma            |     nothere-comma, here |    -0.17 | [-0.40, 0.06] | 0.147
+      and, another, comma-no comma            |         nothere-nothere |    -0.15 | [-0.33, 0.03] | 0.099
+      and, another, comma-with, comma         |     nothere-comma, here |    -0.09 | [-0.32, 0.13] | 0.412
+      and, another, comma-with, comma         |         nothere-nothere |    -0.07 | [-0.24, 0.09] | 0.380
+      no comma-no comma                       |     comma, here-nothere |     0.02 | [-0.12, 0.16] | 0.796
+      no comma-with, comma                    | comma, here-comma, here |     0.08 | [-0.10, 0.26] | 0.402
+      no comma-with, comma                    |     comma, here-nothere |     0.10 | [-0.13, 0.32] | 0.407
+      no comma-with, comma                    |     nothere-comma, here |     0.06 | [-0.18, 0.29] | 0.625
+      no comma-with, comma                    |         nothere-nothere |     0.08 | [-0.10, 0.26] | 0.402
+      with, comma-with, comma                 |     comma, here-nothere |     0.02 | [-0.12, 0.16] | 0.796
+
+---
+
+    Code
+      print(ht)
+    Output
+      # Linear trend for Sepal.Width
+      
+      f1                                      |  f2 |  Contrast |        95% CI |      p
+      ----------------------------------------------------------------------------------
+      and, another, comma-and, another, comma | a-b |      0.00 | [ 0.00, 0.00] | > .999
+      and, another, comma-no comma            | a-a |      0.00 | [ 0.00, 0.00] | > .999
+      and, another, comma-no comma            | a-b |      0.00 | [ 0.00, 0.00] | > .999
+      and, another, comma-with, comma         | a-a | -1.90e-13 | [ 0.00, 0.00] | > .999
+      and, another, comma-with, comma         | a-b | -1.90e-13 | [ 0.00, 0.00] | > .999
+      and, another, comma-no comma            | b-b |      0.00 | [ 0.00, 0.00] | > .999
+      and, another, comma-with, comma         | b-b | -1.90e-13 | [ 0.00, 0.00] | > .999
+      no comma-and, another, comma            | a-b |      0.00 | [ 0.00, 0.00] | > .999
+      no comma-no comma                       | a-b |      0.00 | [ 0.00, 0.00] | > .999
+      no comma-with, comma                    | a-a | -1.90e-13 | [ 0.00, 0.00] | > .999
+      no comma-with, comma                    | a-b | -1.90e-13 | [ 0.00, 0.00] | > .999
+      no comma-with, comma                    | b-b | -1.90e-13 | [ 0.00, 0.00] | > .999
+      with, comma-and, another, comma         | a-b |  1.90e-13 | [ 0.00, 0.00] | > .999
+      with, comma-no comma                    | a-b |  1.90e-13 | [ 0.00, 0.00] | > .999
+      with, comma-with, comma                 | a-b |      0.00 | [ 0.00, 0.00] | > .999
+
+---
+
+    Code
+      print(ht)
+    Output
+      # Pairwise comparisons
+      
+      f1                   |                     f2 | Contrast |        95% CI |     p
+      --------------------------------------------------------------------------------
+      and-dash             | comma, here-dash-there |     0.02 | [-0.12, 0.16] | 0.796
+      and-dash-no dash     |            comma, here |    -0.15 | [-0.33, 0.03] | 0.099
+      and-dash-no dash     | comma, here-dash-there |    -0.13 | [-0.36, 0.10] | 0.255
+      and-dash-with, comma |            comma, here |    -0.07 | [-0.24, 0.09] | 0.380
+      and-dash-with, comma | comma, here-dash-there |    -0.06 | [-0.27, 0.16] | 0.610
+      and-dash-no dash     | dash-there-comma, here |    -0.17 | [-0.40, 0.06] | 0.147
+      and-dash-no dash     |             dash-there |    -0.15 | [-0.33, 0.03] | 0.099
+      and-dash-with, comma | dash-there-comma, here |    -0.09 | [-0.32, 0.13] | 0.412
+      and-dash-with, comma |             dash-there |    -0.07 | [-0.24, 0.09] | 0.380
+      no dash              | comma, here-dash-there |     0.02 | [-0.12, 0.16] | 0.796
+      no dash-with, comma  |            comma, here |     0.08 | [-0.10, 0.26] | 0.402
+      no dash-with, comma  | comma, here-dash-there |     0.10 | [-0.13, 0.32] | 0.407
+      no dash-with, comma  | dash-there-comma, here |     0.06 | [-0.18, 0.29] | 0.625
+      no dash-with, comma  |             dash-there |     0.08 | [-0.10, 0.26] | 0.402
+      with, comma          | comma, here-dash-there |     0.02 | [-0.12, 0.16] | 0.796
+
+# print hypothesis_test collapse levels
+
+    Code
+      print(out)
+    Output
+      # Pairwise comparisons
+      
+      c172code |     c161sex | Contrast |          95% CI |     p
+      -----------------------------------------------------------
+      1-2      |        male |    -3.89 | [-12.55,  4.77] | 0.378
+      1-3      |        male |     0.86 | [ -9.28, 10.99] | 0.868
+      1        | male-female |    -0.95 | [ -9.39,  7.50] | 0.825
+      1-2      | male-female |    -3.56 | [-11.32,  4.20] | 0.368
+      1-3      | male-female |    -3.12 | [-11.85,  5.62] | 0.484
+      2-3      |        male |     4.75 | [ -3.56, 13.06] | 0.262
+      2-1      | male-female |     2.94 | [ -3.21,  9.10] | 0.348
+      2        | male-female |     0.33 | [ -4.83,  5.49] | 0.899
+      2-3      | male-female |     0.78 | [ -5.74,  7.29] | 0.815
+      3-1      | male-female |    -1.81 | [ -9.89,  6.28] | 0.661
+      3-2      | male-female |    -4.42 | [-11.78,  2.95] | 0.239
+      3        | male-female |    -3.97 | [-12.34,  4.40] | 0.352
+      1-2      |      female |    -2.61 | [ -7.37,  2.15] | 0.282
+      1-3      |      female |    -2.17 | [ -8.39,  4.05] | 0.494
+      2-3      |      female |     0.44 | [ -4.80,  5.69] | 0.869
+

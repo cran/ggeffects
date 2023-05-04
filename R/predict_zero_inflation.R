@@ -17,7 +17,7 @@
   join_by <- colnames(prediction_data)[column_matches]
   prediction_data <- merge(newdata, prediction_data, by = join_by, all = TRUE, sort = FALSE)
 
-  prediction_data$predicted <- apply(sims, 1, mean)
+  prediction_data$predicted <- rowMeans(sims)
   prediction_data$conf.low <- apply(sims, 1, stats::quantile, probs = 1 - ci)
   prediction_data$conf.high <- apply(sims, 1, stats::quantile, probs = ci)
   prediction_data$std.error <- apply(sims, 1, stats::sd)
@@ -26,23 +26,6 @@
   # we later add back the original predictions "prdat" (see below), which
   # correspond to the *current* sorting of prediction_data. So we add a dummy-ID,
   # which we use to restore the original sorting of prediction_data later...
-
-
-  # The following code is a replace for dplyr, when grouping and
-  # summarizing data. previous code was:
-  #
-  # grp <- rlang::syms(clean_terms)
-  # prediction_data <- prediction_data %>%
-  #   dplyr::filter(!is.na(.data$sort__id)) %>%
-  #   dplyr::group_by(!!! grp) %>%
-  #   dplyr::summarize(
-  #     predicted = mean(.data$predicted),
-  #     conf.low = mean(.data$conf.low),
-  #     conf.high = mean(.data$conf.high),
-  #     std.error = mean(.data$std.error),
-  #     id = .data$sort__id
-  #   ) %>%
-  #   dplyr::ungroup()
 
   prediction_data <- prediction_data[!is.na(prediction_data$sort__id), , drop = FALSE]
 

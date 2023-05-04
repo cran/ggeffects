@@ -1,3 +1,64 @@
+# ggeffects 1.2.2
+
+## General
+
+* Added a new `[.ggeffects` function, which allows to subset `ggeffects` objects
+  in the same way as regular data frames, i.e. it is now possible to do:
+  ```
+  gge <- ggpredict(model, "x1")
+  gge[c(1:2)]
+  ```
+
+* Using a name for a vector variable in `terms` now works from inside functions.
+  E.g., you can now do:
+  ```
+  foo <- function(data) {
+    fit <- lm(barthtot ~ c12hour + c172code, data = data)
+    v <- c(20, 50, 70)
+    ggpredict(fit, terms = "c12hour [v]")
+  }
+  foo(efc)
+  ```
+
+* The `colors` argument in `plot()` can now also be applied to single-colored
+  plots.
+
+* `hyothesis_test()` gains a `collapse_level` argument, to collapse term labels
+  that refer to the same levels into a singel unique level string.
+
+## Bug fixes
+
+* Fixed issue with misplaced residuals when x-axis was categorical and the
+  factor levels were not in alphabetical order.
+
+* `pool_predictions()` now correctly handles models with transformed response
+  variables (like `log(y)`) and returns the correct back-transformed pooled
+  predictions (and their confidence intervals).
+
+* Fixed issue with wrong computation of confidence intervals for models of class
+  `clm` from package *ordinal*.
+
+* Fixed failing tests due to changes in the *logistf* package, which now also
+  supports *emmeans*. That means, `ggemmeans()` now also works for models from
+  package *logistf*.
+
+* Fixed bug in `plot()` when partial residuals were added (i.e. `residuals = TRUE`)
+  and `collapse.group` was provided (in case of mixed models).
+
+* Fixed issue with on-the-fly created factors inside formulas, which were not
+  correctly treated as factors in the `plot()` method. This bug was related to
+  recent changes in `insight::get_data()`.
+
+* Fixed issue with wrong labels in `hyothesis_test()` for comparisons with many
+  rows, when betas starting with same digit were specified (e.g.
+  `test = "(b1-b13)=(b3-b15)"`).
+
+* Fixed issue in `hyothesis_test()` for mixed models when focal terms included
+  factors with factor levels that contained a comma.
+
+* Fixed issue with missing confidence intervals for mixed models when one of
+  the variable names contains white space characters (e.g. `y ~ 'x a' + xb`).
+
 # ggeffects 1.2.1
 
 ## General

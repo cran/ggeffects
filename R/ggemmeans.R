@@ -2,7 +2,7 @@
 #' @export
 ggemmeans <- function(model,
                       terms,
-                      ci.lvl = .95,
+                      ci.lvl = 0.95,
                       type = "fe",
                       typical = "mean",
                       condition = NULL,
@@ -133,8 +133,10 @@ ggemmeans <- function(model,
 
   attr(prediction_data, "continuous.group") <- attr(data_grid, "continuous.group")
 
-  if (model_info$is_ordinal || model_info$is_categorical || model_info$is_multinomial) {
-    if (colnames(prediction_data)[1] != "x") colnames(prediction_data)[1] <- "response.level"
+  if ((model_info$is_ordinal ||
+       model_info$is_categorical ||
+       model_info$is_multinomial) && colnames(prediction_data)[1] != "x") {
+    colnames(prediction_data)[1] <- "response.level"
   }
 
   result <- .post_processing_predictions(
@@ -154,7 +156,14 @@ ggemmeans <- function(model,
 
   # check if outcome is log-transformed, and if so,
   # back-transform predicted values to response scale
-  result <- .back_transform_response(model, result, back.transform, verbose)
+  # but first, save original predicted values, to save as attribute
+  if (back.transform) {
+    untransformed.predictions <- result$predicted
+    response.transform <- insight::find_terms(model)[["response"]]
+  } else {
+    untransformed.predictions <- response.transform <- NULL
+  }
+  result <- .back_transform_response(model, result, back.transform, verbose = verbose)
 
   attr(result, "model.name") <- model_name
 
@@ -172,7 +181,10 @@ ggemmeans <- function(model,
     type = type,
     prediction.interval = attr(prediction_data, "prediction.interval", exact = TRUE),
     at_list = data_grid,
-    ci.lvl = ci.lvl
+    ci.lvl = ci.lvl,
+    untransformed.predictions = untransformed.predictions,
+    back.transform = back.transform,
+    response.transform = response.transform
   )
 }
 
@@ -198,7 +210,7 @@ ggemmeans <- function(model,
     "response"
   else if (model_info$is_zero_inflated && type %in% c("fe", "re"))
     "count"
-  else if (model_info$is_zero_inflated && type %in% c("zi.prob"))
+  else if (model_info$is_zero_inflated && type == "zi.prob")
     "prob0"
   else
     "link"

@@ -33,6 +33,9 @@
 #'   confidence intervals. If `NULL`, degrees of freedom will be extracted from
 #'   the model using [`insight::get_df()`] with `type = "wald"`.
 #' @param ci.lvl Numeric, the level of the confidence intervals.
+#' @param collapse_levels Logical, if `TRUE`, term labels that refer to identical
+#'   levels are no longer separated by "-", but instead collapsed into a unique
+#'   term label (e.g., `"level a-level a"` becomes `"level a"`). See 'Examples'.
 #' @param verbose Toggle messages and warnings.
 #' @param ... Arguments passed down to [`data_grid()`] when creating the reference
 #'   grid and to [`marginaleffects::predictions()`] resp. [`marginaleffects::slopes()`].
@@ -97,6 +100,9 @@
 #'   # interaction - pairwise comparisons by groups
 #'   hypothesis_test(m, c("c161sex", "c172code"))
 #'
+#'   # interaction - collapse unique levels
+#'   hypothesis_test(m, c("c161sex", "c172code"), collapse_levels = TRUE)
+#'
 #'   # p-value adjustment
 #'   hypothesis_test(m, c("c161sex", "c172code"), p_adjust = "tukey")
 #'
@@ -122,6 +128,7 @@ hypothesis_test.default <- function(model,
                                     p_adjust = NULL,
                                     df = NULL,
                                     ci.lvl = 0.95,
+                                    collapse_levels = FALSE,
                                     verbose = TRUE,
                                     ...) {
   insight::check_if_installed("marginaleffects", minimum_version = "0.10.0")
@@ -225,6 +232,10 @@ hypothesis_test.default <- function(model,
 
         ## pairwise comparisons of slopes -----
 
+        # before we extract labels, we need to check whether any factor level
+        # contains a "," - in this case, strplit() will not work properly
+        .comparisons$term <- .fix_comma_levels(.comparisons$term, grid, focal)
+
         # if we find a comma in the terms column, we have two categorical predictors
         if (any(grepl(",", .comparisons$term, fixed = TRUE))) {
           contrast_terms <- data.frame(
@@ -241,7 +252,9 @@ hypothesis_test.default <- function(model,
             insight::trim_ws(pairs2)
           )
 
-          # create data frame
+          # create data frame - since we have two categorical predictors at
+          # this point (and one numerical), we create a data frame with three
+          # columns (one per focal term).
           out <- data.frame(
             x_ = "slope",
             x__ = contrast_pairs[c(TRUE, FALSE)],
@@ -346,6 +359,11 @@ hypothesis_test.default <- function(model,
       # "avg_predictions()", we have "level_a1, level_b1 - level_a2, level_b1"
       # etc. we first want to have a data frame, where each column is one
       # combination of levels, so we split at "," and/or "-".
+
+      # before we extract labels, we need to check whether any factor level
+      # contains a "," - in this case, strplit() will not work properly
+      .comparisons$term <- .fix_comma_levels(.comparisons$term, grid, focal)
+
       contrast_terms <- data.frame(
         do.call(rbind, strsplit(.comparisons$term, "(,| - )")),
         stringsAsFactors = FALSE
@@ -459,6 +477,23 @@ hypothesis_test.default <- function(model,
     out <- .p_adjust(out, p_adjust, .comparisons$statistic, grid, focal, df, verbose)
   }
 
+  # for pairwise comparisons, we may have comparisons inside one level when we
+  # have multiple focal terms, like "1-1" and "a-b". In this case, the comparison
+  # of 1 to 1 ("1-1") is just the contrast for the level "1", we therefore can
+  # collpase that string
+  if (isTRUE(collapse_levels)) {
+    out <- .collapse_levels(out, grid, focal)
+  }
+
+  # replace back commas
+  for (i in focal) {
+    # in ".fix_comma_levels()", we replaced "," by "#*#", and now
+    # we need to revert this, to preserve original level strings
+    if (any(grepl("#*#", out[[i]], fixed = TRUE))) {
+      out[[i]] <- gsub("#*#", ",", out[[i]], fixed = TRUE)
+    }
+  }
+
   class(out) <- c("ggcomparisons", "data.frame")
   attr(out, "ci.lvl") <- ci.lvl
   attr(out, "test") <- test
@@ -480,6 +515,7 @@ hypothesis_test.ggeffects <- function(model,
                                       equivalence = NULL,
                                       p_adjust = NULL,
                                       df = NULL,
+                                      collapse_levels = FALSE,
                                       verbose = TRUE,
                                       ...) {
   # retrieve focal predictors
@@ -497,6 +533,7 @@ hypothesis_test.ggeffects <- function(model,
     p_adjust = p_adjust,
     df = df,
     ci.lvl = ci.lvl,
+    collapse_levels = collapse_levels,
     verbose = verbose,
     ...
   )
@@ -504,6 +541,58 @@ hypothesis_test.ggeffects <- function(model,
 
 
 # helper ------------------------
+
+
+.collapse_levels <- function(out, grid, focal) {
+  # iterate all focal terms, these are the column names in "out"
+  for (i in focal) {
+    flag_dash <- FALSE
+    # for factors, we need to check whether factor levels contain "-"
+    # if so, we need to replace it, else "strplit()" won't work"
+    if (is.factor(grid[[i]])) {
+      l <- levels(grid[[i]])
+      dash_levels <- grepl("-", l, fixed = TRUE)
+      if (any(dash_levels)) {
+        for (j in l[dash_levels]) {
+          # replace by a - hopefully - unique character, later revert
+          out[[i]] <- gsub(j, gsub("-", "#~#", j, fixed = TRUE), out[[i]], fixed = TRUE)
+          flag_dash <- TRUE
+        }
+      }
+    }
+    pairs <- strsplit(out[[i]], "-", fixed = TRUE)
+    all_same <- vapply(pairs, function(j) {
+      all(j == j[1])
+    }, TRUE)
+    if (any(all_same)) {
+      out[[i]][all_same] <- vapply(pairs[all_same], unique, character(1))
+    }
+    # revert replacement
+    if (flag_dash) {
+      out[[i]] <- gsub("#~#", "-", out[[i]], fixed = TRUE)
+      flag_dash <- FALSE
+    }
+  }
+  out
+}
+
+
+.fix_comma_levels <- function(terms, grid, focal) {
+  for (i in focal) {
+    if (is.factor(grid[[i]])) {
+      l <- levels(grid[[i]])
+      comma_levels <- grepl(",", l, fixed = TRUE)
+      if (any(comma_levels)) {
+        for (j in l[comma_levels]) {
+          # replace by a - hopefully - unique character, later revert
+          terms <- gsub(j, gsub(",", "#*#", j, fixed = TRUE), terms, fixed = TRUE)
+        }
+      }
+    }
+  }
+  terms
+}
+
 
 .extract_labels <- function(full_comparisons, focal, test, old_labels) {
   # now we have both names of predictors and their levels
@@ -516,11 +605,15 @@ hypothesis_test.ggeffects <- function(model,
   row_number <- unlist(lapply(seq_along(pos), function(i) {
     substring(test, pos[i] + 1, pos[i] + len[i] - 1)
   }))
+  # sort rownumbers, largest first. Else, we may have "b1" and "b13", and
+  # if we replace "b1" by a label "foo", "b13" is also replaced and becomes
+  # "foo3" (see #312)
+  row_number <- row_number[order(as.numeric(row_number), decreasing = TRUE)]
   # loop through rows, and replace "b<d>" with related string
   for (i in row_number) {
     label <- paste0(
       colnames(beta_rows),
-      paste0("[", as.vector(unlist(beta_rows[i, ])), "]"),
+      paste0("[", as.vector(unlist(beta_rows[i, ], use.names = FALSE)), "]"),
       collapse = ","
     )
     old_labels <- gsub(paste0("b", i), label, old_labels, fixed = TRUE)
@@ -595,6 +688,8 @@ plot.see_equivalence_test_ggeffects <- function(x,
                                                 n_columns = 1,
                                                 ...) {
   insight::check_if_installed("ggplot2")
+  .data <- NULL
+
   .rope <- c(x$ROPE_low[1], x$ROPE_high[1])
 
   # check for user defined arguments
@@ -627,12 +722,12 @@ plot.see_equivalence_test_ggeffects <- function(x,
 
   p <- ggplot2::ggplot(
     x,
-    ggplot2::aes_string(
-      y = "Parameter",
-      x = "Estimate",
-      xmin = "CI_low",
-      xmax = "CI_high",
-      colour = "ROPE_Equivalence"
+    ggplot2::aes(
+      y = .data[["Parameter"]],
+      x = .data[["Estimate"]],
+      xmin = .data[["CI_low"]],
+      xmax = .data[["CI_high"]],
+      colour = .data[["ROPE_Equivalence"]]
     )
   ) +
     ggplot2::annotate(
