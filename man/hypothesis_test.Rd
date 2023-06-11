@@ -13,11 +13,13 @@ hypothesis_test(model, ...)
   terms = NULL,
   test = "pairwise",
   equivalence = NULL,
+  scale = "response",
   p_adjust = NULL,
   df = NULL,
-  ci.lvl = 0.95,
+  ci_level = 0.95,
   collapse_levels = FALSE,
   verbose = TRUE,
+  ci.lvl = ci_level,
   ...
 )
 
@@ -36,7 +38,11 @@ hypothesis_test(model, ...)
 \item{model}{A fitted model object, or an object of class \code{ggeffects}.}
 
 \item{...}{Arguments passed down to \code{\link[=data_grid]{data_grid()}} when creating the reference
-grid and to \code{\link[marginaleffects:predictions]{marginaleffects::predictions()}} resp. \code{\link[marginaleffects:slopes]{marginaleffects::slopes()}}.}
+grid and to \code{\link[marginaleffects:predictions]{marginaleffects::predictions()}} resp. \code{\link[marginaleffects:slopes]{marginaleffects::slopes()}}.
+For instance, arguments \code{type} or \code{transform_post} can be used to back-transform
+comparisons and contrasts to different scales. See examples at the bottom of
+\href{https://strengejacke.github.io/ggeffects/articles/introduction_comparisons.html}{this vignette}
+for further details.}
 
 \item{terms}{Character vector with the names of the focal terms from \code{model},
 for which contrasts or comparisons should be displayed. At least one term
@@ -59,6 +65,18 @@ to \code{plot()} the results from \code{equivalence_test()}. See
 \code{\link[bayestestR:equivalence_test]{bayestestR::equivalence_test()}} resp. \code{\link[parameters:equivalence_test.lm]{parameters::equivalence_test.lm()}}
 for details.}
 
+\item{scale}{Character string, indicating the scale on which the contrasts
+or comparisons are represented. Can be \code{"response"} (default), which would
+return contrasts on the response scale (e.g. for logistic regression, as
+probabilities); \code{"link"} to return contrasts on scale of the linear predictors;
+\code{"probability"} (or \code{"probs"}) returns contrasts on the probability scale
+(which is required for some model classes, like \code{MASS::polr()}); or a
+transformation function like \code{"exp"} or \code{"log"}, to return transformed
+(exponentiated respectively logarithmic) contrasts.
+\strong{Note:} If the \code{scale} argument is not supported by the provided \code{model},
+it is automaticaly changed to a supported scale-type (a message is printed
+when \code{verbose = TRUE}).}
+
 \item{p_adjust}{Character vector, if not \code{NULL}, indicates the method to
 adjust p-values. See \code{\link[stats:p.adjust]{stats::p.adjust()}} for details. Further possible
 adjustment methods are \code{"tukey"} or \code{"sidak"}. Some caution is necessary
@@ -69,13 +87,15 @@ when adjusting p-value for multiple comparisons. See also section
 confidence intervals. If \code{NULL}, degrees of freedom will be extracted from
 the model using \code{\link[insight:get_df]{insight::get_df()}} with \code{type = "wald"}.}
 
-\item{ci.lvl}{Numeric, the level of the confidence intervals.}
+\item{ci_level}{Numeric, the level of the confidence intervals.}
 
 \item{collapse_levels}{Logical, if \code{TRUE}, term labels that refer to identical
 levels are no longer separated by "-", but instead collapsed into a unique
 term label (e.g., \code{"level a-level a"} becomes \code{"level a"}). See 'Examples'.}
 
 \item{verbose}{Toggle messages and warnings.}
+
+\item{ci.lvl}{Deprecated, please use \code{ci_level}.}
 }
 \value{
 A data frame containing predictions (e.g. for \code{test = NULL}),

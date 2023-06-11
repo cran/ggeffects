@@ -3,7 +3,7 @@
 ggemmeans <- function(model,
                       terms,
                       ci.lvl = 0.95,
-                      type = "fe",
+                      type = "fixed",
                       typical = "mean",
                       condition = NULL,
                       back.transform = TRUE,
@@ -184,7 +184,8 @@ ggemmeans <- function(model,
     ci.lvl = ci.lvl,
     untransformed.predictions = untransformed.predictions,
     back.transform = back.transform,
-    response.transform = response.transform
+    response.transform = response.transform,
+    verbose = verbose
   )
 }
 

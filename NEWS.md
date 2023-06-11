@@ -1,3 +1,56 @@
+# ggeffects 1.2.3
+
+## General
+
+* Support for `nestedLogit` (*nestedLogit*) models.
+
+* `hyothesis_test()` gains a `scale` argument, to explicitely modulate the scale
+  of the contrasts or comparisons (e.g. `"response"` or `"link"`, or `"exp"` to
+  return transformed contrasts/comparisons).
+
+* `hyothesis_test()` now includes the response level for models with ordinal
+  outcomes (and alike).
+
+* When `ggpredict()` is used inside functions and a name for a vector variable
+  (passed as argument to that function) in `terms` is used, the variable is
+  now correctly recognized.
+
+* Partial residuals (when `plot(..., residuals = TRUE)`) now supports more
+  linear (mixed) models, including models from package *lme* (such as `gls()`
+  or `lme()`).
+
+* For mixed models, `type = "random"` used to calculate _prediction intervals_
+  that always accounted for random effects variances, leading to larger intervals.
+  Using `interval = "confidence"` together with `type = "random"` now allows to
+  calculate "usual" confidence intervals for random effects. This is usefule for
+  predictions at specific group levels of random effects (when focal terms are
+  only fixed effects, use `type = "fixed"` for regular confidence intervals).
+
+* The `vcov.fun` argument can now also be a function that returns a
+  variance-covariance matrix.
+
+* The `verbose` argument in `ggpredict()` and `hypothesis_test()` now also toggle
+  messages for the respective `print()` methods.
+
+* The `print()` method for `hypothesis_test()` has been revised and now provides
+  more details for possible transformation of the scale of comparisons and
+  contrasts.
+
+* The `print()` method now shows all rows by default when the focal term is
+  a factor. If rows are not shown in the output, a message is printed to inform
+  the user about truncated output.
+
+* A new vignette about using *ggeffects* in the context of an intersectional
+  multilevel analysis of individual heterogeneity, using the MAIHDA framework.
+
+## Bug fixes
+
+* Fixed issue with wrong order of x-axis-labels for plots when the focal term
+  on the x-axis was a character vector, where alphabetical order of values did
+  not match order of predictions.
+
+* Fixed issues in `hyothesis_test()` for models with ordinal outcomes (and alike).
+
 # ggeffects 1.2.2
 
 ## General
