@@ -76,7 +76,7 @@
           offset_function <- .get_offset_transformation(model)
           if (identical(offset_function, "log")) {
             if (verbose) {
-              insight::format_warning(
+              insight::format_alert(
                 "Model uses a transformed offset term. Predictions may not be correct.",
                 sprintf("Please apply transformation of offset term to the data before fitting the model and use `offset(%s)` in the model formula.", clean.term)
               )
@@ -565,4 +565,22 @@
       model_frame
     }
   )
+}
+
+
+.get_model_data <- function(model) {
+  # get model frame
+  model_frame <- insight::get_data(model, source = "frame")
+
+  # sanity check - could data be extracted from model frame?
+  if (is.null(model_frame)) {
+    model_frame <- .safe(insight::get_data(model, source = "environment"))
+  }
+
+  # tibbles are not supported
+  if (inherits(model_frame, c("tbl", "tbl_df"))) {
+    class(model_frame) <- "data.frame"
+  }
+
+  model_frame
 }

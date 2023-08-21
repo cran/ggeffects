@@ -1,3 +1,38 @@
+# ggeffects 1.3.0
+
+## Breaking
+
+* To avoid confusion when adding raw data or residuals to plots, the `jitter`
+  argument that is used to add some noice to data points to avoid overlapping
+  now defaults to `NULL`. Formerly, a small jitter was added by default,
+  leading to confusion when data points did not match the original data.
+
+## Changes
+
+* The `plot()` method gets a `label.data` argument, to add row names to data
+  points when `add.data = TRUE`.
+
+* `tibbles` are always converted into data frames, to avoid issues.
+
+* `hypothesis_test()` gains a `by` argument, to specify a variable that is used
+  to group the comparisons or contrasts. This is useful for models with interaction
+  terms.
+
+## Bug fixes
+
+* Plotting residuals did not work when model object passed to `ggpredict()`
+  were inside a list, or when called from inside functions (scoping issues).
+
+* Fixed issue where plotting raw data (i.e. `plot(..., add.data = TRUE)`) did
+  not work when there were missing data in weight variables (i.e. when the
+  regression model used weights).
+
+* Fixes issue in `plot()` when no term was specified in the call to `ggpredict()`.
+
+* Fixed issues with robust estimation for models of package *pscl*.
+
+* Fixed issues introduced by breaking changes in _marginaleffects_.
+
 # ggeffects 1.2.3
 
 ## General
@@ -128,7 +163,7 @@
 
 * Dot arguments (`...`) in `hypothesis_test()` are now passed to the functions
   in *marginaleffects*, thereby allowing to use further options in functions
-  `marginaleffects::predictions()`, like `transform_post` etc.
+  `marginaleffects::predictions()`, like `transform` etc.
 
 ## Bug fixes
 

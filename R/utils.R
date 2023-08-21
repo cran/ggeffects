@@ -1,4 +1,4 @@
-data_frame <- function(...) {
+.data_frame <- function(...) {
   x <- data.frame(..., stringsAsFactors = FALSE)
   rownames(x) <- NULL
   x
@@ -55,7 +55,7 @@ data_frame <- function(...) {
     }
     cleaned_off <- insight::clean_names(off)
     if (!identical(off, cleaned_off) && isTRUE(verbose) && !inherits(model, "glmmTMB")) {
-      insight::format_warning(sprintf("Model uses a transformed offset term. Predictions may not be correct. Please apply transformation of offset term to the data before fitting the model and use 'offset(%s)' in the model formula.", cleaned_off))
+      insight::format_alert(sprintf("Model uses a transformed offset term. Predictions may not be correct. Please apply transformation of offset term to the data before fitting the model and use 'offset(%s)' in the model formula.", cleaned_off))
     }
     cleaned_off
   },
@@ -66,21 +66,41 @@ data_frame <- function(...) {
 
 
 .get_raw_data <- function(model, mf, terms) {
-  # for matrix variables, don't return raw data
-  if (any(vapply(mf, is.matrix, TRUE)) && !inherits(model, c("coxph", "coxme")))
-    return(NULL)
+  # sanity check - could data be extracted from model frame?
+  if (is.null(mf)) {
+    mf <- .safe(insight::get_data(model, source = "environment"))
+  }
 
-  if (!all(insight::find_response(model, combine = FALSE) %in% colnames(mf)))
+  # for matrix variables, don't return raw data
+  if (any(vapply(mf, is.matrix, TRUE)) && !inherits(model, c("coxph", "coxme"))) {
     return(NULL)
+  }
+
+  if (!all(insight::find_response(model, combine = FALSE) %in% colnames(mf))) {
+    return(NULL)
+  }
+
+  # add rownames, for labelling data points in plots
+  if (isTRUE(insight::check_if_installed("datawizard", quietly = TRUE))) {
+    .safe({
+      mf <- datawizard::rownames_as_column(mf)
+    })
+  }
 
   # get response and x-value
   response <- insight::get_response(model)
+
+  # sanity check - has response correct length? May differ from model frame due to missings
+  if (length(response) != nrow(mf)) {
+    response <- .safe(mf[[insight::find_response(model)]])
+  }
 
   # for cox-models, modify response
   if (inherits(model, "coxph")) {
     response <- response[[2]]
   }
 
+  ## TODO: rv is currently not used?
   # back-transform log-transformed response?
   rv <- insight::find_terms(model)[["response"]]
 
@@ -95,25 +115,23 @@ data_frame <- function(...) {
 
   # add optional grouping variable
   if (length(terms) > 1) {
-    group <-
-      .as_label(
-        mf[[terms[2]]],
-        prefix = FALSE,
-        drop.na = TRUE,
-        drop.levels = !is.numeric(mf[[terms[2]]])
-      )
+    group <- .as_label(
+      mf[[terms[2]]],
+      prefix = FALSE,
+      drop.na = TRUE,
+      drop.levels = !is.numeric(mf[[terms[2]]])
+    )
   } else {
     group <- as.factor(1)
   }
 
   if (length(terms) > 2) {
-    facet <-
-      .as_label(
-        mf[[terms[3]]],
-        prefix = FALSE,
-        drop.na = TRUE,
-        drop.levels = !is.numeric(mf[[terms[3]]])
-      )
+    facet <- .as_label(
+      mf[[terms[3]]],
+      prefix = FALSE,
+      drop.na = TRUE,
+      drop.levels = !is.numeric(mf[[terms[3]]])
+    )
   } else {
     facet <- as.factor(1)
   }
@@ -121,7 +139,13 @@ data_frame <- function(...) {
   # return all as data.frame
   tryCatch(
     {
-      data_frame(response = response, x = x, group = group, facet = facet)
+      .data_frame(
+        response = response,
+        x = x,
+        group = group,
+        facet = facet,
+        rowname = mf$rowname
+      )
     },
     error = function(x) NULL,
     warning = function(x) NULL,
@@ -392,4 +416,23 @@ is.gamm4 <- function(x) {
   }
   p <- sprintf("(%s){~%i}", pattern, precision)
   grep(pattern = p, x = x, ignore.case = FALSE)
+}
+
+
+.dynEval <- function(x,
+                     ifnotfound = NULL,
+                     minframe = 1L,
+                     inherits = FALSE,
+                     remove_n_top_env = 0) {
+  n <- sys.nframe() - remove_n_top_env
+  x <- insight::safe_deparse(x)
+  while (n > minframe) {
+    n <- n - 1L
+    env <- sys.frame(n)
+    r <- try(eval(str2lang(x), envir = env), silent = TRUE)
+    if(!inherits(r, "try-error") && !is.null(r)) {
+      return(r)
+    }
+  }
+  ifnotfound
 }

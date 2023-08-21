@@ -14,6 +14,11 @@
 #'   contrasts or comparisons for the *slopes* of this numeric predictor are
 #'   computed (possibly grouped by the levels of further categorical focal
 #'   predictors).
+#' @param by Character vector specifying the names of predictors to condition on.
+#'   Hypothesis test is then carried out for focal terms by each level of `by`
+#'   variables. This is useful especially for interaction terms, where we want
+#'   to test the interaction within "groups". `by` is only relevant for
+#'   categorical predictors.
 #' @param scale Character string, indicating the scale on which the contrasts
 #'   or comparisons are represented. Can be `"response"` (default), which would
 #'   return contrasts on the response scale (e.g. for logistic regression, as
@@ -51,7 +56,7 @@
 #' @param ci.lvl Deprecated, please use `ci_level`.
 #' @param ... Arguments passed down to [`data_grid()`] when creating the reference
 #'   grid and to [`marginaleffects::predictions()`] resp. [`marginaleffects::slopes()`].
-#'   For instance, arguments `type` or `transform_post` can be used to back-transform
+#'   For instance, arguments `type` or `transform` can be used to back-transform
 #'   comparisons and contrasts to different scales. See examples at the bottom of
 #'   [this vignette](https://strengejacke.github.io/ggeffects/articles/introduction_comparisons.html)
 #'   for further details.
@@ -122,6 +127,9 @@
 #'   # p-value adjustment
 #'   hypothesis_test(m, c("c161sex", "c172code"), p_adjust = "tukey")
 #'
+#'   # not all comparisons, only by specific group levels
+#'   hypothesis_test(m, "c172code", by = "c161sex")
+#'
 #'   # specific comparisons
 #'   hypothesis_test(m, c("c161sex", "c172code"), test = "b2 = b1")
 #'
@@ -139,6 +147,7 @@ hypothesis_test <- function(model, ...) {
 #' @export
 hypothesis_test.default <- function(model,
                                     terms = NULL,
+                                    by = NULL,
                                     test = "pairwise",
                                     equivalence = NULL,
                                     scale = "response",
@@ -177,10 +186,10 @@ hypothesis_test.default <- function(model,
   miss_scale <- missing(scale)
 
   # evaluate dots - remove conflicting additional arguments. We have our own
-  # "scale" argument that modulates the "type" and "transform_post" arguments
+  # "scale" argument that modulates the "type" and "transform" arguments
   # in "marginaleffects"
   dot_args <- list(...)
-  dot_args$transform_post <- NULL
+  dot_args$transform <- NULL
   dot_args$type <- NULL
   # check scale
   scale <- match.arg(scale, choices = c("response", "link", "probability", "probs", "exp", "log"))
@@ -191,9 +200,9 @@ hypothesis_test.default <- function(model,
   } else if (scale %in% c("probability", "probs")) {
     dot_args$type <- "probs"
   } else if (scale == "exp") {
-    dot_args$transform_post <- "exp"
+    dot_args$transform <- "exp"
   } else if (scale == "log") {
-    dot_args$transform_post <- "ln"
+    dot_args$transform <- "ln"
   }
 
   # make sure we have a valid type-argument...
@@ -205,7 +214,12 @@ hypothesis_test.default <- function(model,
   need_average_predictions <- insight::is_mixed_model(model)
   msg_intervals <- FALSE
 
-  # we want contrasts or comparisons for these focal predictors...
+  # by-variables are included in terms
+  if (!is.null(by)) {
+    terms <- unique(c(terms, by))
+  }
+
+  # we want contrasts or comparisons for these focal predictors...  
   focal <- .clean_terms(terms)
 
   # check if we have a mixed model - in this case, we need to ensure that our
@@ -221,6 +235,27 @@ hypothesis_test.default <- function(model,
     }
   }
   grid <- data_grid(model, terms, ...)
+
+  # check for valid by-variable
+  if (!is.null(by)) {
+    # all by-terms need to be in data grid
+    if (!all(by %in% colnames(grid))) {
+      insight::format_error(
+        paste0("Variable(s) `", toString(by[!by %in% colnames(grid)]), "` not found in data grid.")
+      )
+    }
+    # by-terms must be categorical
+    by_factors <- vapply(grid[by], is.factor, TRUE)
+    if (!all(by_factors)) {
+      insight::format_error(
+        "All variables in `by` must be categorical.",
+        paste0(
+          "The following variables in `by` are not categorical: ",
+          toString(paste0("`", by[!by_factors], "`"))
+        )
+      )
+    }
+  }
 
   by_arg <- NULL
   # for models with ordinal/categorical outcome, we need focal terms and
@@ -580,11 +615,6 @@ hypothesis_test.default <- function(model,
   out$conf.high <- .comparisons$conf.high
   out$p.value <- .comparisons$p.value
 
-  # p-value adjustment?
-  if (!is.null(p_adjust)) {
-    out <- .p_adjust(out, p_adjust, .comparisons$statistic, grid, focal, df, verbose)
-  }
-
   # for pairwise comparisons, we may have comparisons inside one level when we
   # have multiple focal terms, like "1-1" and "a-b". In this case, the comparison
   # of 1 to 1 ("1-1") is just the contrast for the level "1", we therefore can
@@ -600,6 +630,37 @@ hypothesis_test.default <- function(model,
     if (any(grepl("#*#", out[[i]], fixed = TRUE))) {
       out[[i]] <- gsub("#*#", ",", out[[i]], fixed = TRUE)
     }
+  }
+
+  # filter by-variables?
+  if (!is.null(by)) {
+    for (by_factor in by) {
+      # values in "by" are character vectors, which are saved as "level-level".
+      # we now extract the unique values, and filter the data frame
+      unique_values <- unique(grid[[by_factor]])
+      by_levels <- paste0(unique_values, "-", unique_values)
+      keep_rows <- out[[by_factor]] %in% c(by_levels, unique_values)
+      # filter final data frame
+      out <- out[keep_rows, , drop = FALSE]
+      # but we also need to filter the ".comparisons" data frame
+      .comparisons <- .comparisons[keep_rows, , drop = FALSE]
+      # finally, replace "level-level" just by "level"
+      for (i in seq_along(by_levels)) {
+        out[[by_factor]] <- gsub(
+          by_levels[i],
+          unique_values[i],
+          out[[by_factor]],
+          fixed = TRUE
+        )
+      }
+    }
+    # remove by-terms from focal terms
+    focal <- focal[!focal %in% by]
+  }
+
+  # p-value adjustment?
+  if (!is.null(p_adjust)) {
+    out <- .p_adjust(out, p_adjust, .comparisons$statistic, grid, focal, df, verbose)
   }
 
   # add back response levels?
@@ -638,6 +699,7 @@ hypothesis_test.default <- function(model,
 #' @rdname hypothesis_test
 #' @export
 hypothesis_test.ggeffects <- function(model,
+                                      by = NULL,
                                       test = "pairwise",
                                       equivalence = NULL,
                                       p_adjust = NULL,
@@ -655,6 +717,7 @@ hypothesis_test.ggeffects <- function(model,
   hypothesis_test.default(
     model,
     terms = focal,
+    by = by,
     test = test,
     equivalence = equivalence,
     p_adjust = p_adjust,
@@ -745,10 +808,14 @@ hypothesis_test.ggeffects <- function(model,
     )
     old_labels <- gsub(paste0("b", i), label, old_labels, fixed = TRUE)
   }
-  pattern <- c("=", "-", "+", "/", "*")
-  for (p in pattern) {
-    old_labels <- gsub(p, paste0(" ", p, " "), old_labels, fixed = TRUE)
+  # remove whitespace around operators, but not inside brackets
+  tokens <- c("=", "-", "\\+", "/", "\\*")
+  replacements <- c("=", "-", "+", "/", "*")
+  for (i in seq_along(tokens)) {
+    pattern <- paste0(tokens[i], "(?![^\\[]*\\])")
+    old_labels <- gsub(pattern, paste0(" ", replacements[i], " "), old_labels, perl = TRUE)
   }
+
   old_labels
 }
 

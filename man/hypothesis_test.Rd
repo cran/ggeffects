@@ -11,6 +11,7 @@ hypothesis_test(model, ...)
 \method{hypothesis_test}{default}(
   model,
   terms = NULL,
+  by = NULL,
   test = "pairwise",
   equivalence = NULL,
   scale = "response",
@@ -25,6 +26,7 @@ hypothesis_test(model, ...)
 
 \method{hypothesis_test}{ggeffects}(
   model,
+  by = NULL,
   test = "pairwise",
   equivalence = NULL,
   p_adjust = NULL,
@@ -39,7 +41,7 @@ hypothesis_test(model, ...)
 
 \item{...}{Arguments passed down to \code{\link[=data_grid]{data_grid()}} when creating the reference
 grid and to \code{\link[marginaleffects:predictions]{marginaleffects::predictions()}} resp. \code{\link[marginaleffects:slopes]{marginaleffects::slopes()}}.
-For instance, arguments \code{type} or \code{transform_post} can be used to back-transform
+For instance, arguments \code{type} or \code{transform} can be used to back-transform
 comparisons and contrasts to different scales. See examples at the bottom of
 \href{https://strengejacke.github.io/ggeffects/articles/introduction_comparisons.html}{this vignette}
 for further details.}
@@ -50,6 +52,12 @@ is required, maximum length is three terms. If the first focal term is numeric,
 contrasts or comparisons for the \emph{slopes} of this numeric predictor are
 computed (possibly grouped by the levels of further categorical focal
 predictors).}
+
+\item{by}{Character vector specifying the names of predictors to condition on.
+Hypothesis test is then carried out for focal terms by each level of \code{by}
+variables. This is useful especially for interaction terms, where we want
+to test the interaction within "groups". \code{by} is only relevant for
+categorical predictors.}
 
 \item{test}{Hypothesis to test. By default, pairwise-comparisons are
 conducted. See section \emph{Introduction into contrasts and pairwise comparisons}.}
@@ -161,6 +169,9 @@ if (requireNamespace("marginaleffects") && interactive()) {
 
   # p-value adjustment
   hypothesis_test(m, c("c161sex", "c172code"), p_adjust = "tukey")
+
+  # not all comparisons, only by specific group levels
+  hypothesis_test(m, "c172code", by = "c161sex")
 
   # specific comparisons
   hypothesis_test(m, c("c161sex", "c172code"), test = "b2 = b1")
