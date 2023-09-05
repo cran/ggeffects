@@ -57,7 +57,9 @@
 #' @param ... Arguments passed down to [`data_grid()`] when creating the reference
 #'   grid and to [`marginaleffects::predictions()`] resp. [`marginaleffects::slopes()`].
 #'   For instance, arguments `type` or `transform` can be used to back-transform
-#'   comparisons and contrasts to different scales. See examples at the bottom of
+#'   comparisons and contrasts to different scales. `vcov` can be used to
+#'   calculate heteroscedasticity-consistent standard errors for contrasts.
+#'   See examples at the bottom of
 #'   [this vignette](https://strengejacke.github.io/ggeffects/articles/introduction_comparisons.html)
 #'   for further details.
 #'
@@ -620,7 +622,7 @@ hypothesis_test.default <- function(model,
   # of 1 to 1 ("1-1") is just the contrast for the level "1", we therefore can
   # collpase that string
   if (isTRUE(collapse_levels)) {
-    out <- .collapse_levels(out, grid, focal)
+    out <- .collapse_levels(out, grid, focal, by)
   }
 
   # replace back commas
@@ -733,7 +735,11 @@ hypothesis_test.ggeffects <- function(model,
 # helper ------------------------
 
 
-.collapse_levels <- function(out, grid, focal) {
+.collapse_levels <- function(out, grid, focal, by) {
+  # remove by-terms from focal terms  
+  if (!is.null(by)) {
+    focal <- focal[!focal %in% by]
+  }
   # iterate all focal terms, these are the column names in "out"
   for (i in focal) {
     flag_dash <- FALSE

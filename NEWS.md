@@ -1,3 +1,28 @@
+# ggeffects 1.3.1
+
+## New functions
+
+* `johnson_neyman()`, to create Johnson-Neyman intervals and plots from
+  `ggeffects` objects.
+
+## Changes
+
+* Better automatic handling of offset-terms, both for predictions and generating
+  plots with raw data. When the model formula contains an offset-term, and the
+  offset term is fixed at a specific value, the response variable is now
+  automatically transformed back to the original scale, and the offset-term is
+  added to the predicted values. A warning is printed when model contains transformed offset-terms that are not fixed, e.g. via the `condition` argument.
+
+* `ggeffect()` now supports `nestedLogit` models.
+
+## Bug fixes
+
+* Fixed issue in `hypothesis_test()`, where the `by` argument did not work
+  together with the `collapse_levels` argument.
+
+* Fixed issue in `plot()` method when adding raw data points for data frame
+  that had now row names.
+
 # ggeffects 1.3.0
 
 ## Breaking

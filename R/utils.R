@@ -47,15 +47,19 @@
 }
 
 
-.offset_term <- function(model, verbose = TRUE) {
+.offset_term <- function(model, condition = NULL, verbose = TRUE) {
   tryCatch({
     off <- insight::safe_deparse(model$call$offset)
     if (identical(off, "NULL")) {
       return(NULL)
     }
     cleaned_off <- insight::clean_names(off)
-    if (!identical(off, cleaned_off) && isTRUE(verbose) && !inherits(model, "glmmTMB")) {
-      insight::format_alert(sprintf("Model uses a transformed offset term. Predictions may not be correct. Please apply transformation of offset term to the data before fitting the model and use 'offset(%s)' in the model formula.", cleaned_off))
+    if (!identical(off, cleaned_off) && isTRUE(verbose) && !inherits(model, "glmmTMB") && !cleaned_off %in% names(condition)) {
+      insight::format_alert(
+        "Model uses a transformed offset term. Predictions may not be correct.",
+        sprintf("It is recommended to fix the offset term using the `condition` argument, e.g. `condition = c(%s = 1)`.", cleaned_off),
+        sprintf("You could also transform the offset variable before fitting the model and use `offset(%s)` in the model formula.", cleaned_off)
+      )
     }
     cleaned_off
   },
@@ -85,6 +89,11 @@
     .safe({
       mf <- datawizard::rownames_as_column(mf)
     })
+  }
+
+  # sanity check, make sure we have rownames as variable
+  if (is.null(mf$rowname)) {
+    mf$rowname <- as.character(seq_len(nrow(mf)))
   }
 
   # get response and x-value
