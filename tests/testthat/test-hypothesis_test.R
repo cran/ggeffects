@@ -31,6 +31,15 @@ if (suppressWarnings(requiet("testthat") && requiet("ggeffects") && requiet("mar
         "treatment-control", "treatment-treatment", "control-treatment"
       )
     )
+    expect_equal(
+      attributes(out)$standard_error,
+      c(
+        0.23286, 0.21745, 0.23533, 0.22247, 0.21449, 0.23558, 0.25218,
+        0.24022, 0.23286, 0.23803, 0.22532, 0.21745, 0.24262, 0.23533,
+        0.22247
+      ),
+      tolerance = 1e-3
+    )
   })
   test_that("hypothesis_test, categorical, pairwise, p_adjust", {
     out1 <- hypothesis_test(model1, c("groups", "episode"))
@@ -233,6 +242,22 @@ if (suppressWarnings(requiet("testthat") && requiet("ggeffects") && requiet("mar
         hypothesis_test(m, c("Sepal.Width.factor", "Petal.Width [0.5]")),
         "ggcomparisons"
       )
+    })
+  }
+
+  if (suppressWarnings(requiet("lme4"))) {
+    test_that("hypothesis_test, make sure random effects group is categorical", {
+      data(sleepstudy)
+      set.seed(123)
+      sleepstudy$grp <- as.factor(sample(letters[1:3], nrow(sleepstudy), replace = TRUE))
+      sleepstudy$ID <- as.numeric(sleepstudy$Subject)
+      m <- lmer(Reaction ~ Days + (1 | ID), sleepstudy)
+      out <- hypothesis_test(ggpredict(m, "Days"))
+      expect_equal(out$Slope, 10.467285959584, tolerance = 1e-4)
+
+      m <- lmer(Reaction ~ Days * grp + (1 | ID), sleepstudy)
+      out <- hypothesis_test(ggpredict(m, c("Days", "grp")))
+      expect_equal(out$Contrast, c(-0.0813, -1.26533, -1.18403), tolerance = 1e-4)
     })
   }
 }

@@ -1,3 +1,34 @@
+# ggeffects 1.3.2
+
+## Breaking changes
+
+* Some function arguments will be renamed, to achieve consistency across the
+  package and across other packages where I'm involved in the development.
+  This will be a soft transition, i.e. the old argument names will still work
+  for some package updates.
+
+## Changes
+
+* The `typical` argument now supports a mix of functions for different variable
+  types at which numeric or categorical covariates (non-focal terms) are held
+  constant.
+
+* Clarification of how the `re.form` argument is set when using `type = "random"`
+  resp. `type = "fixed"` in `ggpredict()`.
+
+* `hypothesis_test()` now returns the standard error of contrasts or pairwise
+  comparisons as attribute `standard_error`. This can be used to compute the
+  test-statistic, if required. In forthcoming updates, there will be methods
+  for `insight::get_statistic()` and `parameters::model_parameters()` to include
+  standard errors and test-statistics in the output.
+
+* `test_predictions()` was added as an alias for `hypothesis_test()`.
+
+## Bug fixes
+
+* Fixed issue in `hypothesis_test()` for mixed models, which sometimes failed
+  when random effects group variables were numeric, and not factors.
+
 # ggeffects 1.3.1
 
 ## New functions
@@ -11,7 +42,8 @@
   plots with raw data. When the model formula contains an offset-term, and the
   offset term is fixed at a specific value, the response variable is now
   automatically transformed back to the original scale, and the offset-term is
-  added to the predicted values. A warning is printed when model contains transformed offset-terms that are not fixed, e.g. via the `condition` argument.
+  added to the predicted values. A warning is printed when model contains
+  transformed offset-terms that are not fixed, e.g. via the `condition` argument.
 
 * `ggeffect()` now supports `nestedLogit` models.
 

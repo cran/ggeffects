@@ -79,8 +79,8 @@
             if (verbose) {
               insight::format_alert(
                 "Model uses a transformed offset term. Predictions may not be correct.",
-                sprintf("Please apply transformation of offset term to the data before fitting the model and use `offset(%s)` in the model formula.", clean.term),
-                sprintf("You could also fix the offset term using the `condition` argument, e.g. `condition = c(%s = 1)`.", clean.term)
+                sprintf("It is recommended to fix the offset term using the `condition` argument, e.g. `condition = c(%s = 1)`.", clean.term),
+                sprintf("You could also transform the offset variable before fitting the model and use `offset(%s)` in the model formula.", clean.term)
               )
             }
             olt <- clean.term
@@ -105,7 +105,8 @@
   use_all_values <- FALSE
 
   # for these models, always all values are used
-  all_values_models <- c("Gam", "gam", "vgam", "glm", "lm", "nestedLogit", "brmsfit", "bamlss", "gamlss", "glmx", "feglm")
+  all_values_models <- c("Gam", "gam", "vgam", "glm", "lm", "nestedLogit",
+                         "brmsfit", "bamlss", "gamlss", "glmx", "feglm")
 
   if (.has_splines(model) && !.uses_all_tag(terms)) {
     if (inherits(model, all_values_models)) {
@@ -128,7 +129,6 @@
       show_pretty_message <- FALSE
     }
   }
-
 
   if (.has_trigonometry(model) && !.uses_all_tag(terms) && !use_all_values) {
     if (inherits(model, all_values_models)) {
@@ -259,12 +259,32 @@
   # if we have weights, and typical value is mean, use weighted means
   # as function for the typical values
 
-  if (!.is_empty(w) && length(w) == nrow(model_frame) && value_adjustment == "mean") {
-    value_adjustment <- "weighted.mean"
+  if (!.is_empty(w) && length(w) == nrow(model_frame)) {
+    if (identical(value_adjustment, "mean")) {
+      value_adjustment <- "weighted.mean"
+    } else if (is.list(value_adjustment)) {
+      value_adjustment <- lapply(value_adjustment, function(x) {
+        if (identical(x, "mean")) {
+          "weighted.mean"
+        } else {
+          x
+        }
+      })
+    }
   }
 
-  if (value_adjustment == "weighted.mean" && .is_empty(w)) {
-    value_adjustment <- "mean"
+  if (.is_empty(w)) {
+    if (identical(value_adjustment, "weighted.mean")) {
+      value_adjustment <- "mean"
+    } else if (is.list(value_adjustment)) {
+      value_adjustment <- lapply(value_adjustment, function(x) {
+        if (identical(x, "weighted.mean")) {
+          "mean"
+        } else {
+          x
+        }
+      })
+    }
   }
 
 
@@ -296,8 +316,13 @@
     constant_values <- lapply(model_predictors, function(x) {
       pred <- model_frame[[x]]
       if (!is.factor(pred) && !is.character(pred) && !x %in% random_effect_terms) {
-        .typical_value(pred, fun = value_adjustment, weights = w, predictor = x,
-                       log_terms = .which_log_terms(model), emmeans.only = emmeans.only)
+        .typical_value(
+          pred,
+          fun = value_adjustment,
+          weights = w,
+          predictor = x,
+          log_terms = .which_log_terms(model)
+        )
       }
     })
     names(constant_values) <- model_predictors
@@ -308,8 +333,13 @@
     constant_values <- lapply(model_predictors, function(x) {
       pred <- model_frame[[x]]
       if (is.factor(pred)) pred <- droplevels(pred)
-      .typical_value(pred, fun = value_adjustment, weights = w, predictor = x,
-                     log_terms = .which_log_terms(model))
+      .typical_value(
+        pred,
+        fun = value_adjustment,
+        weights = w,
+        predictor = x,
+        log_terms = .which_log_terms(model)
+      )
     })
     names(constant_values) <- model_predictors
 
@@ -383,16 +413,19 @@
     # restore original type
     focal_terms <- lapply(focal_term_names, function(x) {
       # check for consistent vector type: on-the-fly conversion of factors
-      if (!is.null(on_the_fly_factors) && x %in% on_the_fly_factors)
+      if (!is.null(on_the_fly_factors) && x %in% on_the_fly_factors) {
         return(.factor_to_numeric(focal_terms[[x]]))
+      }
 
       # check for consistent vector type: numeric
-      if (is.numeric(model_frame[[x]]) && !is.numeric(focal_terms[[x]]))
+      if (is.numeric(model_frame[[x]]) && !is.numeric(focal_terms[[x]])) {
         return(.factor_to_numeric(focal_terms[[x]]))
+      }
 
       # check for consistent vector type: factor
-      if (is.factor(model_frame[[x]]) && !is.factor(focal_terms[[x]]))
+      if (is.factor(model_frame[[x]]) && !is.factor(focal_terms[[x]])) {
         return(as.character(focal_terms[[x]]))
+      }
 
       # else return original vector
       return(focal_terms[[x]])
@@ -431,12 +464,14 @@
   datlist <- lapply(colnames(dat), function(x) {
 
     # check for consistent vector type: numeric
-    if (is.numeric(model_frame[[x]]) && !is.numeric(dat[[x]]))
+    if (is.numeric(model_frame[[x]]) && !is.numeric(dat[[x]])) {
       return(.factor_to_numeric(dat[[x]]))
+    }
 
     # check for consistent vector type: factor
-    if (is.factor(model_frame[[x]]) && !is.factor(dat[[x]]))
+    if (is.factor(model_frame[[x]]) && !is.factor(dat[[x]])) {
       return(as.factor(dat[[x]]))
+    }
 
     # else return original vector
     return(dat[[x]])

@@ -3,7 +3,7 @@
 #'
 #' @description Function to test differences of adjusted predictions for
 #'   statistical significance. This is usually called contrasts or (pairwise)
-#'   comparisons.
+#'   comparisons. `test_predictions()` is an alias.
 #'
 #' @param model A fitted model object, or an object of class `ggeffects`.
 #' @param test Hypothesis to test. By default, pairwise-comparisons are
@@ -20,18 +20,27 @@
 #'   to test the interaction within "groups". `by` is only relevant for
 #'   categorical predictors.
 #' @param scale Character string, indicating the scale on which the contrasts
-#'   or comparisons are represented. Can be `"response"` (default), which would
-#'   return contrasts on the response scale (e.g. for logistic regression, as
-#'   probabilities); `"link"` to return contrasts on scale of the linear predictors;
-#'   `"probability"` (or `"probs"`) returns contrasts on the probability scale
-#'   (which is required for some model classes, like `MASS::polr()`); or a
-#'   transformation function like `"exp"` or `"log"`, to return transformed
-#'   (exponentiated respectively logarithmic) contrasts.
+#'   or comparisons are represented. Can be one of:
+#'
+#'   - `"response"` (default), which would return contrasts on the response
+#'     scale (e.g. for logistic regression, as probabilities);
+#'   - `"link"` to return contrasts on scale of the linear predictors
+#'     (e.g. for logistic regression, as log-odds);
+#'   - `"probability"` (or `"probs"`) returns contrasts on the probability scale,
+#'     which is required for some model classes, like `MASS::polr()`;
+#'   - `"oddsratios"` to return contrasts on the odds ratio scale (only applies
+#'     to logistic regression models);
+#'   - `"irr"` to return contrasts on the odds ratio scale (only applies to
+#'     count models);
+#'   - or a transformation function like `"exp"` or `"log"`, to return transformed
+#'     (exponentiated respectively logarithmic) contrasts; note that these
+#'     transformations are applied to the _response scale_.
+#'
 #'   **Note:** If the `scale` argument is not supported by the provided `model`,
 #'   it is automaticaly changed to a supported scale-type (a message is printed
 #'   when `verbose = TRUE`).
 #' @param equivalence ROPE's lower and higher bounds. Should be `"default"` or
-#'   a vector of length two (e.g., c(-0.1, 0.1)). If `"default"`,
+#'   a vector of length two (e.g., `c(-0.1, 0.1)`). If `"default"`,
 #'   [`bayestestR::rope_range()`] is used. Instead of using the `equivalence`
 #'   argument, it is also possible to call the `equivalence_test()` method
 #'   directly. This requires the **parameters** package to be loaded. When
@@ -60,7 +69,7 @@
 #'   comparisons and contrasts to different scales. `vcov` can be used to
 #'   calculate heteroscedasticity-consistent standard errors for contrasts.
 #'   See examples at the bottom of
-#'   [this vignette](https://strengejacke.github.io/ggeffects/articles/introduction_comparisons.html)
+#'   [this vignette](https://strengejacke.github.io/ggeffects/articles/introduction_comparisons_1.html)
 #'   for further details.
 #'
 #' @seealso There is also an `equivalence_test()` method in the **parameters**
@@ -78,7 +87,7 @@
 #'
 #' There are many ways to test contrasts or pairwise comparisons. A
 #' detailed introduction with many (visual) examples is shown in
-#' [this vignette](https://strengejacke.github.io/ggeffects/articles/introduction_comparisons.html).
+#' [this vignette](https://strengejacke.github.io/ggeffects/articles/introduction_comparisons_1.html).
 #'
 #' @section P-value adjustment for multiple comparisons:
 #'
@@ -97,53 +106,64 @@
 #' contrasts or pairwise comparisons of adjusted predictions or estimated
 #' marginal means.
 #'
-#' @examples
-#' \dontrun{
-#' if (requireNamespace("marginaleffects") && interactive()) {
-#'   data(efc)
-#'   efc$c172code <- as.factor(efc$c172code)
-#'   efc$c161sex <- as.factor(efc$c161sex)
-#'   levels(efc$c161sex) <- c("male", "female")
-#'   m <- lm(barthtot ~ c12hour + neg_c_7 + c161sex + c172code, data = efc)
+#' @examplesIf requireNamespace("marginaleffects") && requireNamespace("parameters") && interactive()
+#' \donttest{
+#' data(efc)
+#' efc$c172code <- as.factor(efc$c172code)
+#' efc$c161sex <- as.factor(efc$c161sex)
+#' levels(efc$c161sex) <- c("male", "female")
+#' m <- lm(barthtot ~ c12hour + neg_c_7 + c161sex + c172code, data = efc)
 #'
-#'   # direct computation of comparisons
-#'   hypothesis_test(m, "c172code")
+#' # direct computation of comparisons
+#' hypothesis_test(m, "c172code")
 #'
-#'   # passing a `ggeffects` object
-#'   pred <- ggpredict(m, "c172code")
-#'   hypothesis_test(pred)
+#' # passing a `ggeffects` object
+#' pred <- ggpredict(m, "c172code")
+#' hypothesis_test(pred)
 #'
-#'   # test for slope
-#'   hypothesis_test(m, "c12hour")
+#' # test for slope
+#' hypothesis_test(m, "c12hour")
 #'
-#'   # interaction - contrasts by groups
-#'   m <- lm(barthtot ~ c12hour + c161sex * c172code + neg_c_7, data = efc)
-#'   hypothesis_test(m, c("c161sex", "c172code"), test = NULL)
+#' # interaction - contrasts by groups
+#' m <- lm(barthtot ~ c12hour + c161sex * c172code + neg_c_7, data = efc)
+#' hypothesis_test(m, c("c161sex", "c172code"), test = NULL)
 #'
-#'   # interaction - pairwise comparisons by groups
-#'   hypothesis_test(m, c("c161sex", "c172code"))
+#' # interaction - pairwise comparisons by groups
+#' hypothesis_test(m, c("c161sex", "c172code"))
 #'
-#'   # interaction - collapse unique levels
-#'   hypothesis_test(m, c("c161sex", "c172code"), collapse_levels = TRUE)
+#' # equivalence testing
+#' hypothesis_test(m, c("c161sex", "c172code"), equivalence = c(-2.96, 2.96))
 #'
-#'   # p-value adjustment
-#'   hypothesis_test(m, c("c161sex", "c172code"), p_adjust = "tukey")
+#' # equivalence testing, using the parameters package
+#' pr <- ggpredict(m, c("c161sex", "c172code"))
+#' parameters::equivalence_test(pr)
 #'
-#'   # not all comparisons, only by specific group levels
-#'   hypothesis_test(m, "c172code", by = "c161sex")
+#' # interaction - collapse unique levels
+#' hypothesis_test(m, c("c161sex", "c172code"), collapse_levels = TRUE)
 #'
-#'   # specific comparisons
-#'   hypothesis_test(m, c("c161sex", "c172code"), test = "b2 = b1")
+#' # p-value adjustment
+#' hypothesis_test(m, c("c161sex", "c172code"), p_adjust = "tukey")
 #'
-#'   # interaction - slope by groups
-#'   m <- lm(barthtot ~ c12hour + neg_c_7 * c172code + c161sex, data = efc)
-#'   hypothesis_test(m, c("neg_c_7", "c172code"))
-#' }
+#' # not all comparisons, only by specific group levels
+#' hypothesis_test(m, "c172code", by = "c161sex")
+#'
+#' # specific comparisons
+#' hypothesis_test(m, c("c161sex", "c172code"), test = "b2 = b1")
+#'
+#' # interaction - slope by groups
+#' m <- lm(barthtot ~ c12hour + neg_c_7 * c172code + c161sex, data = efc)
+#' hypothesis_test(m, c("neg_c_7", "c172code"))
 #' }
 #' @export
 hypothesis_test <- function(model, ...) {
   UseMethod("hypothesis_test")
 }
+
+
+#' @rdname hypothesis_test
+#' @export
+test_predictions <- hypothesis_test
+
 
 #' @rdname hypothesis_test
 #' @export
@@ -191,13 +211,15 @@ hypothesis_test.default <- function(model,
   # "scale" argument that modulates the "type" and "transform" arguments
   # in "marginaleffects"
   dot_args <- list(...)
+  # default scale is response scale without any transformation
   dot_args$transform <- NULL
-  dot_args$type <- NULL
+  dot_args$type <- "response"
   # check scale
-  scale <- match.arg(scale, choices = c("response", "link", "probability", "probs", "exp", "log"))
-  if (scale == "response") {
-    dot_args$type <- "response"
-  } else if (scale == "link") {
+  scale <- match.arg(
+    scale,
+    choices = c("response", "link", "probability", "probs", "exp", "log", "oddsratios", "irr")
+  )
+  if (scale == "link") {
     dot_args$type <- "link"
   } else if (scale %in% c("probability", "probs")) {
     dot_args$type <- "probs"
@@ -205,12 +227,28 @@ hypothesis_test.default <- function(model,
     dot_args$transform <- "exp"
   } else if (scale == "log") {
     dot_args$transform <- "ln"
+  } else if (scale %in% c("irr", "oddsratios")) {
+    dot_args$type <- "link"
+    dot_args$transform <- "exp"
   }
 
   # make sure we have a valid type-argument...
   dot_args$type <- .sanitize_type_argument(model, dot_args$type, verbose = ifelse(miss_scale, FALSE, verbose))
 
   minfo <- insight::model_info(model)
+
+  # make sure that we have logistic regression when scale is "oddsratios"
+  if (scale == "oddsratios" && !minfo$is_logit) {
+    insight::format_error(
+      "Argument `scale = \"oddsratios\"` is only supported for logistic regression models."
+    )
+  }
+  # make sure that we have count regression when scale is "irr"
+  if (scale == "irr" && !minfo$is_count) {
+    insight::format_error(
+      "Argument `scale = \"irr\"` is only supported for count models (Poisson, negative binomial, ...)."
+    )
+  }
 
   # for mixed models, we need different handling later...
   need_average_predictions <- insight::is_mixed_model(model)
@@ -221,8 +259,9 @@ hypothesis_test.default <- function(model,
     terms <- unique(c(terms, by))
   }
 
-  # we want contrasts or comparisons for these focal predictors...  
+  # we want contrasts or comparisons for these focal predictors...
   focal <- .clean_terms(terms)
+  random_group <- NULL
 
   # check if we have a mixed model - in this case, we need to ensure that our
   # random effect variable (group factor) is included in the grid
@@ -236,7 +275,7 @@ hypothesis_test.default <- function(model,
       msg_intervals <- TRUE
     }
   }
-  grid <- data_grid(model, terms, ...)
+  grid <- data_grid(model, terms, group_factor = random_group, ...)
 
   # check for valid by-variable
   if (!is.null(by)) {
@@ -694,6 +733,7 @@ hypothesis_test.default <- function(model,
   attr(out, "estimate_name") <- estimate_name
   attr(out, "msg_intervals") <- msg_intervals
   attr(out, "verbose") <- verbose
+  attr(out, "standard_error") <- .comparisons$std.error
   out
 }
 
@@ -832,7 +872,7 @@ hypothesis_test.ggeffects <- function(model,
     scale_label <- switch(scale,
       response = "probabilities",
       link = "log-odds",
-      exp = "odds ratios",
+      oddsratios = "odds ratios",
       probs = ,
       probability = "probabilities",
       NULL
@@ -841,7 +881,7 @@ hypothesis_test.ggeffects <- function(model,
     scale_label <- switch(scale,
       response = "counts",
       link = "log-mean",
-      exp = "incident rate ratios",
+      irr = "incident rate ratios",
       probs = ,
       probability = "probabilities",
       NULL
@@ -917,9 +957,9 @@ print.ggcomparisons <- function(x, ...) {
 
   # what type of estimates do we have?
   type <- switch(estimate_name,
-    "Predicted" = "Predictions",
-    "Contrast" = "Contrasts",
-    "Slope" = "Slopes",
+    Predicted = "Predictions",
+    Contrast = "Contrasts",
+    Slope = "Slopes",
     "Estimates"
   )
 
@@ -932,7 +972,10 @@ print.ggcomparisons <- function(x, ...) {
         probability = "probability",
         exp = "exponentiated",
         log = "log",
-        link = "link"
+        link = "link",
+        oddsratios = "odds ratio",
+        irr = "incident rate ratio",
+        "unknown"
       )
       msg <- paste0(newline, type, " are presented on the ", scale_label, " scale.")
     } else {

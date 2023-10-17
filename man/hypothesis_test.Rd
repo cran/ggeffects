@@ -2,11 +2,14 @@
 % Please edit documentation in R/hypothesis_test.R
 \name{hypothesis_test}
 \alias{hypothesis_test}
+\alias{test_predictions}
 \alias{hypothesis_test.default}
 \alias{hypothesis_test.ggeffects}
 \title{(Pairwise) comparisons between predictions}
 \usage{
 hypothesis_test(model, ...)
+
+test_predictions(model, ...)
 
 \method{hypothesis_test}{default}(
   model,
@@ -45,7 +48,7 @@ For instance, arguments \code{type} or \code{transform} can be used to back-tran
 comparisons and contrasts to different scales. \code{vcov} can be used to
 calculate heteroscedasticity-consistent standard errors for contrasts.
 See examples at the bottom of
-\href{https://strengejacke.github.io/ggeffects/articles/introduction_comparisons.html}{this vignette}
+\href{https://strengejacke.github.io/ggeffects/articles/introduction_comparisons_1.html}{this vignette}
 for further details.}
 
 \item{terms}{Character vector with the names of the focal terms from \code{model},
@@ -65,7 +68,7 @@ categorical predictors.}
 conducted. See section \emph{Introduction into contrasts and pairwise comparisons}.}
 
 \item{equivalence}{ROPE's lower and higher bounds. Should be \code{"default"} or
-a vector of length two (e.g., c(-0.1, 0.1)). If \code{"default"},
+a vector of length two (e.g., \code{c(-0.1, 0.1)}). If \code{"default"},
 \code{\link[bayestestR:rope_range]{bayestestR::rope_range()}} is used. Instead of using the \code{equivalence}
 argument, it is also possible to call the \code{equivalence_test()} method
 directly. This requires the \strong{parameters} package to be loaded. When
@@ -76,13 +79,23 @@ to \code{plot()} the results from \code{equivalence_test()}. See
 for details.}
 
 \item{scale}{Character string, indicating the scale on which the contrasts
-or comparisons are represented. Can be \code{"response"} (default), which would
-return contrasts on the response scale (e.g. for logistic regression, as
-probabilities); \code{"link"} to return contrasts on scale of the linear predictors;
-\code{"probability"} (or \code{"probs"}) returns contrasts on the probability scale
-(which is required for some model classes, like \code{MASS::polr()}); or a
-transformation function like \code{"exp"} or \code{"log"}, to return transformed
-(exponentiated respectively logarithmic) contrasts.
+or comparisons are represented. Can be one of:
+\itemize{
+\item \code{"response"} (default), which would return contrasts on the response
+scale (e.g. for logistic regression, as probabilities);
+\item \code{"link"} to return contrasts on scale of the linear predictors
+(e.g. for logistic regression, as log-odds);
+\item \code{"probability"} (or \code{"probs"}) returns contrasts on the probability scale,
+which is required for some model classes, like \code{MASS::polr()};
+\item \code{"oddsratios"} to return contrasts on the odds ratio scale (only applies
+to logistic regression models);
+\item \code{"irr"} to return contrasts on the odds ratio scale (only applies to
+count models);
+\item or a transformation function like \code{"exp"} or \code{"log"}, to return transformed
+(exponentiated respectively logarithmic) contrasts; note that these
+transformations are applied to the \emph{response scale}.
+}
+
 \strong{Note:} If the \code{scale} argument is not supported by the provided \code{model},
 it is automaticaly changed to a supported scale-type (a message is printed
 when \code{verbose = TRUE}).}
@@ -115,14 +128,14 @@ marginal means.
 \description{
 Function to test differences of adjusted predictions for
 statistical significance. This is usually called contrasts or (pairwise)
-comparisons.
+comparisons. \code{test_predictions()} is an alias.
 }
 \section{Introduction into contrasts and pairwise comparisons}{
 
 
 There are many ways to test contrasts or pairwise comparisons. A
 detailed introduction with many (visual) examples is shown in
-\href{https://strengejacke.github.io/ggeffects/articles/introduction_comparisons.html}{this vignette}.
+\href{https://strengejacke.github.io/ggeffects/articles/introduction_comparisons_1.html}{this vignette}.
 }
 
 \section{P-value adjustment for multiple comparisons}{
@@ -141,48 +154,55 @@ only, in particular pairwise comparisons.
 }
 
 \examples{
-\dontrun{
-if (requireNamespace("marginaleffects") && interactive()) {
-  data(efc)
-  efc$c172code <- as.factor(efc$c172code)
-  efc$c161sex <- as.factor(efc$c161sex)
-  levels(efc$c161sex) <- c("male", "female")
-  m <- lm(barthtot ~ c12hour + neg_c_7 + c161sex + c172code, data = efc)
+\dontshow{if (requireNamespace("marginaleffects") && requireNamespace("parameters") && interactive()) (if (getRversion() >= "3.4") withAutoprint else force)(\{ # examplesIf}
+\donttest{
+data(efc)
+efc$c172code <- as.factor(efc$c172code)
+efc$c161sex <- as.factor(efc$c161sex)
+levels(efc$c161sex) <- c("male", "female")
+m <- lm(barthtot ~ c12hour + neg_c_7 + c161sex + c172code, data = efc)
 
-  # direct computation of comparisons
-  hypothesis_test(m, "c172code")
+# direct computation of comparisons
+hypothesis_test(m, "c172code")
 
-  # passing a `ggeffects` object
-  pred <- ggpredict(m, "c172code")
-  hypothesis_test(pred)
+# passing a `ggeffects` object
+pred <- ggpredict(m, "c172code")
+hypothesis_test(pred)
 
-  # test for slope
-  hypothesis_test(m, "c12hour")
+# test for slope
+hypothesis_test(m, "c12hour")
 
-  # interaction - contrasts by groups
-  m <- lm(barthtot ~ c12hour + c161sex * c172code + neg_c_7, data = efc)
-  hypothesis_test(m, c("c161sex", "c172code"), test = NULL)
+# interaction - contrasts by groups
+m <- lm(barthtot ~ c12hour + c161sex * c172code + neg_c_7, data = efc)
+hypothesis_test(m, c("c161sex", "c172code"), test = NULL)
 
-  # interaction - pairwise comparisons by groups
-  hypothesis_test(m, c("c161sex", "c172code"))
+# interaction - pairwise comparisons by groups
+hypothesis_test(m, c("c161sex", "c172code"))
 
-  # interaction - collapse unique levels
-  hypothesis_test(m, c("c161sex", "c172code"), collapse_levels = TRUE)
+# equivalence testing
+hypothesis_test(m, c("c161sex", "c172code"), equivalence = c(-2.96, 2.96))
 
-  # p-value adjustment
-  hypothesis_test(m, c("c161sex", "c172code"), p_adjust = "tukey")
+# equivalence testing, using the parameters package
+pr <- ggpredict(m, c("c161sex", "c172code"))
+parameters::equivalence_test(pr)
 
-  # not all comparisons, only by specific group levels
-  hypothesis_test(m, "c172code", by = "c161sex")
+# interaction - collapse unique levels
+hypothesis_test(m, c("c161sex", "c172code"), collapse_levels = TRUE)
 
-  # specific comparisons
-  hypothesis_test(m, c("c161sex", "c172code"), test = "b2 = b1")
+# p-value adjustment
+hypothesis_test(m, c("c161sex", "c172code"), p_adjust = "tukey")
 
-  # interaction - slope by groups
-  m <- lm(barthtot ~ c12hour + neg_c_7 * c172code + c161sex, data = efc)
-  hypothesis_test(m, c("neg_c_7", "c172code"))
+# not all comparisons, only by specific group levels
+hypothesis_test(m, "c172code", by = "c161sex")
+
+# specific comparisons
+hypothesis_test(m, c("c161sex", "c172code"), test = "b2 = b1")
+
+# interaction - slope by groups
+m <- lm(barthtot ~ c12hour + neg_c_7 * c172code + c161sex, data = efc)
+hypothesis_test(m, c("neg_c_7", "c172code"))
 }
-}
+\dontshow{\}) # examplesIf}
 }
 \seealso{
 There is also an \code{equivalence_test()} method in the \strong{parameters}
