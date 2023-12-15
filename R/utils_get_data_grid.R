@@ -39,18 +39,15 @@
 
   # any weights?
   w <- insight::get_weights(model)
-  if (is.null(w) || all(w == 1)) w <- NULL
+  if (is.null(w) || all(w == 1)) {
+    w <- NULL
+  }
 
   # get random effects (grouping factor)
   random_effect_terms <- insight::find_random(model, split_nested = TRUE, flatten = TRUE)
 
-  ## TODO check for other panelr models
-
   # clean variable names
-  # if (!inherits(model, "wbm")) {
   colnames(model_frame) <- insight::clean_names(colnames(model_frame))
-  # }
-
 
   # get specific levels
   focal_terms <- .get_representative_values(terms, model_frame)
@@ -79,8 +76,8 @@
             if (verbose) {
               insight::format_alert(
                 "Model uses a transformed offset term. Predictions may not be correct.",
-                sprintf("It is recommended to fix the offset term using the `condition` argument, e.g. `condition = c(%s = 1)`.", clean.term),
-                sprintf("You could also transform the offset variable before fitting the model and use `offset(%s)` in the model formula.", clean.term)
+                sprintf("It is recommended to fix the offset term using the `condition` argument, e.g. `condition = c(%s = 1)`.", clean.term), # nolint
+                sprintf("You could also transform the offset variable before fitting the model and use `offset(%s)` in the model formula.", clean.term) # nolint
               )
             }
             olt <- clean.term
@@ -108,41 +105,35 @@
   all_values_models <- c("Gam", "gam", "vgam", "glm", "lm", "nestedLogit",
                          "brmsfit", "bamlss", "gamlss", "glmx", "feglm")
 
-  if (.has_splines(model) && !.uses_all_tag(terms)) {
-    if (inherits(model, all_values_models)) {
-      use_all_values <- TRUE
-    } else if (show_pretty_message && verbose) {
+  # for these models, all values are used if we have splines or polynomial terms
+  if (.has_spline_or_poly(model) && !.uses_all_tag(terms)) {
+    use_all_values <- inherits(model, all_values_models)
+  }
+
+  # for remaining models, if not "[all]" tag is used, tell user about
+  # considerung using the "[all]" tag
+  if (verbose && !use_all_values && !.uses_all_tag(terms)) {
+    if (.has_splines(model)) {
       insight::format_alert(sprintf(
-        "Model contains splines or polynomial terms. Consider using `terms=\"%s [all]\"` to get smooth plots. See also package-vignette 'Marginal Effects at Specific Values'.", all_terms[1]
+        "Model contains splines or polynomial terms. Consider using `terms=\"%s [all]\"` to get smooth plots. See also package-vignette 'Marginal Effects at Specific Values'.", all_terms[1] # nolint
+      ))
+      show_pretty_message <- FALSE
+    }
+    if (.has_poly(model) && show_pretty_message) {
+      insight::format_alert(sprintf(
+        "Model contains polynomial or cubic / quadratic terms. Consider using `terms=\"%s [all]\"` to get smooth plots. See also package-vignette 'Marginal Effects at Specific Values'.", all_terms[1] # nolint
+      ))
+      show_pretty_message <- FALSE
+    }
+    if (.has_trigonometry(model) && show_pretty_message) {
+      insight::format_alert(sprintf(
+        "Model contains trigonometric terms (sinus, cosinus, ...). Consider using `terms=\"%s [all]\"` to get smooth plots. See also package-vignette 'Marginal Effects at Specific Values'.", all_terms[1] # nolint
       ))
       show_pretty_message <- FALSE
     }
   }
 
-  if (.has_poly(model) && !.uses_all_tag(terms) && !use_all_values) {
-    if (inherits(model, all_values_models)) {
-      use_all_values <- TRUE
-    } else if (show_pretty_message && verbose) {
-      insight::format_alert(sprintf(
-        "Model contains polynomial or cubic / quadratic terms. Consider using `terms=\"%s [all]\"` to get smooth plots. See also package-vignette 'Marginal Effects at Specific Values'.", all_terms[1]
-      ))
-      show_pretty_message <- FALSE
-    }
-  }
-
-  if (.has_trigonometry(model) && !.uses_all_tag(terms) && !use_all_values) {
-    if (inherits(model, all_values_models)) {
-      use_all_values <- TRUE
-    } else if (show_pretty_message && verbose) {
-      insight::format_alert(sprintf(
-        "Model contains trigonometric terms (sinus, cosinus, ...). Consider using `terms=\"%s [all]\"` to get smooth plots. See also package-vignette 'Marginal Effects at Specific Values'.", all_terms[1]
-      ))
-      show_pretty_message <- FALSE
-    }
-  }
-
-
-  # find terms for which no specific values are given
+  # find terms for which no specific at-values are given
   conditional_terms <- which(!(all_terms %in% names(focal_terms)))
 
   # prettify numeric vectors, get representative values
@@ -176,7 +167,7 @@
       }))
       if (any(invalid_levels)) {
         insight::format_error(
-          sprintf("Variable(s) %s are used as monotonic effects, however, only values that are also present in the data are allowed for predictions.", toString(mo_terms)),
+          sprintf("Variable(s) %s are used as monotonic effects, however, only values that are also present in the data are allowed for predictions.", toString(mo_terms)), # nolint
           "Consider converting variables used in `mo()` into (ordered) factors before fitting the model."
         )
       }
@@ -185,13 +176,6 @@
 
 
   ## TODO check for other panelr models
-
-  # get names of all predictor variable
-  # if (inherits(model, "wbm")) {
-  #   model_predictors <- colnames(model_frame)
-  # } else {
-  #   model_predictors <- insight::find_predictors(model, effects = "all", component = "all", flatten = TRUE)
-  # }
 
   offset_term <- .offset_term(model, condition, show_pretty_message)
   model_predictors <- c(
@@ -234,8 +218,9 @@
 
   ## TODO brms does currently not support "terms()" generic
 
-  if (!inherits(model, "wbm")) {
-
+  if (inherits(model, "wbm")) {
+    model_predictors <- model_predictors[model_predictors %in% colnames(model_frame)]
+  } else {
     if (sum(!(model_predictors %in% colnames(model_frame))) > 0 && !inherits(model, c("brmsfit", "MCMCglmm"))) {
       # get terms from model directly
       model_predictors <- .safe(attr(stats::terms(model), "term.labels", exact = TRUE))
@@ -246,11 +231,10 @@
       # get terms from model frame column names
       model_predictors <- colnames(model_frame)
       # we may have more terms now, e.g. intercept. remove those now
-      if (length(model_predictors) > n_predictors) model_predictors <- model_predictors[2:(n_predictors + 1)]
+      if (length(model_predictors) > n_predictors) {
+        model_predictors <- model_predictors[2:(n_predictors + 1)]
+      }
     }
-
-  } else {
-    model_predictors <- model_predictors[model_predictors %in% colnames(model_frame)]
   }
 
   # keep those, which we did not process yet
@@ -332,7 +316,9 @@
     # adjust constant values, factors set to reference level
     constant_values <- lapply(model_predictors, function(x) {
       pred <- model_frame[[x]]
-      if (is.factor(pred)) pred <- droplevels(pred)
+      if (is.factor(pred)) {
+        pred <- droplevels(pred)
+      }
       .typical_value(
         pred,
         fun = value_adjustment,

@@ -24,16 +24,16 @@ ggemmeans <- function(model,
 
   type <- switch(
     type,
-    "fixed" = ,
-    "count" = "fe",
-    "random" = "re",
-    "zi" = ,
-    "zero_inflated" = "fe.zi",
-    "zi_random" = ,
-    "zero_inflated_random" = "re.zi",
-    "zi_prob" = "zi.prob",
-    "survival" = "surv",
-    "cumulative_hazard" = "cumhaz",
+    fixed = ,
+    count = "fe",
+    random = "re",
+    zi = ,
+    zero_inflated = "fe.zi",
+    zi_random = ,
+    zero_inflated_random = "re.zi",
+    zi_prob = "zi.prob",
+    survival = "surv",
+    cumulative_hazard = "cumhaz",
     type
   )
 
@@ -47,14 +47,11 @@ ggemmeans <- function(model,
     back_transform <- back.transform
   }
 
-  # check if terms are a formula
-  if (!missing(terms) && !is.null(terms) && inherits(terms, "formula")) {
-    terms <- all.vars(terms)
-  }
-
-  # "terms" can also be a list, convert now
-  if (!missing(terms) && !is.null(terms)) {
-    terms <- .list_to_character_terms(terms)
+  # process "terms", so we have the default character format. Furthermore,
+  # check terms argument, to make sure that terms were not misspelled and are
+  # indeed existing in the data
+  if (!missing(terms)) {
+    terms <- .reconstruct_focal_terms(terms, model)
   }
 
   # tidymodels?
@@ -79,8 +76,7 @@ ggemmeans <- function(model,
   model_frame <- .get_model_data(model)
   original_model_frame <- model_frame
 
-  # check terms argument
-  terms <- .check_vars(terms, model)
+  # clean "terms" from possible brackets
   cleaned_terms <- .clean_terms(terms)
 
   data_grid <- .data_grid(
@@ -94,12 +90,13 @@ ggemmeans <- function(model,
   if (model_info$is_zero_inflated && inherits(model, c("glmmTMB", "MixMod")) && type == "fe.zi") {
 
     preds <- .emmeans_mixed_zi(model, data_grid, cleaned_terms, ...)
-    additional_dot_args <- lapply(match.call(expand.dots = FALSE)$`...`, function(x) x)
+    additional_dot_args <- match.call(expand.dots = FALSE)[["..."]]
 
-    if ("nsim" %in% names(additional_dot_args))
+    if ("nsim" %in% names(additional_dot_args)) {
       nsim <- eval(additional_dot_args[["nsim"]])
-    else
+    } else {
       nsim <- 1000
+    }
 
     prediction_data <- .ggemmeans_zi_predictions(
       model = model,
@@ -205,28 +202,29 @@ ggemmeans <- function(model,
 
 
 .get_prediction_mode_argument <- function(model, model_info, type) {
-  if (inherits(model, "betareg"))
+  if (inherits(model, "betareg")) {
     "response"
-  else if (inherits(model, c("polr", "clm", "clmm", "clm2", "rms", "lrm", "orm")))
+  } else if (inherits(model, c("polr", "clm", "clmm", "clm2", "rms", "lrm", "orm"))) {
     "prob"
-  else if (inherits(model, "lmerMod"))
+  } else if (inherits(model, "lmerMod")) {
     "asymptotic"
-  else if (inherits(model, "MixMod"))
+  } else if (inherits(model, "MixMod")) {
     "fixed-effects"
-  else if (inherits(model, c("gls", "lme")))
+  } else if (inherits(model, c("gls", "lme"))) {
     "auto"
-  else if (inherits(model, "MCMCglmm") && model_info$is_multinomial)
+  } else if (inherits(model, "MCMCglmm") && model_info$is_multinomial) {
     "response"
-  else if (model_info$is_ordinal || model_info$is_categorical || model_info$is_multinomial)
+  } else if (model_info$is_ordinal || model_info$is_categorical || model_info$is_multinomial) {
     "prob"
-  else if (model_info$is_zero_inflated && type %in% c("fe", "re") && inherits(model, "glmmTMB"))
+  } else if (model_info$is_zero_inflated && type %in% c("fe", "re") && inherits(model, "glmmTMB")) {
     "link"
-  else if (model_info$is_zero_inflated && type %in% c("fe.zi", "re.zi"))
+  } else if (model_info$is_zero_inflated && type %in% c("fe.zi", "re.zi")) {
     "response"
-  else if (model_info$is_zero_inflated && type %in% c("fe", "re"))
+  } else if (model_info$is_zero_inflated && type %in% c("fe", "re")) {
     "count"
-  else if (model_info$is_zero_inflated && type == "zi.prob")
+  } else if (model_info$is_zero_inflated && type == "zi.prob") {
     "prob0"
-  else
+  } else {
     "link"
+  }
 }

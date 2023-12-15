@@ -15,15 +15,18 @@ get_predictions_gam <- function(model, data_grid, ci.lvl, linv, type, ...) {
 
   if (!mi$is_zero_inflated && type %in% c("fe.zi", "re.zi")) {
     type <- "fe"
-    insight::format_alert(sprintf("Model has no zero-inflation part. Changing prediction-type to \"%s\".", type))
+    insight::format_alert("Model has no zero-inflation part. Changing prediction-type to \"fixed\".")
   }
 
+  # gam returns 1d-array, which are still arrays after "as.vector()". Thus, we
+  # additionally want to convert them to numeric vectors.
 
   prdat <- stats::predict(
     model,
     newdata = data_grid,
     type = "link",
-    se.fit = se
+    se.fit = se,
+    ...
   )
 
 
@@ -31,12 +34,13 @@ get_predictions_gam <- function(model, data_grid, ci.lvl, linv, type, ...) {
 
     # check if number of simulations was provided
 
-    add.args <- lapply(match.call(expand.dots = FALSE)$`...`, function(x) x)
+    add.args <- match.call(expand.dots = FALSE)[["..."]]
 
-    if ("nsim" %in% names(add.args))
+    if ("nsim" %in% names(add.args)) {
       nsim <- eval(add.args[["nsim"]])
-    else
+    } else {
       nsim <- 1000
+    }
 
 
     # simulate predictions, for standad errors / CI
@@ -48,17 +52,17 @@ get_predictions_gam <- function(model, data_grid, ci.lvl, linv, type, ...) {
 
     if (.obj_has_name(prdat, "fit")) {
       prdat <- list(
-        cond = as.vector(prdat$fit[, 1]),
-        zi = as.vector(prdat$fit[, 2])
+        cond = as.numeric(as.vector(prdat$fit[, 1])),
+        zi = as.numeric(as.vector(prdat$fit[, 2]))
       )
     } else {
       prdat <- list(
-        cond = as.vector(prdat[, 1]),
-        zi = as.vector(prdat[, 2])
+        cond = as.numeric(as.vector(prdat[, 1])),
+        zi = as.numeric(as.vector(prdat[, 2]))
       )
     }
 
-    prdat <- as.vector(exp(prdat$cond) * (1 - stats::plogis(prdat$zi)))
+    prdat <- exp(prdat$cond) * (1 - stats::plogis(prdat$zi))
 
 
     # success?
@@ -104,10 +108,10 @@ get_predictions_gam <- function(model, data_grid, ci.lvl, linv, type, ...) {
 
     if (mi$is_zero_inflated) {
       if (.obj_has_name(prdat, "fit")) {
-        prdat$fit <- as.vector(prdat$fit[, 1])
-        prdat$se.fit <- as.vector(prdat$se.fit[, 1])
+        prdat$fit <- as.numeric(as.vector(prdat$fit[, 1]))
+        prdat$se.fit <- as.numeric(as.vector(prdat$se.fit[, 1]))
       } else {
-        prdat <- as.vector(prdat[, 1])
+        prdat <- as.numeric(as.vector(prdat[, 1]))
       }
       linv <- exp
     }
@@ -115,7 +119,7 @@ get_predictions_gam <- function(model, data_grid, ci.lvl, linv, type, ...) {
     # did user request standard errors? if yes, compute CI
     if (se) {
       # copy predictions
-      data_grid$predicted <- linv(prdat$fit)
+      data_grid$predicted <- linv(as.numeric(as.vector(prdat$fit)))
 
       # calculate CI
       data_grid$conf.low <- linv(prdat$fit - tcrit * prdat$se.fit)
@@ -126,7 +130,7 @@ get_predictions_gam <- function(model, data_grid, ci.lvl, linv, type, ...) {
 
     } else {
       # copy predictions
-      data_grid$predicted <- linv(as.vector(prdat))
+      data_grid$predicted <- linv(as.numeric(as.vector(prdat)))
 
       # no CI
       data_grid$conf.low <- NA

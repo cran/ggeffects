@@ -1,3 +1,48 @@
+# ggeffects 1.3.3
+
+## New function
+
+* `ggaverage()`, to compute average predicted values. This function is based on
+  `marginaleffects::avg_predictons()`.
+
+* `pool_comparisons()`, to pool results from multiple calls to `hypothesis_test()`,
+  e.g. with imputed data sets.
+
+## General
+
+* Support for `sdmTMB` (*sdmTMB*) models.
+
+* Improved support for the *logistf* package, including models `flic()` and
+  `flac()`.
+
+* Confidence intervals for predictions from `merMod` models (package *lme4*)
+  now use the standard errors returned by `predict(..., se.fit = TRUE)`. This
+  should not affect numerical results, but *can* be more robust for certain edge
+  cases. Note that standard errors are only based on `predict()` when
+  `tpye = "fixed"`. For `type = "random"`, standard errors are still based on
+  the model's variance-covariance matrix, taking uncertainty from random
+  effects into account.
+
+* `hypothesis_test()` now suppports models from package *parsnip*.
+
+* `johnson_neyman()` gains a `p_adjust` argument, to adjust p-values for multiple
+  comparisons. Currently, only `p_adjust = "esarey"` (resp. `p_adjust = "es"`) and
+  `p_adjust = "fdr"` (resp. `p_adjust = "bh"`) are supported.
+
+## Bug fixes
+
+* `ggpredict()` now computes appropriate predicted probabilites for models
+  of class `rms::lrm()` with ordinal outcome.
+
+* Fixed issue in `ggpredict()` for `type = "random"` when sampling from random
+  effects levels, where the levels were numeric characters with a pattern like
+  `"001"`, `"002"`, etc.
+
+* Fixed minor issue in `plot.ggalleffects()`.
+
+* `...` arguments in `ggpredict()` are now passed down to the `predict()` method
+  for `mgcv::gam()` models.
+
 # ggeffects 1.3.2
 
 ## Breaking changes

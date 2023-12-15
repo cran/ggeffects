@@ -7,28 +7,41 @@
 #'   model terms, i.e. it generates predictions by a model by holding the
 #'   non-focal variables constant and varying the focal variable(s).
 #'
-#'   `ggpredict()` uses [`predict()`] for generating predictions,
-#'   while `ggeffect()` computes marginal effects by internally calling
+#'   `ggpredict()` uses [`predict()`] for generating predictions, while
+#'   `ggeffect()` computes marginal effects by internally calling
 #'   [`effects::Effect()`] and `ggemmeans()` uses [`emmeans::emmeans()`].
-#'   The result is returned as consistent data frame.
+#'   `ggaverage()` uses [`marginaleffects::avg_predictions()`]. The result is
+#'   returned as consistent data frame.
 #'
 #' @param model A fitted model object, or a list of model objects. Any model
 #'   that supports common methods like `predict()`, `family()`
 #'   or `model.frame()` should work. For `ggeffect()`, any model
 #'   that is supported by **effects** should work, and for
 #'   `ggemmeans()`, all models supported by **emmeans** should work.
-#' @param terms Character vector, (or a named list or a formula) with the names
-#'   of those terms from `model`, for which predictions should be displayed (so
-#'   calles _focal terms_). At least one term is required to calculate effects
-#'   for certain terms, maximum length is four terms, where the second to fourth
-#'   term indicate the groups, i.e. predictions of first term are grouped at
-#'   meaningful values or levels of the remaining terms (see [`values_at()`]).
-#'   If `terms` is missing or `NULL`, adjusted predictions for each model term
-#'   are calculated (i.e. each model term is used as single focal term). It is
-#'   also possible to define specific values for focal terms, at which adjusted
-#'   predictions should be calculated (see 'Details'). All remaining covariates
-#'   that are not specified in `terms` are held constant (see 'Details'). See
-#'   also arguments `condition` and `typical`.
+#' @param terms Names of those terms from `model`, for which predictions should
+#'   be displayed (so called _focal terms_). Can be:
+#'   - A character vector, specifying the names of the focal terms. This is the
+#'     preferred and probably most flexible way to specify focal terms, e.g.
+#'     `terms = "x [40:60]"`, to calculate predictions for the values 40 to 60.
+#'   - A list, where each element is a named vector, specifying the focal terms
+#'     and their values. This is the "classical" R way to specify focal terms,
+#'     e.g. `list(x = 40:60)`.
+#'   - A formula, e.g. `terms = ~ x + z`, which is internally converted to a
+#'     character vector. This is probably the least flexible way, as you cannot
+#'     specify representative values for the focal terms.
+#'   - A data frame representig a "data grid" or "reference grid". Predictions
+#'     are then made for all combinations of the variables in the data frame.
+#'
+#'   At least one term is required to calculate effects for certain terms,
+#'   maximum length is four terms, where the second to fourth term indicate the
+#'   groups, i.e. predictions of first term are grouped at meaningful values or
+#'   levels of the remaining terms (see [`values_at()`]). If `terms` is missing
+#'   or `NULL`, adjusted predictions for each model term are calculated (i.e.
+#'   each model term is used as single focal term). It is also possible to define
+#'   specific values for focal terms, at which adjusted predictions should be
+#'   calculated (see 'Details'). All remaining covariates that are not specified
+#'   in `terms` are held constant (see 'Details'). See also arguments `condition`
+#'   and `typical`.
 #' @param ci_level Numeric, the level of the confidence intervals. For `ggpredict()`,
 #'   use `ci_level = NA`, if confidence intervals should not be calculated
 #'   (for instance, due to computation time). Typically, confidence intervals
@@ -36,12 +49,16 @@
 #'   are returned, assuming normal distribution (i.e. `+/- 1.96 * SE`).
 #'   See introduction of [this vignette](https://strengejacke.github.io/ggeffects/articles/ggeffects.html)
 #'   for more details.
-#' @param type Character, only applies for survival models, mixed effects models
-#'   and/or models with zero-inflation. **Note:** For `brmsfit`-models
-#'   with zero-inflation component, there is no `type = "zero_inflated"` nor
-#'   `type = "zi_random"`; predicted values for `MixMod`-models from
-#'   **GLMMadaptive** with zero-inflation component *always* condition on
-#'   the zero-inflation part of the model (see 'Details').
+#' @param type Character, indicating whether predictions should be conditioned
+#'   on specific model components or not. Consequently, most options only apply
+#'   for survival models, mixed effects models and/or models with zero-inflation
+#'   (and their Bayesian counter-parts); only exeption is `type = "simulate"`,
+#'   which is available for some other model classes as well (which respond to
+#'   `simulate()`). **Note:** For `brmsfit`-models with zero-inflation component,
+#'   there is no `type = "zero_inflated"` nor `type = "zi_random"`; predicted
+#'   values for `MixMod`-models from **GLMMadaptive** with zero-inflation
+#'   component *always* condition on the zero-inflation part of the model (see
+#'   'Details').
 #'
 #'   - `"fixed"` (or `"fe"` or `"count"`)
 #'
@@ -53,6 +70,13 @@
 #'     zero-inflation). For models with zero-inflation component, this type calls
 #'     `predict(..., type = "link")` (however, predicted values are
 #'     back-transformed to the response scale).
+#'
+#'   - `"fixed_ppd"`
+#'
+#'     Only applies to `ggpredict()`, and only for Bayesian models of class
+#'     `stanreg` or `brmsfit`. Computes the posterior predictive distribution.
+#'     It is the same as setting `type = "fixed"` in combination with
+#'     `ppd = TRUE`.
 #'
 #'   - `"random"` (or `"re"`)
 #'
@@ -73,6 +97,13 @@
 #'     name of the related random effect term to the `terms`-argument
 #'     (for more details, see
 #'     [this vignette](https://strengejacke.github.io/ggeffects/articles/introduction_effectsatvalues.html)).
+#'
+#'   - `"random_ppd"`
+#'
+#'     Only applies to `ggpredict()`, and only for Bayesian models of class
+#'     `stanreg` or `brmsfit`. Computes the posterior predictive distribution.
+#'     It is the same as setting `type = "random"` in combination with
+#'     `ppd = TRUE`.
 #'
 #'   - `"zero_inflated"` (or `"fe.zi"` or `"zi"`)
 #'
@@ -130,10 +161,9 @@
 #' @param back_transform Logical, if `TRUE` (the default), predicted values
 #'   for log- or log-log transformed responses will be back-transformed to
 #'   original response-scale.
-#' @param ppd Logical, if `TRUE`, predictions for Stan-models are
-#'   based on the posterior predictive distribution
-#'   [`rstantools::posterior_predict()`]. If `FALSE` (the
-#'   default), predictions are based on posterior draws of the linear
+#' @param ppd Logical, if `TRUE`, predictions for Stan-models are based on the
+#'   posterior predictive distribution [`rstantools::posterior_predict()`]. If
+#'   `FALSE` (the default), predictions are based on posterior draws of the linear
 #'   predictor [`rstantools::posterior_linpred()`].
 #' @param condition Named character vector, which indicates covariates that
 #'   should be held constant at specific values. Unlike `typical`, which
@@ -174,12 +204,12 @@
 #' @param ci.lvl,vcov.fun,vcov.type,vcov.args,back.transform Deprecated arguments.
 #'   Please use `ci_level`, `vcov_fun`, `vcov_type`, `vcov_args` and `back_transform`
 #'   instead.
-#' @param ... For `ggpredict()`, further arguments passed down to
-#'   `predict()`; for `ggeffect()`, further arguments passed
-#'   down to `effects::Effect()`; and for `ggemmeans()`,
-#'   further arguments passed down to `emmeans::emmeans()`.
-#'   If `type = "sim"`, `...` may also be used to set the number of
-#'   simulation, e.g. `nsim = 500`.
+#' @param ... For `ggpredict()`, further arguments passed down to `predict()`;
+#'   for `ggeffect()`, further arguments passed down to `effects::Effect()`; for
+#'   `ggemmeans()`, further arguments passed down to `emmeans::emmeans()`; and
+#'   for `ggaverage()`, further arguments passed down to
+#'   `marginaleffects::avg_predictions()`.  If `type = "simulate"`, `...` may
+#'   also be used to set the number of simulation, e.g. `nsim = 500`.
 #'
 #' @details
 #' **Supported Models**
@@ -205,6 +235,26 @@
 #' category. Use `condition` to set a specific level for factors in
 #' `ggemmeans()`, so factors are not averaged over their categories,
 #' but held constant at a given level.
+#'
+#' **Difference between `ggemmeans()` and `ggaverage()`**
+#'
+#' Estimated marginal means, as computed by `ggemmeans()` or `ggeffect()`, are a
+#' special case of predictions, made on a perfectly balanced grid of categorical
+#' predictors, with numeric predictors held at their means, and marginalized with
+#' respect to some focal variables. `ggaverage()` calculates predicted values
+#' for each observation in the data multiple times, each time fixing all values
+#' or levels of the focal terms to and then takes the average of these predicted
+#' values (aggregated/grouped by the focal terms). There is no rule of thumb
+#' which approach is better; it depends on the characteristics of the sample and
+#' the population to which should be generalized. Consulting the
+#' [marginaleffects-website](https://marginaleffects.com/) might help to decide
+#' which approach is more appropriate. The most apparent difference is how
+#' *non-focal* categorical predictors affect the predicted values. `ggpredict()`
+#' will condition on a certain level of the non-focal factors (usually, the reference
+#' level), `ggemmeans()` will "average" over the levels of non-focal factors,
+#' while `ggaverage()` will average over the observations in your sample. See also
+#' [this vignette](https://strengejacke.github.io/ggeffects/articles/technical_differencepredictemmeans.html)
+#' for details and examples.
 #'
 #' **Marginal Effects and Adjusted Predictions at Specific Values**
 #'
@@ -261,7 +311,7 @@
 #'
 #' **Holding covariates at constant values**
 #'
-#' For `ggpredict()`, a data grid is constructed, roughly comparable to 
+#' For `ggpredict()`, a data grid is constructed, roughly comparable to
 #' `expand.grid()` on all unique combinations of `model.frame(model)[, terms]`.
 #' This data grid (see [`data_grid()`]) as `newdata` argument for `predict()`.
 #' In this case, all remaining covariates that are not specified in `terms` are
@@ -275,9 +325,15 @@
 #' represents the proportions of each factor's category, is used. The same
 #' applies to character vectors: `ggemmeans()` averages over the distribution
 #' of unique values in a character vector, similar to how factors are treated.
-#' For `ggemmeans()`, use `condition` to set a specific level for
-#' factors so that these are not averaged over their categories, but held
-#' constant at the given level.
+#' Thus, *non-focal categorical terms* in `ggemmeans()` and `ggeffect()` are
+#' conditioned on "weighted averages" of their levels. For `ggemmeans()`, use
+#' `condition` to set a specific level for factors so that these are not
+#' averaged over their categories, but held constant at the given level.
+#'
+#' Finally, `ggaverage()` calculates *average predicted values*, which are
+#' averaged over the full sample and aggregated by (representative values of)
+#' the focal terms. For further details, see
+#' [this vignette](https://strengejacke.github.io/ggeffects/articles/technical_differencepredictemmeans.html).
 #'
 #' **Bayesian Regression Models**
 #'
@@ -308,7 +364,7 @@
 #'
 #' An alternative for models fitted with **glmmTMB** that take all model
 #' uncertainties into account are simulations based on `simulate()`, which
-#' is used when `type = "sim"` (see _Brooks et al. 2017_, pp.392-393 for
+#' is used when `type = "simulate"` (see _Brooks et al. 2017_, pp.392-393 for
 #' details).
 #'
 #' **MixMod-models from GLMMadaptive**
@@ -512,22 +568,28 @@ ggpredict <- function(model,
                                       "zero_inflated_random", "zi.prob", "zi_prob",
                                       "sim", "simulate", "surv", "survival", "cumhaz",
                                       "cumulative_hazard", "sim_re", "simulate_random",
-                                      "debug"))
+                                      "debug", "fixed_ppd", "random_ppd"))
+
+  # handle Bayes exceptions for type with ppd
+  if (type %in% c("fixed_ppd", "random_ppd")) {
+    ppd <- TRUE
+    type <- gsub("_ppd", "", type, fixed = TRUE)
+  }
 
   type <- switch(
     type,
-    "fixed" = ,
-    "count" = "fe",
-    "random" = "re",
-    "zi" = ,
-    "zero_inflated" = "fe.zi",
-    "zi_random" = ,
-    "zero_inflated_random" = "re.zi",
-    "zi_prob" = "zi.prob",
-    "survival" = "surv",
-    "cumulative_hazard" = "cumhaz",
-    "simulate" = "sim",
-    "simulate_random" = "sim_re",
+    fixed = ,
+    count = "fe",
+    random = "re",
+    zi = ,
+    zero_inflated = "fe.zi",
+    zi_random = ,
+    zero_inflated_random = "re.zi",
+    zi_prob = "zi.prob",
+    survival = "surv",
+    cumulative_hazard = "cumhaz",
+    simulate = "sim",
+    simulate_random = "sim_re",
     type
   )
 
@@ -561,14 +623,11 @@ ggpredict <- function(model,
   interval <- match.arg(interval, choices = c("confidence", "prediction"))
   model.name <- deparse(substitute(model))
 
-  # check if terms are a formula
-  if (!missing(terms) && !is.null(terms) && inherits(terms, "formula")) {
-    terms <- all.vars(terms)
-  }
-
-  # "terms" can also be a list, convert now
-  if (!missing(terms) && !is.null(terms)) {
-    terms <- .list_to_character_terms(terms)
+  # process "terms", so we have the default character format. Furthermore,
+  # check terms argument, to make sure that terms were not misspelled and are
+  # indeed existing in the data
+  if (!missing(terms)) {
+    terms <- .reconstruct_focal_terms(terms, model = NULL)
   }
 
   # tidymodels?
@@ -577,79 +636,64 @@ ggpredict <- function(model,
   }
 
   # for gamm/gamm4 objects, we have a list with two items, mer and gam
-  # extract just the mer-part then
-  if (is.gamm(model) || is.gamm4(model)) model <- model$gam
+  # extract just the gam-part then
+  if (is.gamm(model) || is.gamm4(model)) {
+    model <- model$gam
+  }
+
+  # for sdmTMB objects, delta/hurdle models have family lists
+  if (.is_delta_sdmTMB(model)) {
+    insight::format_error("`ggpredict()` does not yet work with `sdmTMB` delta models.")
+  }
+
+  # prepare common arguments, for do.cal()
+  args <- list(
+    ci.lvl = ci_level,
+    type = type,
+    typical = typical,
+    ppd = ppd,
+    condition = condition,
+    back.transform = back_transform,
+    vcov.fun = vcov_fun,
+    vcov.type = vcov_type,
+    vcov.args = vcov_args,
+    interval = interval,
+    verbose = verbose
+  )
 
   if (inherits(model, "list") && !inherits(model, c("bamlss", "maxLik"))) {
-    res <- lapply(model, function(.x) {
-      ggpredict_helper(
-        model = .x,
-        terms = terms,
-        ci.lvl = ci_level,
-        type = type,
-        typical = typical,
-        ppd = ppd,
-        condition = condition,
-        back.transform = back_transform,
-        vcov.fun = vcov_fun,
-        vcov.type = vcov_type,
-        vcov.args = vcov_args,
-        interval = interval,
-        verbose = verbose,
-        ...
-      )
+    # we have a list of multiple model objects here ------------------------------
+    result <- lapply(model, function(model_object) {
+      full_args <- c(list(model = model_object, terms = terms), args, list(...))
+      do.call(ggpredict_helper, full_args)
     })
-    class(res) <- c("ggalleffects", class(res))
+    class(result) <- c("ggalleffects", class(result))
   } else {
     if (missing(terms) || is.null(terms)) {
+      # if no terms are specified, we try to find all predictors ---------------
       predictors <- insight::find_predictors(model, effects = "fixed", component = "conditional", flatten = TRUE)
-      res <- lapply(
+      result <- lapply(
         predictors,
-        function(.x) {
-          tmp <- ggpredict_helper(
-            model = model,
-            terms = .x,
-            ci.lvl = ci_level,
-            type = type,
-            typical = typical,
-            ppd = ppd,
-            condition = condition,
-            back.transform = back_transform,
-            vcov.fun = vcov_fun,
-            vcov.type = vcov_type,
-            vcov.args = vcov_args,
-            interval = interval,
-            verbose = verbose,
-            ...
-          )
-          tmp$group <- .x
+        function(focal_term) {
+          full_args <- c(list(model = model, terms = focal_term), args, list(...))
+          tmp <- do.call(ggpredict_helper, full_args)
+          tmp$group <- focal_term
           tmp
         }
       )
-      names(res) <- predictors
-      class(res) <- c("ggalleffects", class(res))
+      names(result) <- predictors
+      class(result) <- c("ggalleffects", class(result))
     } else {
-      res <- ggpredict_helper(
-        model = model,
-        terms = terms,
-        ci.lvl = ci_level,
-        type = type,
-        typical = typical,
-        ppd = ppd,
-        condition = condition,
-        back.transform = back_transform,
-        vcov.fun = vcov_fun,
-        vcov.type = vcov_type,
-        vcov.args = vcov_args,
-        interval = interval,
-        verbose = verbose,
-        ...
-      )
+      # if terms are specified, we compute predictions for these terms ---------
+      full_args <- c(list(model = model, terms = terms), args, list(...))
+      result <- do.call(ggpredict_helper, full_args)
     }
   }
 
-  if (!is.null(res)) attr(res, "model.name") <- model.name
-  res
+  if (!is.null(result)) {
+    attr(result, "model.name") <- model.name
+  }
+  result
 }
 
 
@@ -674,15 +718,19 @@ ggpredict_helper <- function(model,
   # (while "inherits()" may return multiple attributes)
   model_class <- get_predict_function(model)
 
-  # check terms argument, to make sure that terms were not misspelled
-  # and are indeed existing in the data
+  # sanity check, if terms really exist in data
   terms <- .check_vars(terms, model)
+
+  # clean "terms" from possible brackets
   cleaned_terms <- .clean_terms(terms)
 
   # check model family
   model_info <- .get_model_info(model)
 
-  if (model_class == "coxph" && type == "surv") model_info$is_binomial <- TRUE
+  # survival models are binomial
+  if (model_class == "coxph" && type == "surv") {
+    model_info$is_binomial <- TRUE
+  }
 
   # get model frame
   model_frame <- .get_model_data(model)
@@ -690,7 +738,7 @@ ggpredict_helper <- function(model,
   # expand model frame to data grid of unique combinations
   data_grid <- .data_grid(
     model = model, model_frame = model_frame, terms = terms, value_adjustment = typical,
-    condition = condition, show_pretty_message = verbose
+    condition = condition, show_pretty_message = verbose, verbose = verbose
   )
 
   # save original frame, for labels, and original terms
@@ -721,7 +769,9 @@ ggpredict_helper <- function(model,
   )
 
   # return if no predicted values have been computed
-  if (is.null(prediction_data)) return(NULL)
+  if (is.null(prediction_data)) {
+    return(NULL)
+  }
 
   # remember if grouping variable was numeric, possibly needed for plotting
   attr(prediction_data, "continuous.group") <- attr(data_grid, "continuous.group")
@@ -754,6 +804,11 @@ ggpredict_helper <- function(model,
   # add raw data as well
   attr(result, "rawdata") <- .get_raw_data(model, original_model_frame, terms)
 
+  # no adjustment for type = "simulate"
+  if (type == "sim") {
+    attributes(data_grid)$constant.values <- NULL
+  }
+
   .post_processing_labels(
     model = model,
     result = result,
@@ -767,7 +822,7 @@ ggpredict_helper <- function(model,
     at_list = .data_grid(
       model = model, model_frame = original_model_frame, terms = original_terms,
       value_adjustment = typical, condition = condition, show_pretty_message = FALSE,
-      emmeans.only = TRUE
+      emmeans.only = TRUE, verbose = FALSE
     ),
     condition = condition,
     ci.lvl = ci.lvl,

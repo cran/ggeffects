@@ -1,14 +1,18 @@
-.post_processing_predictions <- function(model, prediction_data, original_model_frame, cleaned_terms) {
+.post_processing_predictions <- function(model,
+                                         prediction_data,
+                                         original_model_frame,
+                                         cleaned_terms,
+                                         averaged_predictions = FALSE) {
   # check for correct terms specification
   if (!all(cleaned_terms %in% colnames(prediction_data))) {
     insight::format_error("At least one term specified in `terms` is no valid model term.")
   }
 
   # copy standard errors
-  if (!.obj_has_name(prediction_data, "std.error")) {
-    prediction_data$std.error <- attr(prediction_data, "std.error")
-  } else {
+  if (.obj_has_name(prediction_data, "std.error")) {
     attr(prediction_data, "std.error") <- prediction_data$std.error
+  } else {
+    prediction_data$std.error <- attr(prediction_data, "std.error")
   }
 
   # now select only relevant variables: the predictors on the x-axis,
@@ -56,15 +60,11 @@
 
   attr(result, "legend.labels") <- legend.labels
   attr(result, "x.is.factor") <- x.is.factor
+  attr(result, "averaged_predictions") <- averaged_predictions
   attr(result, "continuous.group") <- attr(prediction_data, "continuous.group") & is.null(attr(original_model_frame[[cleaned_terms[2]]], "labels"))
-
 
   result
 }
-
-
-
-
 
 
 # name and sort columns, depending on groups, facet and panel

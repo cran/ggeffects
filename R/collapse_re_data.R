@@ -11,37 +11,28 @@
 #' @param residuals Logical, if `TRUE`, collapsed partial residuals instead
 #'   of raw data by the levels of the grouping factor.
 #' @inheritParams residualize_over_grid
-#' @param collapse.by Deprecated. Use `collapse_by` instead.
 #'
 #' @return A data frame with raw data points, averaged over the levels of
 #'   the given grouping factor from the random effects. The group level of
 #'   the random effect is saved in the column `"random"`.
 #'
-#' @examples
+#' @examplesIf require("lme4", quietly = TRUE)
 #' library(ggeffects)
-#' if (require("lme4", quietly = TRUE)) {
-#'   data(efc)
-#'   efc$e15relat <- as.factor(efc$e15relat)
-#'   efc$c161sex <- as.factor(efc$c161sex)
-#'   levels(efc$c161sex) <- c("male", "female")
-#'   model <- lmer(neg_c_7 ~ c161sex + (1 | e15relat), data = efc)
-#'   me <- ggpredict(model, terms = "c161sex")
-#'   head(attributes(me)$rawdata)
-#'   collapse_by_group(me, model, "e15relat")
-#' }
+#' data(efc)
+#' efc$e15relat <- as.factor(efc$e15relat)
+#' efc$c161sex <- as.factor(efc$c161sex)
+#' levels(efc$c161sex) <- c("male", "female")
+#' model <- lme4::lmer(neg_c_7 ~ c161sex + (1 | e15relat), data = efc)
+#' me <- ggpredict(model, terms = "c161sex")
+#' head(attributes(me)$rawdata)
+#' collapse_by_group(me, model, "e15relat")
 #' @export
-collapse_by_group <- function(grid, model, collapse_by = NULL, residuals = FALSE, collapse.by = collapse_by) {
-
-  ## TODO: handle deprecated argument
-  if (!missing(collapse.by)) {
-    collapse_by <- collapse.by
-  }
-
+collapse_by_group <- function(grid, model, collapse_by = NULL, residuals = FALSE) {
   if (!insight::is_mixed_model(model)) {
     insight::format_error("This function only works with mixed effects models.")
   }
 
-  data <- insight::get_data(model, source = "frame")
+  model_data <- insight::get_data(model, source = "frame")
 
   if (is.null(collapse_by)) {
     collapse_by <- insight::find_random(model, flatten = TRUE)
@@ -55,7 +46,7 @@ collapse_by_group <- function(grid, model, collapse_by = NULL, residuals = FALSE
     )
   }
 
-  if (!collapse_by %in% colnames(data)) {
+  if (!collapse_by %in% colnames(model_data)) {
     insight::format_error("Could not find `", collapse_by, "` column.")
   }
 
@@ -66,7 +57,7 @@ collapse_by_group <- function(grid, model, collapse_by = NULL, residuals = FALSE
     rawdata <- attr(grid, "rawdata", exact = TRUE)
     y_name <- "response"
 
-    if (any(sapply(rawdata[-(1:2)], Negate(is.factor))) || attr(grid, "x.is.factor", exact = TRUE) == "0") {
+    if (any(vapply(rawdata[-(1:2)], Negate(is.factor), logical(1))) || attr(grid, "x.is.factor", exact = TRUE) == "0") { # nolint
       insight::format_alert("Collapsing usually not informative across a continuous variable.")
     }
   }
@@ -78,7 +69,7 @@ collapse_by_group <- function(grid, model, collapse_by = NULL, residuals = FALSE
     } # else ordinal?
   }
 
-  rawdata$random <- factor(data[[collapse_by]])
+  rawdata$random <- factor(model_data[[collapse_by]])
 
   agg_data <- stats::aggregate(rawdata[[y_name]],
                                by = rawdata[colnames(rawdata) != y_name],

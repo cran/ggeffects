@@ -286,7 +286,7 @@ plot.ggeffects <- function(x,
   ci_style <- match.arg(ci_style)
 
   # fix axis limits for log-y-scales
-  add.args <- lapply(match.call(expand.dots = FALSE)$`...`, function(x) x)
+  add.args <- match.call(expand.dots = FALSE)[["..."]]
   if (!("breaks" %in% names(add.args)) && isTRUE(log_y)) {
     y.breaks <- unique(round(log2(pretty(c(min(x$conf.low), max(x$conf.high))))))
     y.breaks[is.nan(y.breaks)] <- NA
@@ -483,7 +483,7 @@ plot.ggeffects <- function(x,
         alpha = alpha,
         dot.alpha = dot_alpha,
         dodge = dodge,
-        ci = show_ci,
+        show.ci = show_ci,
         ci.style = ci_style,
         dot.size = dot_size,
         line.size = line_size,
@@ -531,7 +531,7 @@ plot.ggeffects <- function(x,
       alpha = alpha,
       dot.alpha = dot_alpha,
       dodge = dodge,
-      ci = show_ci,
+      show.ci = show_ci,
       ci.style = ci_style,
       dot.size = dot_size,
       line.size = line_size,
@@ -576,7 +576,7 @@ plot_panel <- function(x,
                        alpha,
                        dot.alpha,
                        dodge,
-                       ci,
+                       show.ci,
                        ci.style,
                        dot.size,
                        line.size,
@@ -601,10 +601,19 @@ plot_panel <- function(x,
   # fake init
   .data <- NULL
 
-  if (.obj_has_name(x, "group") && is.character(x$group)) x$group <- factor(x$group, levels = unique(x$group))
-  if (.obj_has_name(x, "facet") && is.character(x$facet)) x$facet <- factor(x$facet, levels = unique(x$facet))
-  if (.obj_has_name(x, "response.level") && is.character(x$response.level)) x$response.level <- ordered(x$response.level, levels = unique(x$response.level))
+  # for plotting, we need to convert groups/facets into factors
+  if (.obj_has_name(x, "group") && is.character(x$group)) {
+    x$group <- factor(x$group, levels = unique(x$group))
+  }
+  if (.obj_has_name(x, "facet") && is.character(x$facet)) {
+    x$facet <- factor(x$facet, levels = unique(x$facet))
+  }
+  if (.obj_has_name(x, "response.level") && is.character(x$response.level)) {
+    x$response.level <- ordered(x$response.level, levels = unique(x$response.level))
+  }
 
+  # when group variable is numeric (like mean +/- SD), we need to preserve
+  # numeric values
   if (rawdata && isTRUE(attr(x, "continuous.group"))) {
     x$group_col <- as.numeric(as.character(x$group))
   } else {
@@ -617,6 +626,9 @@ plot_panel <- function(x,
   single_color <- FALSE
 
   if (has_groups && !facets_grp && is_black_white && x_is_factor) {
+    # - we have more than one level/category for the x-axis
+    # - x-axis has a categorical predictor
+    # - black/white plot is requested, so we use different point shapes
     p <- ggplot2::ggplot(
       plot_data,
       ggplot2::aes(
@@ -628,6 +640,9 @@ plot_panel <- function(x,
       )
     )
   } else if (has_groups && !facets_grp && is_black_white && !x_is_factor) {
+    # - we have more than one level/category (legend)
+    # - x-axis is a numeric / continuous predictor
+    # - black/white plot is requested, so we use different line types
     p <- ggplot2::ggplot(
       plot_data,
       ggplot2::aes(
@@ -639,6 +654,9 @@ plot_panel <- function(x,
       )
     )
   } else if (has_groups && !facets_grp && !is.null(colors) && colors[1] == "gs" && x_is_factor) {
+    # - we have more than one level/category (legend)
+    # - x-axis is a numeric / continuous predictor
+    # - grey scale plot is requested, so we use different shapes
     p <- ggplot2::ggplot(
       plot_data,
       ggplot2::aes(
@@ -650,6 +668,9 @@ plot_panel <- function(x,
       )
     )
   } else if (has_groups && (is.null(colors) || colors[1] != "bw")) {
+    # - we have more than one level/category (legend)
+    # - x-axis is either numeric or factor
+    # - default color palette is used, so we don't need to map line types or shapes
     p <- ggplot2::ggplot(
       plot_data,
       ggplot2::aes(
@@ -660,6 +681,8 @@ plot_panel <- function(x,
       )
     )
   } else {
+    # - no groups, so we have a single color plot w/o legend
+    # - colors are hardcoded inside geom
     p <- ggplot2::ggplot(
       plot_data,
       ggplot2::aes(x = .data[["x"]], y = .data[["predicted"]])
@@ -671,6 +694,7 @@ plot_panel <- function(x,
 
   # get color values -----
 
+  # we may have shortcuts are "colors", here we retrieve the actual color values
   colors <- .get_colors(
     colors,
     length(unique(stats::na.omit(x$group))),
@@ -776,7 +800,7 @@ plot_panel <- function(x,
 
   # CI ----
 
-  if (ci) {
+  if (show.ci) {
 
     # for a factor on x-axis, use error bars
 
@@ -1124,7 +1148,7 @@ plot.ggalleffects <- function(x,
 
   if (length(x) == 1) {
     x <- x[[1]]
-    do.call(graphics::plot, list(x, args))
+    do.call(graphics::plot, c(list(x), args))
   } else if (isTRUE(facets)) {
     # merge all effect-data frames into one
     dat <- get_complete_df(x)
@@ -1145,10 +1169,10 @@ plot.ggalleffects <- function(x,
     attr(dat, "logistic") <- attr(x[[1]], "logistic", exact = TRUE)
     attr(dat, "fitfun") <- attr(x[[1]], "fitfun", exact = TRUE)
 
-    do.call(graphics::plot, list(x = dat, args))
+    do.call(graphics::plot, c(list(x = dat), args))
   } else {
     lapply(x, function(.x) {
-      do.call(graphics::plot, list(x = .x, args))
+      do.call(graphics::plot, c(list(x = .x), args))
     })
   }
 }
@@ -1204,6 +1228,7 @@ plot.ggalleffects <- function(x,
     # check if we have a group-variable with at least two groups
     if (.obj_has_name(rawdat, "group")) {
 
+      # we need to make sure that scale of raw data matches scale of predictions
       if (isTRUE(attr(x, "continuous.group"))) {
         rawdat$group_col <- as.numeric(as.character(rawdat$group))
       } else {
@@ -1211,7 +1236,6 @@ plot.ggalleffects <- function(x,
       }
 
       rawdat$group <- as.factor(rawdat$group)
-      # levels(rawdat$group) <- unique(x$group)
       grps <- .n_distinct(rawdat$group) > 1
     } else {
       grps <- FALSE
@@ -1223,10 +1247,7 @@ plot.ggalleffects <- function(x,
       rawdat <- rawdat[which(rawdat$group %in% x$group), , drop = FALSE]
     }
 
-
-    # if we have groups, add colour aes, to map raw data to
-    # grouping variable
-
+    # if we have groups, add colour aes, to map raw data to grouping variable
     if (grps) {
       mp <- ggplot2::aes(
         x = .data[["x"]],
@@ -1246,7 +1267,6 @@ plot.ggalleffects <- function(x,
     }
 
     # for binary response, no jittering by default
-
     if ((attr(x, "logistic", exact = TRUE) == "1" && jitter.miss) || is.null(jitter)) {
       p <- p + ggplot2::geom_point(
         data = rawdat,

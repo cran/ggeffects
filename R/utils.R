@@ -7,12 +7,7 @@
 
 .check_vars <- function(terms, model) {
   if (missing(terms) || is.null(terms)) {
-    insight::format_error("`terms` needs to be a character vector with at least one predictor name: one term used for the x-axis, more optional terms as grouping factors.")
-  }
-
-  # do we have a list? Just use names then
-  if (is.list(terms)) {
-    terms <- names(terms)
+    insight::format_error("`terms` needs to be a character vector with at least one predictor name: one term used for the x-axis, more optional terms as grouping factors.") # nolint
   }
 
   # check for correct length of vector
@@ -22,22 +17,20 @@
   }
 
   out_msg <- NULL
-  if (!is.null(model)) {
-    msg <- tryCatch(
-      {
-        pv <- insight::find_predictors(model, effects = "all", component = "all", flatten = TRUE)
-        clean.terms <- .clean_terms(terms)
-        if (!all(clean.terms %in% pv)) {
-          out_msg <- c(
-            "Some of the specified `terms` were not found in the model.",
-            .misspelled_string(pv, clean.terms, "Maybe misspelled?")
-          )
-        }
-        out_msg
-      },
-      error = function(x) NULL
-    )
-  }
+  msg <- tryCatch(
+    {
+      pv <- insight::find_predictors(model, effects = "all", component = "all", flatten = TRUE)
+      clean.terms <- .clean_terms(terms)
+      if (!all(clean.terms %in% pv)) {
+        out_msg <- c(
+          "Some of the specified `terms` were not found in the model.",
+          .misspelled_string(pv, clean.terms, "Maybe misspelled?")
+        )
+      }
+      out_msg
+    },
+    error = function(x) NULL
+  )
 
   if (!is.null(out_msg)) {
     insight::format_error(out_msg)
@@ -54,11 +47,11 @@
       return(NULL)
     }
     cleaned_off <- insight::clean_names(off)
-    if (!identical(off, cleaned_off) && isTRUE(verbose) && !inherits(model, "glmmTMB") && !cleaned_off %in% names(condition)) {
+    if (!identical(off, cleaned_off) && isTRUE(verbose) && !inherits(model, "glmmTMB") && !cleaned_off %in% names(condition)) { # nolint
       insight::format_alert(
         "Model uses a transformed offset term. Predictions may not be correct.",
-        sprintf("It is recommended to fix the offset term using the `condition` argument, e.g. `condition = c(%s = 1)`.", cleaned_off),
-        sprintf("You could also transform the offset variable before fitting the model and use `offset(%s)` in the model formula.", cleaned_off)
+        sprintf("It is recommended to fix the offset term using the `condition` argument, e.g. `condition = c(%s = 1)`.", cleaned_off), # nolint
+        sprintf("You could also transform the offset variable before fitting the model and use `offset(%s)` in the model formula.", cleaned_off) # nolint
       )
     }
     cleaned_off
@@ -108,10 +101,6 @@
   if (inherits(model, "coxph")) {
     response <- response[[2]]
   }
-
-  ## TODO: rv is currently not used?
-  # back-transform log-transformed response?
-  rv <- insight::find_terms(model)[["response"]]
 
   # character vectors to factors
   for (i in terms) {
@@ -274,6 +263,15 @@ is.gamm4 <- function(x) {
 }
 
 
+.is_delta_sdmTMB <- function(x) {
+  ret <- FALSE
+  if (inherits(x, "sdmTMB") && isTRUE(x$family$delta)) {
+    ret <- TRUE
+  }
+  ret
+}
+
+
 .n_distinct <- function(x, na.rm = TRUE) {
   if (na.rm) x <- x[!is.na(x)]
   length(unique(x))
@@ -309,6 +307,17 @@ is.gamm4 <- function(x) {
 
 .is_numeric_factor <- function(x) {
   is.factor(x) && !anyNA(suppressWarnings(as.numeric(levels(x))))
+}
+
+
+.is_pseudo_numeric <- function(x) {
+  if (is.factor(x)) {
+    any(startsWith(levels(x), "0"))
+  } else if (is.character(x)) {
+    any(startsWith(x, "0"))
+  } else {
+    FALSE
+  }
 }
 
 
@@ -355,8 +364,7 @@ is.gamm4 <- function(x) {
   if (!all(ev >= -tol * abs(ev[1L]))) {
     insight::format_error("`Sigma` is not positive definite.")
   }
-  X <- drop(mu) + eS$vectors %*% diag(sqrt(pmax(ev, 0)), p) %*%
-    t(matrix(stats::rnorm(p * n), n))
+  X <- drop(mu) + eS$vectors %*% diag(sqrt(pmax(ev, 0)), p) %*% t(matrix(stats::rnorm(p * n), n))
   nm <- names(mu)
   dn <- dimnames(Sigma)
   if (is.null(nm) && !is.null(dn)) {
@@ -439,7 +447,7 @@ is.gamm4 <- function(x) {
     n <- n - 1L
     env <- sys.frame(n)
     r <- try(eval(str2lang(x), envir = env), silent = TRUE)
-    if(!inherits(r, "try-error") && !is.null(r)) {
+    if (!inherits(r, "try-error") && !is.null(r)) {
       return(r)
     }
   }

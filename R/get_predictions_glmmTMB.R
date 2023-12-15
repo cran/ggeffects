@@ -14,10 +14,11 @@ get_predictions_glmmTMB <- function(model,
   pred.interval <- FALSE
 
   # compute ci, two-ways
-  if (!is.null(ci.lvl) && !is.na(ci.lvl))
+  if (!is.null(ci.lvl) && !is.na(ci.lvl)) {
     ci <- (1 + ci.lvl) / 2
-  else
+  } else {
     ci <- 0.975
+  }
 
   # degrees of freedom
   dof <- .get_df(model)
@@ -31,33 +32,39 @@ get_predictions_glmmTMB <- function(model,
 
   # check if we have zero-inflated model part
   if (!model_info$is_zero_inflated && type %in% c("fe.zi", "re.zi", "zi.prob")) {
-    if (type == "zi.prob")
+    if (type == "zi.prob") {
       insight::format_error("Model has no zero-inflation part.")
-    else if (type == "fe.zi")
+    } else if (type == "fe.zi") {
       type <- "fe"
-    else
+    } else {
       type <- "re"
-
-    insight::format_alert(sprintf("Model has no zero-inflation part. Changing prediction-type to \"%s\".", type))
+    }
+    # tell user if he wanted ZI component, but model has no ZI part
+    insight::format_alert(sprintf(
+      "Model has no zero-inflation part. Changing prediction-type to \"%s\".",
+      switch(type,
+        fe = "fixed",
+        re = "random"
+      )
+    ))
   }
-
 
   # check whether predictions should be conditioned
   # on random effects (grouping level) or not.
-
-  if (type %in% c("fe", "fe.zi"))
+  if (type %in% c("fe", "fe.zi")) {
     ref <- NA
-  else
+  } else {
     ref <- NULL
+  }
 
+  # check additional arguments, like number of simulations
+  additional_dot_args <- match.call(expand.dots = FALSE)[["..."]]
 
-  additional_dot_args <- lapply(match.call(expand.dots = FALSE)$`...`, function(x) x)
-
-  if ("nsim" %in% names(additional_dot_args))
+  if ("nsim" %in% names(additional_dot_args)) {
     nsim <- eval(additional_dot_args[["nsim"]])
-  else
+  } else {
     nsim <- 1000
-
+  }
 
   # predictions conditioned on zero-inflation component
 
@@ -69,16 +76,11 @@ get_predictions_glmmTMB <- function(model,
       type = "response",
       se.fit = FALSE,
       re.form = ref,
+      allow.new.levels = TRUE,
       ...
     ))
 
-    if (!se) {
-
-      predicted_data$predicted <- prdat
-      predicted_data$conf.low <- NA
-      predicted_data$conf.high <- NA
-
-    } else {
+    if (se) {
 
       model_frame <- insight::get_data(model, source = "frame")
 
@@ -105,9 +107,9 @@ get_predictions_glmmTMB <- function(model,
 
       prdat.sim <- .simulate_zi_predictions(model, newdata, nsim, terms, value_adjustment, condition)
 
-      if (any(sapply(prdat.sim, nrow) == 0)) {
+      if (any(vapply(prdat.sim, nrow, numeric(1)) == 0)) {
         insight::format_error(
-          "Could not simulate predictions. Maybe you have used 'scale()' in the formula? If so, please standardize your data before fitting the model."
+          "Could not simulate predictions. Maybe you have used 'scale()' in the formula? If so, please standardize your data before fitting the model." # nolint
         )
       }
 
@@ -138,6 +140,8 @@ get_predictions_glmmTMB <- function(model,
         sims <- exp(prdat.sim$cond) * (1 - stats::plogis(prdat.sim$zi))
         predicted_data <- .join_simulations(data_grid, newdata, prdat, sims, ci, clean_terms)
 
+        # if we want to condition on random effects, we need to add residual
+        # variance to the confidence intervals
         if (type == "re.zi") {
           revar <- .get_residual_variance(model)
           # get link-function and back-transform fitted values
@@ -150,6 +154,12 @@ get_predictions_glmmTMB <- function(model,
           }
         }
       }
+    } else {
+
+      predicted_data$predicted <- prdat
+      predicted_data$conf.low <- NA
+      predicted_data$conf.high <- NA
+
     }
 
   } else if (type == "sim") {
@@ -178,6 +188,7 @@ get_predictions_glmmTMB <- function(model,
         type = "zlink",
         se.fit = se,
         re.form = ref,
+        allow.new.levels = TRUE,
         ...
       )
       linv <- stats::plogis
@@ -188,6 +199,7 @@ get_predictions_glmmTMB <- function(model,
         type = "link",
         se.fit = se,
         re.form = ref,
+        allow.new.levels = TRUE,
         ...
       )
     }

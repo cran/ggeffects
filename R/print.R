@@ -1,5 +1,5 @@
 #' @export
-print.ggeffects <- function(x, n = 10, digits = 2, use_labels = FALSE, ...) {
+print.ggeffects <- function(x, n = 10, digits = 2, use_labels = FALSE, verbose = TRUE, ...) {
 
   # remember if we have a factor
   x_is_factor <- identical(attr(x, "x.is.factor"), "1") && is.factor(x$x)
@@ -41,8 +41,9 @@ print.ggeffects <- function(x, n = 10, digits = 2, use_labels = FALSE, ...) {
   a1 <- attr(x, "fitfun", exact = TRUE)
   a2 <- attr(x, "y.title", exact = TRUE)
 
-  if (!is.null(a1) && !is.null(a2) && a1 == "coxph" && !(a2 == "Risk Score") && !"time" %in% terms)
+  if (!is.null(a1) && !is.null(a2) && a1 == "coxph" && !(a2 == "Risk Score") && !"time" %in% terms) {
     terms <- c("time", terms)
+  }
 
   # use focal term as column name
   focal_term <- terms[1]
@@ -51,12 +52,12 @@ print.ggeffects <- function(x, n = 10, digits = 2, use_labels = FALSE, ...) {
   x <- .round_numeric(x, digits = digits)
 
   # justify terms
-
   tl <- length(terms)
-  if (tl > 2) terms[2:tl] <- format(terms[2:tl], justify = "right")
+  if (tl > 2) {
+    terms[2:tl] <- format(terms[2:tl], justify = "right")
+  }
 
   # if we have groups, show n rows per group
-
   .n <- 1
 
   # we do not simply count rows, but rather the number of combinations
@@ -98,102 +99,102 @@ print.ggeffects <- function(x, n = 10, digits = 2, use_labels = FALSE, ...) {
   # make sure that by default not too many rows are printed. The larger ".n" is
   # (i.e. the more subheadings we have, see code above), the fewer rows we want
   # per subheading. For factors, however, we want to show all levels
-
   if (missing(n) && !x_is_factor) {
-    n <- if (.n >= 6)
+    n <- if (.n >= 6) {
       4
-    else if (.n >= 4 && .n < 6)
+    } else if (.n >= 4 && .n < 6) {
       5
-    else if (.n >= 2 && .n < 4)
+    } else if (.n >= 2 && .n < 4) {
       6
-    else
+    } else {
       8
+    }
   } else if (x_is_factor) {
     n <- Inf
   }
 
   if (!has_groups) {
 
-    if (!has_response) {
-      cat("\n")
-      if (.obj_has_name(x, "group")) x <- .remove_column(x, "group")
-      .print_block(x, n, digits, ci.lvl, ...)
-    } else {
+    if (has_response) {
       x$.nest <- tapply(x$predicted, list(x$response.level), NULL)
       xx <- split(x, x$.nest)
-
       for (i in xx) {
         insight::print_color(sprintf("\n# %s\n\n", i$response.level[1]), "red")
         .print_block(i, n, digits, ci.lvl, ...)
       }
+    } else {
+      cat("\n")
+      if (.obj_has_name(x, "group")) x <- .remove_column(x, "group")
+      .print_block(x, n, digits, ci.lvl, ...)
     }
 
   } else if (has_groups && !has_facets) {
 
-    if (!has_response) {
-      x$.nest <- tapply(x$predicted, list(x$group), NULL)
+    if (has_response) {
+      x$.nest <- tapply(x$predicted, list(x$response.level, x$group), NULL)
       xx <- split(x, x$.nest)
-
       for (i in xx) {
-        insight::print_color(sprintf("\n# %s\n\n", i$group[1]), "red")
+        insight::print_color(sprintf("\n# %s\n# %s\n\n", i$response.level[1], i$group[1]), "red")
         .print_block(i, n, digits, ci.lvl, ...)
       }
     } else {
-      x$.nest <- tapply(x$predicted, list(x$response.level, x$group), NULL)
+      x$.nest <- tapply(x$predicted, list(x$group), NULL)
       xx <- split(x, x$.nest)
-
       for (i in xx) {
-        insight::print_color(sprintf("\n# %s\n# %s\n\n", i$response.level[1], i$group[1]), "red")
+        insight::print_color(sprintf("\n# %s\n\n", i$group[1]), "red")
         .print_block(i, n, digits, ci.lvl, ...)
       }
     }
 
   } else if (has_groups && has_facets && !has_panel) {
 
-    if (!has_response) {
-      x$.nest <- tapply(x$predicted, list(x$group, x$facet), NULL)
+    if (has_response) {
+      x$.nest <- tapply(x$predicted, list(x$response.level, x$group, x$facet), NULL)
       xx <- split(x, x$.nest)
-
       for (i in xx) {
-        insight::print_color(sprintf("\n# %s\n# %s\n\n", i$group[1], i$facet[1]), "red")
+        insight::print_color(sprintf("\n# %s\n# %s\n# %s\n\n", i$response.level[1], i$group[1], i$facet[1]), "red")
         .print_block(i, n, digits, ci.lvl, ...)
       }
     } else {
-      x$.nest <- tapply(x$predicted, list(x$response.level, x$group, x$facet), NULL)
+      x$.nest <- tapply(x$predicted, list(x$group, x$facet), NULL)
       xx <- split(x, x$.nest)
-
       for (i in xx) {
-        insight::print_color(sprintf("\n# %s\n# %s\n# %s\n\n", i$response.level[1], i$group[1], i$facet[1]), "red")
+        insight::print_color(sprintf("\n# %s\n# %s\n\n", i$group[1], i$facet[1]), "red")
         .print_block(i, n, digits, ci.lvl, ...)
       }
     }
 
   } else {
 
-    if (!has_response) {
-      x$.nest <- tapply(x$predicted, list(x$group, x$facet, x$panel), NULL)
+    if (has_response) {
+      x$.nest <- tapply(x$predicted, list(x$response.level, x$group, x$facet, x$panel), NULL)
       xx <- split(x, x$.nest)
-
       for (i in xx) {
-        insight::print_color(sprintf("\n# %s\n# %s\n# %s\n\n", i$group[1], i$facet[1], i$panel[1]), "red")
+        insight::print_color(sprintf(
+          "\n# %s\n# %s\n# %s\n# %s\n\n",
+          i$response.level[1],
+          i$group[1],
+          i$facet[1],
+          i$panel[1]
+        ), "red")
         .print_block(i, n, digits, ci.lvl, ...)
       }
     } else {
-      x$.nest <- tapply(x$predicted, list(x$response.level, x$group, x$facet, x$panel), NULL)
+      x$.nest <- tapply(x$predicted, list(x$group, x$facet, x$panel), NULL)
       xx <- split(x, x$.nest)
-
       for (i in xx) {
-        insight::print_color(sprintf("\n# %s\n# %s\n# %s\n# %s\n\n", i$response.level[1], i$group[1], i$facet[1], i$panel[1]), "red")
+        insight::print_color(sprintf("\n# %s\n# %s\n# %s\n\n", i$group[1], i$facet[1], i$panel[1]), "red")
         .print_block(i, n, digits, ci.lvl, ...)
       }
     }
   }
 
   cv <- lapply(consv, function(.x) {
-    if (is.numeric(.x))
+    if (is.numeric(.x)) {
       sprintf("%.2f", .x)
-    else
+    } else {
       as.character(.x)
+    }
   })
 
   if (!.is_empty(cv)) {
@@ -202,15 +203,17 @@ print.ggeffects <- function(x, n = 10, digits = 2, use_labels = FALSE, ...) {
 
     # ignore this string when determining maximum length
     poplev <- which(cv %in% c("NA (population-level)", "0 (population-level)"))
-    if (!.is_empty(poplev))
-      mcv <- cv[-poplev]
-    else
+    if (.is_empty(poplev)) {
       mcv <- cv
+    } else {
+      mcv <- cv[-poplev]
+    }
 
-    if (!.is_empty(mcv))
-      cv.space2 <- max(nchar(mcv))
-    else
+    if (.is_empty(mcv)) {
       cv.space2 <- 0
+    } else {
+      cv.space2 <- max(nchar(mcv))
+    }
 
     insight::print_color(paste0(
       "\nAdjusted for:\n",
@@ -221,7 +224,9 @@ print.ggeffects <- function(x, n = 10, digits = 2, use_labels = FALSE, ...) {
   }
 
   # show msg?
-  verbose <- isTRUE(attr(x, "verbose", exact = TRUE))
+  if (missing(verbose)) {
+    verbose <- isTRUE(attr(x, "verbose", exact = TRUE))
+  }
 
   fitfun <- attr(x, "fitfun", exact = TRUE)
   if (has_se && !is.null(fitfun) && fitfun != "lm" && isTRUE(verbose)) {
@@ -267,14 +272,15 @@ print.ggeffects <- function(x, n = 10, digits = 2, use_labels = FALSE, ...) {
 .print_block <- function(i, n, digits, ci.lvl, ...) {
   i <- as.data.frame(i)
   i <- i[setdiff(colnames(i), c("group", "facet", "panel", "response.level", ".nest"))]
-  # print.data.frame(, ..., row.names = FALSE, quote = FALSE)
   dd <- i[.get_sample_rows(i, n), , drop = FALSE]
 
   if ("conf.low" %in% colnames(dd) && "conf.high" %in% colnames(dd)) {
     dd$CI <- insight::format_ci(dd$conf.low, dd$conf.high, digits = digits, width = "auto")
     dd$CI <- gsub("95% CI ", "", dd$CI, fixed = TRUE)
 
-    if (is.null(ci.lvl)) ci.lvl <- 0.95
+    if (is.null(ci.lvl)) {
+      ci.lvl <- 0.95
+    }
     colnames(dd)[which(colnames(dd) == "CI")] <- sprintf("%g%% CI", 100 * ci.lvl)
 
     dd$conf.low <- NULL
@@ -287,5 +293,4 @@ print.ggeffects <- function(x, n = 10, digits = 2, use_labels = FALSE, ...) {
 
   colnames(dd)[which(colnames(dd) == "predicted")] <- "Predicted"
   cat(insight::export_table(dd, digits = digits, protect_integers = TRUE))
-  # print.data.frame(dd, ..., quote = FALSE, row.names = FALSE)
 }

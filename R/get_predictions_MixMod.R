@@ -19,23 +19,37 @@ get_predictions_MixMod <- function(model, data_grid, ci.lvl, linv, type, terms, 
   predicted_data <- data_grid
 
   if (!model_info$is_zero_inflated && type %in% c("fe.zi", "re.zi", "zi.prob")) {
-    if (type == "zi.prob")
+    if (type == "zi.prob") {
       insight::format_error("Model has no zero-inflation part.")
-    else if (type == "fe.zi")
+    } else if (type == "fe.zi") {
       type <- "fe"
-    else
+    } else {
       type <- "re"
+    }
 
-    insight::format_alert(sprintf("Model has no zero-inflation part. Changing prediction-type to \"%s\".", type))
+    insight::format_alert(sprintf(
+      "Model has no zero-inflation part. Changing prediction-type to \"%s\".",
+      switch(type,
+        fe = "fixed",
+        re = "random"
+      )
+    ))
   }
 
   if (model_info$is_zero_inflated && type %in% c("fe", "re")) {
-    if (type == "fe")
+    if (type == "fe") {
       type <- "fe.zi"
-    else
+    } else {
       type <- "re.zi"
+    }
 
-    insight::format_alert(sprintf("Model has zero-inflation part, predicted values can only be conditioned on zero-inflation part. Changing prediction-type to \"%s\".", type))
+    insight::format_alert(sprintf(
+      "Model has zero-inflation part, predicted values can only be conditioned on zero-inflation part. Changing prediction-type to \"%s\".", # nolint
+      switch(type,
+        fe.zi = "zero_inflated",
+        re.zi = "zi_random"
+      )
+    ))
   }
 
   if (type == "sim") {
@@ -46,16 +60,19 @@ get_predictions_MixMod <- function(model, data_grid, ci.lvl, linv, type, terms, 
 
     response_name <- insight::find_response(model)
     if (is.null(condition) || !(response_name %in% names(condition))) {
-      insight::format_warning(sprintf("Results for MixMod-objects may vary depending on which value the response is conditioned on. Make sure to choose a sensible value for '%s' using the 'condition'-argument.", response_name))
+      insight::format_warning(sprintf(
+        "Results for MixMod-objects may vary depending on which value the response is conditioned on. Make sure to choose a sensible value for '%s' using the 'condition'-argument.", # nolint
+        response_name
+      ))
     }
 
     prtype <- switch(
       type,
-      "fe" = ,
-      "fe.zi" = "mean_subject",
-      "re" = ,
-      "re.zi" = "subject_specific",
-      "zi.prob" = "zero_part",
+      fe = ,
+      fe.zi = "mean_subject",
+      re = ,
+      re.zi = "subject_specific",
+      zi.prob = "zero_part",
       "mean_subject"
     )
 
@@ -77,12 +94,13 @@ get_predictions_MixMod <- function(model, data_grid, ci.lvl, linv, type, terms, 
 
 
     if (model_info$is_zero_inflated && prtype == "mean_subject") {
-      add.args <- lapply(match.call(expand.dots = FALSE)$`...`, function(x) x)
+      add.args <- match.call(expand.dots = FALSE)[["..."]]
 
-      if ("nsim" %in% names(add.args))
+      if ("nsim" %in% names(add.args)) {
         nsim <- eval(add.args[["nsim"]])
-      else
+      } else {
         nsim <- 1000
+      }
 
       model_frame <- insight::get_data(model, source = "frame")
       clean_terms <- .clean_terms(terms)
