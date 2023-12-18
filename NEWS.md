@@ -1,3 +1,11 @@
+# ggeffects 1.3.4
+
+## General
+
+* `ggpredict()` now supports models of class `rqs` from package *quantreg*.
+
+* Fixed issues to be compatible with forthcoming update of *emmeans*.
+
 # ggeffects 1.3.3
 
 ## New function
