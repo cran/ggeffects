@@ -1,3 +1,37 @@
+# ggeffects 1.4.0
+
+## Breaking Changes
+
+* The `print()` method has been revised. A `format()` method was added, which
+  allows to format the output of `ggpredict()` (and `ggeffect()` etc.) for
+  printing. The refactoring of the `print()` method makes the code base easier
+  to maintain and it is easier to enhance the print-functionality. Now it is
+  possible to create HTML tables as well, using `print_html()`. The style of the
+  output has also slightly changed. By default, confidence intervals are no
+  longer enclosed in parentheses. You can change this behaviour by passing the
+  `ci_brackets` argument to `print()` (see examples), or permanently define custom
+  parentheses or brackets with, e.g., `options(ggeffects_ci_brackets = c("[", "]"))`.
+  Additionally, there are new arguments to further control the output of the
+  tables: `collapse_ci` can be used to collapse confidence intervals into a
+  single column together with the predicted values. `collapse_tables` can be used
+  to collapse multiple tables into a single table (only applies when there is
+  more than one focal term). Again, these settings can be permanently defined
+  via options (see `?print.ggeffects` for details).
+
+## New functions
+
+* `print_html()`, to print the output as HTML table. This method is available
+  for objects from `ggpredict()` (and alike) as well as `hypothesis_test()`.
+
+## General
+
+* A new vignette was added, showing examples for the new print-functionality.
+
+## Bug fixes
+
+* Fixed issue with `ggpredict()` for models of class `vglm` with multivariate
+  responses.
+
 # ggeffects 1.3.4
 
 ## General
@@ -8,7 +42,7 @@
 
 # ggeffects 1.3.3
 
-## New function
+## New functions
 
 * `ggaverage()`, to compute average predicted values. This function is based on
   `marginaleffects::avg_predictons()`.

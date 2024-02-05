@@ -136,15 +136,13 @@
 
   # return all as data.frame
   tryCatch(
-    {
-      .data_frame(
-        response = response,
-        x = x,
-        group = group,
-        facet = facet,
-        rowname = mf$rowname
-      )
-    },
+    .data_frame(
+      response = response,
+      x = x,
+      group = group,
+      facet = facet,
+      rowname = mf$rowname
+    ),
     error = function(x) NULL,
     warning = function(x) NULL,
     finally = function(x) NULL
@@ -240,7 +238,7 @@ is_brms_trial <- function(model) {
 .get_model_info <- function(model) {
   faminfo <- insight::model_info(model, verbose = FALSE)
   if (!is.null(faminfo)) {
-    if (insight::is_multivariate(model)) {
+    if (insight::is_multivariate(model) && !inherits(model, c("vglm", "vgam"))) {
       faminfo <- faminfo[[1]]
     }
     faminfo$is_brms_trial <- is_brms_trial(model)
@@ -311,6 +309,11 @@ is.gamm4 <- function(x) {
 
 .is_numeric_factor <- function(x) {
   is.factor(x) && !anyNA(suppressWarnings(as.numeric(levels(x))))
+}
+
+
+.is_numeric_character <- function(x) {
+  is.character(x) && !anyNA(suppressWarnings(as.numeric(x)))
 }
 
 
