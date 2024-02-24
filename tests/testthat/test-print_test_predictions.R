@@ -222,3 +222,28 @@ test_that("print hypothesis_test collapse CI", {
   expect_snapshot(print(out))
   expect_snapshot(print(out, collapse_ci = TRUE))
 })
+
+
+test_that("hypothesis_test, ci-level", {
+  data(iris)
+  m <- lm(Sepal.Length ~ Species, data = iris)
+  out <- hypothesis_test(m, "Species")
+  expect_snapshot(print(out))
+  out <- hypothesis_test(m, "Species", ci_level = 0.8)
+  expect_snapshot(print(out))
+})
+
+
+test_that("glmmTMB, orderedbeta", {
+  skip_if_not_installed("datawizard")
+  skip_if_not_installed("glmmTMB")
+  data(mtcars)
+  mtcars$ord <- datawizard::normalize(mtcars$mpg)
+  m <- glmmTMB::glmmTMB(
+    ord ~ wt + hp + as.factor(gear) + (1 | cyl),
+    data = mtcars,
+    family = glmmTMB::ordbeta()
+  )
+  out2 <- predict_response(m, "gear", margin = "ame")
+  expect_snapshot(print(hypothesis_test(out2)))
+})

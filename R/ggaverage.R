@@ -3,12 +3,21 @@
 ggaverage <- function(model,
                       terms,
                       ci_level = 0.95,
+                      type = "fixed",
                       typical = "mean",
                       condition = NULL,
                       back_transform = TRUE,
+                      vcov_fun = NULL,
+                      vcov_type = NULL,
+                      vcov_args = NULL,
+                      weights = NULL,
                       verbose = TRUE,
                       ...) {
   insight::check_if_installed("marginaleffects")
+
+  # check arguments
+  type_and_ppd <- .validate_type_argument(model, type, ppd = FALSE, marginaleffects = TRUE)
+  type <- type_and_ppd$type
 
   # process "terms", so we have the default character format. Furthermore,
   # check terms argument, to make sure that terms were not misspelled and are
@@ -30,6 +39,9 @@ ggaverage <- function(model,
   # get model frame
   model_frame <- .get_model_data(model)
 
+  # model name, for later use in test_predictions
+  model_name <- deparse(substitute(model))
+
   # expand model frame to data grid of unique combinations
   data_grid <- .data_grid(
     model = model, model_frame = model_frame, terms = terms, value_adjustment = typical,
@@ -43,14 +55,40 @@ ggaverage <- function(model,
   # clear argument from brackets
   terms <- cleaned_terms
 
+  # if we have "vcov_fun" arguments, and `margin` is "empirical", we
+  # need to prepare the `vcov` argument for "marginaleffects".
+  if (!is.null(vcov_fun)) {
+    vcov_arg <- .get_variance_covariance_matrix(model, vcov_fun, vcov_args, vcov_type, skip_if_null = TRUE)
+  } else {
+    vcov_arg <- TRUE
+  }
+
+  # ci_level = NA should prevent the computation of confidence intervals
+  # in marginaleffects, this is equivalent to setting vcov = FALSE
+  if (is.na(ci_level)) {
+    ci_level <- 0.95
+    vcov_arg <- FALSE
+  }
+
+  ## TODO: this is a current workaround for glmmTMB models, where we need to
+  ##       provide the vcov-argument directly to the marginaleffects-function
+  ##       Remove this workaround when marginaleffects supports glmmTMB models,
+  ##       see https://github.com/vincentarelbundock/marginaleffects/pull/1023
+  ##       and https://github.com/glmmTMB/glmmTMB/issues/915
+  if (inherits(model, "glmmTMB") && (is.null(vcov_arg) || isTRUE(vcov_arg))) {
+    vcov_arg <- insight::get_varcov(model, component = "conditional")
+  }
+
   # calculate average predictions
   at_list <- lapply(data_grid, unique)
   prediction_data <- marginaleffects::avg_predictions(
     model,
     variables = at_list[terms],
     conf_level = ci_level,
-    type = "response",
+    type = type,
     df = .get_df(model),
+    vcov = vcov_arg,
+    wts = weights,
     ...
   )
 
@@ -64,11 +102,26 @@ ggaverage <- function(model,
   # rename variables, keep predictions and std.error
   prediction_data <- .var_rename(
     prediction_data,
-    estimate = "predicted"
+    estimate = "predicted",
+    group = "response.level"
   )
   # select variables and merge predictions with data grid
-  prediction_data <- prediction_data[c(terms, "predicted", "std.error", "conf.low", "conf.high")]
+  ordered_columns <- intersect(
+    colnames(prediction_data),
+    c(terms, "predicted", "std.error", "conf.low", "conf.high", "response.level")
+  )
+  prediction_data <- prediction_data[ordered_columns]
+  # if we have a "response.level", save the row order
+  if ("response.level" %in% colnames(prediction_data)) {
+    prediction_data$.row_id <- seq_len(nrow(prediction_data))
+  }
+  # merge data grid (values of focal terms) to predictions
   prediction_data <- merge(data_grid, prediction_data, all.x = TRUE)
+  # restore row order
+  if (!is.null(prediction_data$.row_id)) {
+    prediction_data <- prediction_data[order(prediction_data$.row_id), ]
+    prediction_data$.row_id <- NULL
+  }
 
   # add attributes, needed for plotting etc.
   attributes(prediction_data) <- utils::modifyList(attributes(data_grid), attributes(prediction_data))
@@ -99,6 +152,7 @@ ggaverage <- function(model,
 
   # add raw data as well
   attr(result, "rawdata") <- .get_raw_data(model, original_model_frame, terms)
+  attr(result, "model.name") <- model_name
 
   .post_processing_labels(
     model = model,
@@ -116,6 +170,7 @@ ggaverage <- function(model,
     untransformed.predictions = untransformed.predictions,
     back.transform = back_transform,
     response.transform = response.transform,
+    vcov.args = if (isTRUE(vcov_arg)) NULL else vcov_arg,
     verbose = verbose
   )
 }

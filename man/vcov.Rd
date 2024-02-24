@@ -17,7 +17,7 @@
 )
 }
 \arguments{
-\item{object}{An object of class \code{"ggeffects"}, as returned by \code{ggpredict()}.}
+\item{object}{An object of class \code{"ggeffects"}, as returned by \code{predict_response()}.}
 
 \item{vcov_fun}{Variance-covariance matrix used to compute uncertainty
 estimates (e.g., for confidence intervals based on robust standard errors).
@@ -27,21 +27,29 @@ compute the covariance matrix.
 \itemize{
 \item A (variance-covariance) matrix
 \item A function which returns a covariance matrix (e.g., \code{stats::vcov()})
+\item A string which indicates the estimation type for the heteroscedasticity-consistent
+variance-covariance matrix, e.g. \code{vcov_fun = "HC0"}. Possible values are
+\code{"HC0"}, \code{"HC1"}, \code{"HC2"}, \code{"HC3"}, \code{"HC4"}, \code{"HC4m"}, and \code{"HC5"}, which
+will then call the \code{vcovHC()}-function from the \strong{sandwich} package, using
+the specified type. Further possible values are \code{"CR0"}, \code{"CR1"}, \code{"CR1p"},
+\code{"CR1S"}, \code{"CR2"}, and \code{"CR3"}, which will call the \code{vcovCR()}-function from
+the \strong{clubSandwich} package.
 \item A string which indicates the name of the \verb{vcov*()}-function from the
 \strong{sandwich} or \strong{clubSandwich} packages, e.g. \code{vcov_fun = "vcovCL"},
 which is used to compute (cluster) robust standard errors for predictions.
+}
+
 If \code{NULL}, standard errors (and confidence intervals) for predictions are
 based on the standard errors as returned by the \code{predict()}-function.
 \strong{Note} that probably not all model objects that work with \code{ggpredict()}
 are also supported by the \strong{sandwich} or \strong{clubSandwich} packages.
-}
 
 See details in \href{https://strengejacke.github.io/ggeffects/articles/practical_robustestimation.html}{this vignette}.}
 
 \item{vcov_type}{Character vector, specifying the estimation type for the
 robust covariance matrix estimation (see \code{?sandwich::vcovHC}
 or \code{?clubSandwich::vcovCR} for details). Only used when \code{vcov_fun} is a
-character string indicating on of the function from those packages.}
+character string indicating one of the functions from those packages.}
 
 \item{vcov_args}{List of named vectors, used as additional arguments that
 are passed down to \code{vcov_fun}.}
@@ -59,8 +67,8 @@ Returns the variance-covariance matrix for the predicted values from \code{objec
 }
 \details{
 The returned matrix has as many rows (and columns) as possible combinations
-of predicted values from the \code{ggpredict()} call. For example, if there
-are two variables in the \code{terms}-argument of \code{ggpredict()} with 3 and 4
+of predicted values from the \code{predict_response()} call. For example, if there
+are two variables in the \code{terms}-argument of \code{predict_response()} with 3 and 4
 levels each, there will be 3*4 combinations of predicted values, so the returned
 matrix has a 12x12 dimension. In short, \code{nrow(object)} is always equal to
 \code{nrow(vcov(object))}. See also 'Examples'.
@@ -68,7 +76,7 @@ matrix has a 12x12 dimension. In short, \code{nrow(object)} is always equal to
 \examples{
 data(efc)
 model <- lm(barthtot ~ c12hour + neg_c_7 + c161sex + c172code, data = efc)
-result <- ggpredict(model, c("c12hour [meansd]", "c161sex"))
+result <- predict_response(model, c("c12hour [meansd]", "c161sex"))
 
 vcov(result)
 
@@ -78,12 +86,12 @@ as.data.frame(result)
 
 # only two predicted values, no further terms
 # vcov() returns a 2x2 matrix
-result <- ggpredict(model, "c161sex")
+result <- predict_response(model, "c161sex")
 vcov(result)
 
 # 2 levels for c161sex multiplied by 3 levels for c172code
 # result in 6 combinations of predicted values
 # thus vcov() returns a 6x6 matrix
-result <- ggpredict(model, c("c161sex", "c172code"))
+result <- predict_response(model, c("c161sex", "c172code"))
 vcov(result)
 }

@@ -10,19 +10,19 @@
 #' focal terms are used.
 #' @param digits Number of digits to print.
 #' @param verbose Toggle messages.
-#' @param theme The theme to apply to the table. One of `"default"`, `"grid"`,
-#' `"striped"`, `"bootstrap"`, or `"darklines"`.
+#' @param theme The theme to apply to the table. One of `"grid"`, `"striped"`,
+#' `"bootstrap"`, or `"darklines"`.
 #' @param engine The engine to use for printing. One of `"tt"` (default) or `"gt"`.
 #' `"tt"` uses the *tinytable* package, `"gt"` uses the *gt* package.
 #' @param ... Further arguments passed down to [`format.ggeffects()`], some of
 #' them are also passed down further to [`insight::format_table()`] or
 #' [`insight::format_value()`].
 #'
-#' @return `format()` return a formatted data frame, `print()`prints a formatted
+#' @return `format()` return a formatted data frame, `print()` prints a formatted
 #' data frame printed to the console. `print_html()` returns a `tinytable`
-#' object, which is printed as HTML, markdown or LaTeX table (depending on the
-#' context from which `print_html()` is called, see [`tinytable::tt()`] for
-#' details).
+#' object by default (unless changed with `engine = "gt"`), which is printed as
+#' HTML, markdown or LaTeX table (depending on the context from which
+#' `print_html()` is called, see [`tinytable::tt()`] for details).
 #'
 #' @section Global Options to Customize Tables when Printing:
 #' The `verbose` argument can be used to display or silence messages and
@@ -49,7 +49,7 @@
 #'   one focal term, e.g. `options(ggeffects_collapse_tables = TRUE)`.
 #'
 #' - `ggeffects_output_format`: String, either `"text"` or `"html"`. Defines the
-#'   default output format from `ggpredict()`. If `"html"`, a formatted HTML
+#'   default output format from `predict_response()`. If `"html"`, a formatted HTML
 #'   table is created and printed to the view pane. If `"text"` or `NULL`, a
 #'   formatted table is printed to the console, e.g. `options(ggeffects_output_format = "html")`.
 #'
@@ -65,39 +65,39 @@
 #' fit <- lm(barthtot ~ c12hour + e42dep, data = efc)
 #'
 #' # default print
-#' ggpredict(fit, "e42dep")
+#' predict_response(fit, "e42dep")
 #'
 #' # surround CI values with parentheses
-#' print(ggpredict(fit, "e42dep"), ci_brackets = c("(", ")"))
+#' print(predict_response(fit, "e42dep"), ci_brackets = c("(", ")"))
 #' # you can also use `options(ggeffects_ci_brackets = c("[", "]"))`
 #' # to set this globally
 #'
 #' # collapse CI columns into column with predicted values
-#' print(ggpredict(fit, "e42dep"), collapse_ci = TRUE)
+#' print(predict_response(fit, "e42dep"), collapse_ci = TRUE)
 #'
 #' # include value labels
-#' print(ggpredict(fit, "e42dep"), value_labels = TRUE)
+#' print(predict_response(fit, "e42dep"), value_labels = TRUE)
 #'
 #' # include variable labels in column headers
-#' print(ggpredict(fit, "e42dep"), variable_labels = TRUE)
+#' print(predict_response(fit, "e42dep"), variable_labels = TRUE)
 #'
 #' # include value labels and variable labels
-#' print(ggpredict(fit, "e42dep"), variable_labels = TRUE, value_labels = TRUE)
+#' print(predict_response(fit, "e42dep"), variable_labels = TRUE, value_labels = TRUE)
 #'
 #' data(iris)
 #' m <- lm(Sepal.Length ~ Species * Petal.Length, data = iris)
 #'
 #' # default print with subgroups
-#' ggpredict(m, c("Petal.Length", "Species"))
+#' predict_response(m, c("Petal.Length", "Species"))
 #'
 #' # omit name of grouping variable in subgroup table headers
-#' print(ggpredict(m, c("Petal.Length", "Species")), group_name = FALSE)
+#' print(predict_response(m, c("Petal.Length", "Species")), group_name = FALSE)
 #'
 #' # collapse tables into one
-#' print(ggpredict(m, c("Petal.Length", "Species")), collapse_tables = TRUE, n = 3)
+#' print(predict_response(m, c("Petal.Length", "Species")), collapse_tables = TRUE, n = 3)
 #'
 #' # increase number of digits
-#' print(ggpredict(fit, "e42dep"), digits = 5)
+#' print(predict_response(fit, "e42dep"), digits = 5)
 #'
 #' @export
 print.ggeffects <- function(x, group_name = TRUE, digits = 2, verbose = TRUE, ...) {
@@ -130,6 +130,8 @@ print.ggeffects <- function(x, group_name = TRUE, digits = 2, verbose = TRUE, ..
   # create strings of table captions for subgroups
   if (!is.null(out$groups)) {
     captions <- lapply(as.list(unique(out$groups)), c, "red")
+    # make "groups" a factor, for split and correct order
+    out$groups <- factor(out$groups, levels = unique(out$groups))
     out <- lapply(split(out, out$groups), function(i) {
       i$groups <- NULL
       i

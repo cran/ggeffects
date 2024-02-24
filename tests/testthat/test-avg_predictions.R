@@ -23,6 +23,12 @@ test_that("ggpredict, condition", {
   expect_equal(out1$conf.low, out2$conf.low, tolerance = 1e-4)
   expect_snapshot(print(out1))
 
+  # valid type arguments
+  expect_error(ggaverage(model, focal, type = "random"), regex = "`type = \"random\"` is not supported")
+  expect_error(ggaverage(model, focal, type = "link"), regex = "`type = \"link\"` is not supported")
+  expect_error(predict_response(model, focal, margin = "ame", type = "random"), regex = "`type = \"random\"` is not supported")
+  expect_error(predict_response(model, focal, margin = "ame", type = "link"), regex = "`type = \"link\"` is not supported")
+
   model <- lm(neg_c_7 ~ c12hour + e42dep + c161sex + c172code, data = efc)
   out1 <- ggaverage(model, focal)
   out2 <- marginaleffects::avg_predictions(model, variables = at_list)
@@ -30,9 +36,12 @@ test_that("ggpredict, condition", {
   expect_equal(out1$predicted, out2$estimate, tolerance = 1e-4)
   expect_equal(out1$conf.low, out2$conf.low, tolerance = 1e-4)
 
+  out1 <- ggaverage(model, focal, ci_level = NA)
+  expect_named(out1, c("x", "predicted", "group"))
+
   # vcov
   skip_if_not_installed("sandwich")
-  out3 <- ggaverage(model, focal, vcov = "HC0")
+  out3 <- ggaverage(model, focal, vcov_fun = "HC0")
   expect_equal(
     out3$conf.low,
     c(10.9112, 11.2802, 11.5731, 11.0061, 11.3741, 11.6526, 11.0946, 11.4556, 11.7258),
@@ -62,11 +71,15 @@ withr::with_environment(
     )
 
     out1 <- ggaverage(model, focal)
-    out2 <- marginaleffects::avg_predictions(model, variables = at_list, type = "response")
+    out2 <- marginaleffects::avg_predictions(model, variables = at_list)
 
     expect_equal(out1$predicted, out2$estimate, tolerance = 1e-4)
     expect_equal(out1$conf.low, out2$conf.low, tolerance = 1e-4)
 
     expect_snapshot(print(out1))
+    expect_silent(ggaverage(model, focal, type = "link"))
+    expect_silent(predict_response(model, focal, margin = "ame", type = "link"))
+    expect_silent(predict_response(model, focal, margin = "ame", type = "fixed"))
+    expect_error(predict_response(model, focal, margin = "ame", type = "probs"))
   })
 )

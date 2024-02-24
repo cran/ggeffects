@@ -1,3 +1,45 @@
+# ggeffects 1.5.0
+
+## New functions
+
+* `predict_response()` as "generic" high-level function, which is a replacement
+  for `ggpredict()`, `ggemmeans()` and `ggaverage()`. The new function is more
+  clear about how the function marginalizes over non-focal terms. The `margin`
+  argument can be used to specify how to marginalize over non-focal terms, i.e.
+  which function internally is used to compute the marginal effects.
+
+## General
+
+* The documentation was revised, to provide more clarity about what the package
+  functions do and how to decide, which function or method to calculate marginal
+  effects is the most appropriate.
+
+* Improved calculation of prediction intervals for Poisson regression models.
+
+* Improved handling of the `vcov_fun` argument. This argument now accepts an
+  estimation type as string, e.g. `vcov_fun = "HC0"`, which is then used to
+  compute the variance-covariance matrix. Thus, it is no longer necessary to
+  define both `vcov_fun` and `vcov_type`, if the variance-covariance matrix is
+  covered by one of the pre-defined estimation types. See `?ggpredict` for
+  details.
+
+* `hypothesis_test()` now also accepts the `vcov_fun` argument, and not only
+  `vcov`. This ensures consistency with the `vcov_fun` argument in `ggpredict()`.
+  Furthermore, the information about the type of variance-covariance matrix
+  is saved to the *ggeffects* object returned by `ggpredict()`, `predict_response()`
+  etc., and if this information is available, it is automatically used in
+  `hypothesis_test()` when a *ggeffects* object is passed to the function.
+
+## Bug fixes
+
+* Fixed bug in wrong order of printed (sub-)tables for predictions.
+
+* Fixed wrong table column name for confidence interval columns for other
+  confidence levels than the default 95% in `print()` for `ggeffects` objects.
+
+* Fixed issue with `ggpredict()` for models of class `fixest` when the cluster
+  variable was numeric.
+
 # ggeffects 1.4.0
 
 ## Breaking Changes

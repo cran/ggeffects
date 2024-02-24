@@ -69,18 +69,18 @@ them are also passed down further to \code{\link[insight:format_table]{insight::
 
 \item{verbose}{Toggle messages.}
 
-\item{theme}{The theme to apply to the table. One of \code{"default"}, \code{"grid"},
-\code{"striped"}, \code{"bootstrap"}, or \code{"darklines"}.}
+\item{theme}{The theme to apply to the table. One of \code{"grid"}, \code{"striped"},
+\code{"bootstrap"}, or \code{"darklines"}.}
 
 \item{engine}{The engine to use for printing. One of \code{"tt"} (default) or \code{"gt"}.
 \code{"tt"} uses the \emph{tinytable} package, \code{"gt"} uses the \emph{gt} package.}
 }
 \value{
-\code{format()} return a formatted data frame, \code{print()}prints a formatted
+\code{format()} return a formatted data frame, \code{print()} prints a formatted
 data frame printed to the console. \code{print_html()} returns a \code{tinytable}
-object, which is printed as HTML, markdown or LaTeX table (depending on the
-context from which \code{print_html()} is called, see \code{\link[tinytable:tt]{tinytable::tt()}} for
-details).
+object by default (unless changed with \code{engine = "gt"}), which is printed as
+HTML, markdown or LaTeX table (depending on the context from which
+\code{print_html()} is called, see \code{\link[tinytable:tt]{tinytable::tt()}} for details).
 }
 \description{
 A generic print-method for \code{ggeffects}-objects.
@@ -107,7 +107,7 @@ depending on the significance level.
 subgroups are combined into one table. Only works when there is more than
 one focal term, e.g. \code{options(ggeffects_collapse_tables = TRUE)}.
 \item \code{ggeffects_output_format}: String, either \code{"text"} or \code{"html"}. Defines the
-default output format from \code{ggpredict()}. If \code{"html"}, a formatted HTML
+default output format from \code{predict_response()}. If \code{"html"}, a formatted HTML
 table is created and printed to the view pane. If \code{"text"} or \code{NULL}, a
 formatted table is printed to the console, e.g. \code{options(ggeffects_output_format = "html")}.
 \item \code{ggeffects_html_engine}: String, either \code{"tt"} or \code{"gt"}. Defines the default
@@ -125,38 +125,38 @@ data(efc, package = "ggeffects")
 fit <- lm(barthtot ~ c12hour + e42dep, data = efc)
 
 # default print
-ggpredict(fit, "e42dep")
+predict_response(fit, "e42dep")
 
 # surround CI values with parentheses
-print(ggpredict(fit, "e42dep"), ci_brackets = c("(", ")"))
+print(predict_response(fit, "e42dep"), ci_brackets = c("(", ")"))
 # you can also use `options(ggeffects_ci_brackets = c("[", "]"))`
 # to set this globally
 
 # collapse CI columns into column with predicted values
-print(ggpredict(fit, "e42dep"), collapse_ci = TRUE)
+print(predict_response(fit, "e42dep"), collapse_ci = TRUE)
 
 # include value labels
-print(ggpredict(fit, "e42dep"), value_labels = TRUE)
+print(predict_response(fit, "e42dep"), value_labels = TRUE)
 
 # include variable labels in column headers
-print(ggpredict(fit, "e42dep"), variable_labels = TRUE)
+print(predict_response(fit, "e42dep"), variable_labels = TRUE)
 
 # include value labels and variable labels
-print(ggpredict(fit, "e42dep"), variable_labels = TRUE, value_labels = TRUE)
+print(predict_response(fit, "e42dep"), variable_labels = TRUE, value_labels = TRUE)
 
 data(iris)
 m <- lm(Sepal.Length ~ Species * Petal.Length, data = iris)
 
 # default print with subgroups
-ggpredict(m, c("Petal.Length", "Species"))
+predict_response(m, c("Petal.Length", "Species"))
 
 # omit name of grouping variable in subgroup table headers
-print(ggpredict(m, c("Petal.Length", "Species")), group_name = FALSE)
+print(predict_response(m, c("Petal.Length", "Species")), group_name = FALSE)
 
 # collapse tables into one
-print(ggpredict(m, c("Petal.Length", "Species")), collapse_tables = TRUE, n = 3)
+print(predict_response(m, c("Petal.Length", "Species")), collapse_tables = TRUE, n = 3)
 
 # increase number of digits
-print(ggpredict(fit, "e42dep"), digits = 5)
+print(predict_response(fit, "e42dep"), digits = 5)
 \dontshow{\}) # examplesIf}
 }

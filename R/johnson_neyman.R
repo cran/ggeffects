@@ -19,24 +19,24 @@
 #' @param show_rug Logical, if `TRUE`, adds a rug with raw data of the moderator
 #' variable to the plot. This helps visualizing its distribution.
 #' @param verbose Show/hide printed message for plots.
-#' @param ... Arguments passed down to [`hypothesis_test()`] (and then probably
-#' further to [`marginaleffects::slopes()`]). See `?hypothesis_test` for further
+#' @param ... Arguments passed down to [`test_predictions()`] (and then probably
+#' further to [`marginaleffects::slopes()`]). See `?test_predictions` for further
 #' details.
 #'
-#' @inheritParams hypothesis_test
+#' @inheritParams test_predictions
 #'
-#' @return A data frame including contrasts of the [`hypothesis_test()`] for the
+#' @return A data frame including contrasts of the [`test_predictions()`] for the
 #' given interaction terms; for `plot()`, returns a Johnson-Neyman plot.
 #'
 #' @details
 #' The Johnson-Neyman intervals help to understand where slopes are significant
 #' in the context of interactions in regression models. Thus, the interval is only
 #' useful if the model contains at least one interaction term. The function
-#' accepts the results of a call to `ggpredict()`, `ggeffect()` or `ggemmeans()`.
-#' The _first_ and the _last_ focal term used in the `terms` argument of
-#' `ggpredict()` etc. must be numeric. The function will then test the slopes of
-#' the first focal terms against zero, for different moderator values of the
-#' last focal term. Use `plot()` to create a plot of the results.
+#' accepts the results of a call to `predict_response()`. The _first_ and the
+#' _last_ focal term used in the `terms` argument of `predict_response()` must
+#' be numeric. The function will then test the slopes of the first focal terms
+#' against zero, for different moderator values of the last focal term. Use
+#' `plot()` to create a plot of the results.
 #'
 #' To avoid misleading interpretations of the plot, we speak of "positive" and
 #' "negative" associations, respectively, and "no clear" associations (instead
@@ -44,7 +44,7 @@
 #' considering a non-significant range of values of the moderator as "accepting
 #' the null hypothesis".
 #'
-#' @inheritSection hypothesis_test P-value adjustment for multiple comparisons
+#' @inheritSection test_predictions P-value adjustment for multiple comparisons
 #'
 #' @references
 #' Bauer, D. J., & Curran, P. J. (2005). Probing interactions in fixed and
@@ -69,15 +69,15 @@
 #'
 #' @examplesIf requireNamespace("ggplot2") && requireNamespace("marginaleffects")
 #' \dontrun{
-#' data(efc)
+#' data(efc, package = "ggeffects")
 #' efc$c172code <- as.factor(efc$c172code)
 #' m <- lm(neg_c_7 ~ c12hour * barthtot * c172code, data = efc)
 #'
-#' pr <- ggpredict(m, c("c12hour", "barthtot"))
+#' pr <- predict_response(m, c("c12hour", "barthtot"))
 #' johnson_neyman(pr)
 #' plot(johnson_neyman(pr))
 #'
-#' pr <- ggpredict(m, c("c12hour", "c172code", "barthtot"))
+#' pr <- predict_response(m, c("c12hour", "c172code", "barthtot"))
 #' johnson_neyman(pr)
 #' plot(johnson_neyman(pr))
 #'
@@ -111,6 +111,26 @@ johnson_neyman <- function(x, precision = 500, p_adjust = NULL, ...) {
   focal_terms <- attributes(x)$terms
   original_terms <- attributes(x)$original.terms
 
+  dot_args <- list(...)
+  # information about vcov-matrix
+  vcov_matrix <- attributes(x)$vcov
+  # set default for marginaleffects
+  if (is.null(vcov_matrix)) {
+    vcov_matrix <- TRUE
+  }
+
+  # make sure we have a valid vcov-argument when user supplies "standard" vcov-arguments
+  # from ggpredict, like "vcov_fun" etc. - then remove vcov_-arguments
+  if (!is.null(dot_args$vcov_fun)) {
+    dot_args$vcov <- .get_variance_covariance_matrix(model, dot_args$vcov_fun, dot_args$vcov_args, dot_args$vcov_type)
+    # remove non supported args
+    dot_args$vcov_fun <- NULL
+    dot_args$vcov_type <- NULL
+    dot_args$vcov_args <- NULL
+  } else if (is.null(dot_args$vcov)) {
+    dot_args$vcov <- vcov_matrix
+  }
+
   # check whether we have numeric focal terms in our model data
   numeric_focal <- .safe(vapply(model_data[focal_terms], is.numeric, logical(1)))
 
@@ -135,7 +155,7 @@ johnson_neyman <- function(x, precision = 500, p_adjust = NULL, ...) {
   if (identical(p_adjust, "fdr")) {
     fun_args$p_adjust <- "fdr"
   }
-  jn_slopes <- do.call("hypothesis_test", c(fun_args, list(...)))
+  jn_slopes <- do.call("test_predictions", c(fun_args, dot_args))
 
   # we need a "Slope" column in jn_slopes
   if (!"Slope" %in% colnames(jn_slopes)) {

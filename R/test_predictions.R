@@ -1,5 +1,5 @@
 #' @title (Pairwise) comparisons between predictions
-#' @name hypothesis_test
+#' @name test_predictions
 #'
 #' @description Function to test differences of adjusted predictions for
 #'   statistical significance. This is usually called contrasts or (pairwise)
@@ -72,12 +72,12 @@
 #'   calculate heteroscedasticity-consistent standard errors for contrasts.
 #'   See examples at the bottom of
 #'   [this vignette](https://strengejacke.github.io/ggeffects/articles/introduction_comparisons_1.html)
-#'   for further details. Note the different ways to define the heteroscedasticity-consistent
-#'   variance-covariance matrix for `ggpredict()` and `hypothesis_test()` resp.
-#'   `johnson_neyman()`. For `ggpredict()`, the arguments are named `vcov_fun`
-#'   and `vcov_args`, whereas for `hypothesis_test()` and `johnson_neyman()`,
-#'   there is only the argument `vcov`. See `?marginaleffects::slopes` for
-#'   further details.
+#'   for further details. To define a heteroscedasticity-consistent
+#'   variance-covariance matrix, you can either use the same arguments as for
+#'   `predict_response()` etc., namely `vcov_fun`, `vcov_type` and `vcov_args`.
+#'   These are then transformed into a matrix and passed down to the `vcov`
+#'   argument in *marginaleffects*. Or you directly use the `vcov` argument. See
+#'   `?marginaleffects::slopes` for further details.
 #'
 #' @seealso There is also an `equivalence_test()` method in the **parameters**
 #'   package ([`parameters::equivalence_test.lm()`]), which can be used to
@@ -85,7 +85,7 @@
 #'   has a `plot()` method, hence it is possible to do something like:
 #'   ```
 #'   library(parameters)
-#'   ggpredict(model, focal_terms) |>
+#'   predict_response(model, focal_terms) |>
 #'     equivalence_test() |>
 #'     plot()
 #'  ```
@@ -100,7 +100,7 @@
 #'
 #' Note that p-value adjustment for methods supported by `p.adjust()` (see also
 #' `p.adjust.methods`), each row is considered as one set of comparisons, no
-#' matter which `test` was specified. That is, for instance, when `hypothesis_test()`
+#' matter which `test` was specified. That is, for instance, when `test_predictions()`
 #' returns eight rows of predictions (when `test = NULL`), and `p_adjust = "bonferroni"`,
 #' the p-values are adjusted in the same way as if we had a test of pairwise
 #' comparisons (`test = "pairwise"`) where eight rows of comparisons are
@@ -117,7 +117,7 @@
 #' adjusted. `"esarey"` is slower, but confidence intervals are updated as well.
 #'
 #' @inheritSection print Global Options to Customize Tables when Printing
-#' 
+#'
 #' @return A data frame containing predictions (e.g. for `test = NULL`),
 #' contrasts or pairwise comparisons of adjusted predictions or estimated
 #' marginal means.
@@ -136,59 +136,59 @@
 #' m <- lm(barthtot ~ c12hour + neg_c_7 + c161sex + c172code, data = efc)
 #'
 #' # direct computation of comparisons
-#' hypothesis_test(m, "c172code")
+#' test_predictions(m, "c172code")
 #'
 #' # passing a `ggeffects` object
-#' pred <- ggpredict(m, "c172code")
-#' hypothesis_test(pred)
+#' pred <- predict_response(m, "c172code")
+#' test_predictions(pred)
 #'
 #' # test for slope
-#' hypothesis_test(m, "c12hour")
+#' test_predictions(m, "c12hour")
 #'
 #' # interaction - contrasts by groups
 #' m <- lm(barthtot ~ c12hour + c161sex * c172code + neg_c_7, data = efc)
-#' hypothesis_test(m, c("c161sex", "c172code"), test = NULL)
+#' test_predictions(m, c("c161sex", "c172code"), test = NULL)
 #'
 #' # interaction - pairwise comparisons by groups
-#' hypothesis_test(m, c("c161sex", "c172code"))
+#' test_predictions(m, c("c161sex", "c172code"))
 #'
 #' # equivalence testing
-#' hypothesis_test(m, c("c161sex", "c172code"), equivalence = c(-2.96, 2.96))
+#' test_predictions(m, c("c161sex", "c172code"), equivalence = c(-2.96, 2.96))
 #'
 #' # equivalence testing, using the parameters package
-#' pr <- ggpredict(m, c("c161sex", "c172code"))
+#' pr <- predict_response(m, c("c161sex", "c172code"))
 #' parameters::equivalence_test(pr)
 #'
 #' # interaction - collapse unique levels
-#' hypothesis_test(m, c("c161sex", "c172code"), collapse_levels = TRUE)
+#' test_predictions(m, c("c161sex", "c172code"), collapse_levels = TRUE)
 #'
 #' # p-value adjustment
-#' hypothesis_test(m, c("c161sex", "c172code"), p_adjust = "tukey")
+#' test_predictions(m, c("c161sex", "c172code"), p_adjust = "tukey")
 #'
 #' # not all comparisons, only by specific group levels
-#' hypothesis_test(m, "c172code", by = "c161sex")
+#' test_predictions(m, "c172code", by = "c161sex")
 #'
 #' # specific comparisons
-#' hypothesis_test(m, c("c161sex", "c172code"), test = "b2 = b1")
+#' test_predictions(m, c("c161sex", "c172code"), test = "b2 = b1")
 #'
 #' # interaction - slope by groups
 #' m <- lm(barthtot ~ c12hour + neg_c_7 * c172code + c161sex, data = efc)
-#' hypothesis_test(m, c("neg_c_7", "c172code"))
+#' test_predictions(m, c("neg_c_7", "c172code"))
 #' }
 #' @export
-hypothesis_test <- function(model, ...) {
-  UseMethod("hypothesis_test")
+test_predictions <- function(model, ...) {
+  UseMethod("test_predictions")
 }
 
 
-#' @rdname hypothesis_test
+#' @rdname test_predictions
 #' @export
-test_predictions <- hypothesis_test
+hypothesis_test <- test_predictions
 
 
-#' @rdname hypothesis_test
+#' @rdname test_predictions
 #' @export
-hypothesis_test.default <- function(model,
+test_predictions.default <- function(model,
                                     terms = NULL,
                                     by = NULL,
                                     test = "pairwise",
@@ -207,7 +207,7 @@ hypothesis_test.default <- function(model,
   # when model is a "ggeffects" object, due to environment issues, "model"
   # can be NULL (in particular in tests), thus check for NULL
   if (is.null(model)) {
-    insight::format_error("`model` not found. Try to directly pass the model object to `hypothesis_test()`.")
+    insight::format_error("`model` not found. Try to directly pass the model object to `test_predictions()`.")
   }
 
   # only model objects are supported...
@@ -260,6 +260,25 @@ hypothesis_test.default <- function(model,
 
   # make sure we have a valid type-argument...
   dot_args$type <- .sanitize_type_argument(model, dot_args$type, verbose = ifelse(miss_scale, FALSE, verbose))
+
+  # make sure we have a valid vcov-argument when user supplies "standard" vcov-arguments
+  # from ggpredict, like "vcov_fun" etc. - then remove vcov_-arguments
+  if (!is.null(dot_args$vcov_fun)) {
+    dot_args$vcov <- .get_variance_covariance_matrix(model, dot_args$vcov_fun, dot_args$vcov_args, dot_args$vcov_type)
+    # remove non supported args
+    dot_args$vcov_fun <- NULL
+    dot_args$vcov_type <- NULL
+    dot_args$vcov_args <- NULL
+  }
+
+  ## TODO: this is a current workaround for glmmTMB models, where we need to
+  ##       provide the vcov-argument directly to the marginaleffects-function
+  ##       Remove this workaround when marginaleffects supports glmmTMB models,
+  ##       see https://github.com/vincentarelbundock/marginaleffects/pull/1023
+  ##       and https://github.com/glmmTMB/glmmTMB/issues/915
+  if (inherits(model, "glmmTMB") && is.null(dot_args$vcov)) {
+    dot_args$vcov <- insight::get_varcov(model, component = "conditional")
+  }
 
   minfo <- insight::model_info(model, verbose = FALSE)
 
@@ -767,9 +786,9 @@ hypothesis_test.default <- function(model,
 }
 
 
-#' @rdname hypothesis_test
+#' @rdname test_predictions
 #' @export
-hypothesis_test.ggeffects <- function(model,
+test_predictions.ggeffects <- function(model,
                                       by = NULL,
                                       test = "pairwise",
                                       equivalence = NULL,
@@ -781,12 +800,20 @@ hypothesis_test.ggeffects <- function(model,
                                       ...) {
   # retrieve focal predictors
   focal <- attributes(model)$original.terms
-  # retrieve focal predictors
+  # retrieve ci level predictors
   ci_level <- attributes(model)$ci.lvl
+  # information about vcov-matrix
+  vcov_matrix <- attributes(model)$vcov
   # retrieve relevant information and generate data grid for predictions
   model <- .get_model_object(model)
 
-  hypothesis_test.default(
+  dot_args <- list(...)
+  # set default for marginaleffects, we pass this via dots
+  if (!is.null(vcov_matrix) && is.null(dot_args$vcov)) {
+    dot_args$vcov <- vcov_matrix
+  }
+
+  my_args <- list(
     model,
     terms = focal,
     by = by,
@@ -797,9 +824,10 @@ hypothesis_test.ggeffects <- function(model,
     df = df,
     ci_level = ci_level,
     collapse_levels = collapse_levels,
-    verbose = verbose,
-    ...
+    verbose = verbose
   )
+
+  do.call(test_predictions.default, c(my_args, dot_args))
 }
 
 
@@ -917,6 +945,14 @@ hypothesis_test.ggeffects <- function(model,
       probability = "probabilities",
       NULL
     )
+  } else if (minfo$is_orderedbeta) {
+    scale_label <- switch(scale,
+      response = "proportions",
+      link = "log-proportions",
+      probs = ,
+      probability = "probabilities",
+      NULL
+    )
   }
   scale_label
 }
@@ -979,7 +1015,6 @@ print.ggcomparisons <- function(x, ...) {
     footer <- insight::format_message(paste0("Tested hypothesis: ", footer))
     footer <- paste0("\n", footer, "\n")
   }
-  newline <- ifelse(is.null(footer), "\n", "")
 
   # split tables by response levels?
   if ("Response_Level" %in% colnames(x)) {
@@ -1023,9 +1058,9 @@ print.ggcomparisons <- function(x, ...) {
         irr = "incident rate ratio",
         "unknown"
       )
-      msg <- paste0(newline, type, " are presented on the ", scale_label, " scale.")
+      msg <- paste0("\n", type, " are presented on the ", scale_label, " scale.")
     } else {
-      msg <- paste0(newline, type, " are presented as ", scale_label, ".")
+      msg <- paste0("\n", type, " are presented as ", scale_label, ".")
     }
     insight::format_alert(msg)
   }
@@ -1033,10 +1068,10 @@ print.ggcomparisons <- function(x, ...) {
   # tell user about possible discrepancies between prediction intervals of
   # predictions and confidence intervals of contrasts/comparisons
   if (msg_intervals && verbose) {
-    insight::format_alert(
+    insight::format_alert(paste(
       "\nIntervals used for contrasts and comparisons are regular confidence intervals, not prediction intervals.",
-      "To obtain the same type of intervals for your predictions, use `ggpredict(..., interval = \"confidence\")`."
-    )
+      "To obtain the same type of intervals for your predictions, use `predict_response(..., interval = \"confidence\")`."
+    ))
   }
 }
 
@@ -1123,6 +1158,7 @@ print_html.ggcomparisons <- function(x, collapse_ci = FALSE, theme = NULL, engin
 
   # start here for using tinytables
   if (engine == "tt") {
+    insight::check_if_installed("tinytable")
     # used for subgroup headers, if available
     row_header_pos <- row_header_labels <- NULL
 
