@@ -1,9 +1,9 @@
-#' @title (Pairwise) comparisons between predictions
+#' @title (Pairwise) comparisons between predictions (marginal effects)
 #' @name test_predictions
 #'
 #' @description Function to test differences of adjusted predictions for
 #'   statistical significance. This is usually called contrasts or (pairwise)
-#'   comparisons. `test_predictions()` is an alias.
+#'   comparisons, or "marginal effects". `hypothesis_test()` is an alias.
 #'
 #' @param model A fitted model object, or an object of class `ggeffects`.
 #' @param test Hypothesis to test. By default, pairwise-comparisons are
@@ -127,7 +127,7 @@
 #' Determining and controlling the false positive rate. Comparative Political
 #' Studies, 1–33. Advance online publication. doi: 10.1177/0010414017730080
 #'
-#' @examplesIf requireNamespace("marginaleffects") && requireNamespace("parameters") && interactive()
+#' @examplesIf requireNamespace("marginaleffects") && requireNamespace("parameters") && requireNamespace("margins") && interactive()
 #' \donttest{
 #' data(efc)
 #' efc$c172code <- as.factor(efc$c172code)
@@ -174,6 +174,23 @@
 #' # interaction - slope by groups
 #' m <- lm(barthtot ~ c12hour + neg_c_7 * c172code + c161sex, data = efc)
 #' test_predictions(m, c("neg_c_7", "c172code"))
+#'
+#' # Example: marginal effects -----------------------------
+#' # -------------------------------------------------------
+#' data(iris)
+#' m <- lm(Petal.Width ~ Petal.Length + Species, data = iris)
+#'
+#' # we now want the marginal effects for "Species". We can calculate
+#' # the marginal effect using the "margins" package
+#' margins::margins(m, variables = "Species")
+#'
+#' # we get the same marginal effect from the "marginaleffects" package
+#' marginaleffects::avg_slopes(m, variables = "Species")
+#'
+#' # finally, test_predictions() returns the same. while the previous results
+#' # report the marginal effect compared to the reference level "setosa",
+#' # test_predictions() returns the marginal effects for all pairwise comparisons
+#' test_predictions(m, "Species")
 #' }
 #' @export
 test_predictions <- function(model, ...) {
@@ -189,18 +206,18 @@ hypothesis_test <- test_predictions
 #' @rdname test_predictions
 #' @export
 test_predictions.default <- function(model,
-                                    terms = NULL,
-                                    by = NULL,
-                                    test = "pairwise",
-                                    equivalence = NULL,
-                                    scale = "response",
-                                    p_adjust = NULL,
-                                    df = NULL,
-                                    ci_level = 0.95,
-                                    collapse_levels = FALSE,
-                                    verbose = TRUE,
-                                    ci.lvl = ci_level,
-                                    ...) {
+                                     terms = NULL,
+                                     by = NULL,
+                                     test = "pairwise",
+                                     equivalence = NULL,
+                                     scale = "response",
+                                     p_adjust = NULL,
+                                     df = NULL,
+                                     ci_level = 0.95,
+                                     collapse_levels = FALSE,
+                                     verbose = TRUE,
+                                     ci.lvl = ci_level,
+                                     ...) {
   # check if we have the appropriate package version installed
   insight::check_if_installed("marginaleffects", minimum_version = "0.16.0")
 
@@ -988,6 +1005,15 @@ format.ggcomparisons <- function(x, collapse_ci = FALSE, collapse_p = FALSE, ...
 
 #' @export
 print.ggcomparisons <- function(x, ...) {
+  # check if default format is "html" or "markdown"
+  output_format <- getOption("ggeffects_output_format", "text")
+  if (identical(output_format, "html")) {
+    return(print(print_html(x, ...)))
+  }
+  if (identical(output_format, "markdown")) {
+    return(print(print_md(x, ...)))
+  }
+
   test_pairwise <- identical(attributes(x)$test, "pairwise")
   estimate_name <- attributes(x)$estimate_name
   rope_range <- attributes(x)$rope_range
@@ -1080,7 +1106,22 @@ print.ggcomparisons <- function(x, ...) {
 print_html.ggcomparisons <- function(x, collapse_ci = FALSE, theme = NULL, engine = c("tt", "gt"), ...) {
   engine <- getOption("ggeffects_html_engine", engine)
   engine <- match.arg(engine)
+  .print_html_ggcomparisons(x, collapse_ci = collapse_ci, theme = theme, engine = engine, ...)
+}
 
+
+#' @export
+print_md.ggcomparisons <- function(x, collapse_ci = FALSE, theme = NULL, ...) {
+  .print_html_ggcomparisons(x, collapse_ci = collapse_ci, theme = theme, engine = "tt", output = "markdown", ...)
+}
+
+
+.print_html_ggcomparisons <- function(x,
+                                      collapse_ci = FALSE,
+                                      theme = NULL,
+                                      engine = c("tt", "gt"),
+                                      output = "html",
+                                      ...) {
   test_pairwise <- identical(attributes(x)$test, "pairwise")
   estimate_name <- attributes(x)$estimate_name
   rope_range <- attributes(x)$rope_range
@@ -1118,6 +1159,9 @@ print_html.ggcomparisons <- function(x, collapse_ci = FALSE, theme = NULL, engin
       "Estimates"
     )
 
+    # line separator
+    line_sep <- ifelse(identical(output, "html"), "<br/>", ", ")
+
     # tell user about scale of estimate type
     if (!(is_linear && identical(scale_outcome, "response"))) {
       if (is.null(scale_label)) {
@@ -1134,7 +1178,7 @@ print_html.ggcomparisons <- function(x, collapse_ci = FALSE, theme = NULL, engin
         )
         footer <- paste0(
           footer,
-          ifelse(is.null(footer), "", "<br/>"),
+          ifelse(is.null(footer), "", line_sep),
           type,
           " are presented on the ",
           scale_label,
@@ -1143,7 +1187,7 @@ print_html.ggcomparisons <- function(x, collapse_ci = FALSE, theme = NULL, engin
       } else {
         footer <- paste0(
           footer,
-          ifelse(is.null(footer), "", "<br/>"),
+          ifelse(is.null(footer), "", line_sep),
           type,
           " are presented as ",
           scale_label,
@@ -1154,11 +1198,13 @@ print_html.ggcomparisons <- function(x, collapse_ci = FALSE, theme = NULL, engin
   }
 
   # format footer, make it a bit smaller
-  footer <- .format_html_footer(footer)
+  if (identical(output, "html")) {
+    footer <- .format_html_footer(footer)
+  }
 
   # start here for using tinytables
   if (engine == "tt") {
-    insight::check_if_installed("tinytable")
+    insight::check_if_installed("tinytable", minimum_version = "0.1.0")
     # used for subgroup headers, if available
     row_header_pos <- row_header_labels <- NULL
 
@@ -1185,11 +1231,11 @@ print_html.ggcomparisons <- function(x, collapse_ci = FALSE, theme = NULL, engin
       out <- tinytable::style_tt(out, i = row_header_pos, italic = TRUE)
     }
     # apply theme, if any
-    out <- insight::apply_table_theme(out, x, theme = theme, sub_header_positions = row_header_pos)
+    if (identical(output, "html")) {
+      out <- insight::apply_table_theme(out, x, theme = theme, sub_header_positions = row_header_pos)
+    }
     # workaround, to make sure HTML is default output
-    m <- attr(out, "tinytable_meta")
-    m$output <- "html"
-    attr(out, "tinytable_meta") <- m
+    out@output <- output
     out
   } else {
     # here we go with gt

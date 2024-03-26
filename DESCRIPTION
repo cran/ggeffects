@@ -3,7 +3,7 @@ Type: Package
 Encoding: UTF-8
 Title: Create Tidy Data Frames of Marginal Effects for 'ggplot' from
         Model Outputs
-Version: 1.5.0
+Version: 1.5.1
 Authors@R: c(
       person("Daniel", "Lüdecke", role = c("aut", "cre"), email = "d.luedecke@uke.de", comment = c(ORCID = "0000-0002-8895-3206")),
       person("Frederik", "Aust", role = "ctb", comment = c(ORCID = "0000-0003-4900-788X")),
@@ -31,7 +31,7 @@ Suggests: AER, aod, bayestestR, betareg, brglm2, brms, broom, car,
         nnet, ordinal, parameters, parsnip, patchwork, pscl, quantreg,
         rmarkdown, rms, robustbase, rstanarm, rstantools, sandwich,
         sdmTMB (>= 0.4.0), see, sjlabelled (>= 1.1.2), sjstats, survey,
-        survival, testthat, tibble, tinytable (>= 0.0.5), withr, VGAM
+        survival, testthat, tibble, tinytable (>= 0.1.0), withr, VGAM
 URL: https://strengejacke.github.io/ggeffects/
 BugReports: https://github.com/strengejacke/ggeffects/issues/
 RoxygenNote: 7.3.1
@@ -39,11 +39,11 @@ VignetteBuilder: knitr
 Config/testthat/edition: 3
 License: MIT + file LICENSE
 NeedsCompilation: no
-Packaged: 2024-02-24 15:26:26 UTC; DL
+Packaged: 2024-03-25 21:14:06 UTC; Daniel
 Author: Daniel Lüdecke [aut, cre] (<https://orcid.org/0000-0002-8895-3206>),
   Frederik Aust [ctb] (<https://orcid.org/0000-0003-4900-788X>),
   Sam Crawley [ctb] (<https://orcid.org/0000-0002-7847-0411>),
   Mattan S. Ben-Shachar [ctb] (<https://orcid.org/0000-0002-4287-4801>),
   Sean C. Anderson [ctb] (<https://orcid.org/0000-0001-9563-1937>)
 Repository: CRAN
-Date/Publication: 2024-02-24 16:10:12 UTC
+Date/Publication: 2024-03-26 05:50:09 UTC

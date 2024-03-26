@@ -48,10 +48,13 @@
 #'   subgroups are combined into one table. Only works when there is more than
 #'   one focal term, e.g. `options(ggeffects_collapse_tables = TRUE)`.
 #'
-#' - `ggeffects_output_format`: String, either `"text"` or `"html"`. Defines the
-#'   default output format from `predict_response()`. If `"html"`, a formatted HTML
-#'   table is created and printed to the view pane. If `"text"` or `NULL`, a
-#'   formatted table is printed to the console, e.g. `options(ggeffects_output_format = "html")`.
+#' - `ggeffects_output_format`: String, either `"text"`, `"markdown"` or `"html"`.
+#'   Defines the default output format from `predict_response()`. If `"html"`, a
+#'   formatted HTML table is created and printed to the view pane. `"markdown"`
+#'   creates a markdown-formatted table inside Rmarkdown documents, and prints
+#'   a text-format table to the console when used interactively. If `"text"` or
+#'   `NULL`, a formatted table is printed to the console, e.g.
+#'   `options(ggeffects_output_format = "html")`.
 #'
 #' - `ggeffects_html_engine`: String, either `"tt"` or `"gt"`. Defines the default
 #'   engine to use for printing HTML tables. If `"tt"`, the *tinytable* package
@@ -101,9 +104,13 @@
 #'
 #' @export
 print.ggeffects <- function(x, group_name = TRUE, digits = 2, verbose = TRUE, ...) {
-  # check if default format is "html"
-  if (identical(getOption("ggeffects_output_format", "text"), "html")) {
-    return(print(print_html(x, ...)))
+  # check if default format is "html" or "markdown"
+  output_format <- getOption("ggeffects_output_format", "text")
+  if (identical(output_format, "html")) {
+    return(print(print_html(x, group_name = group_name, digits = digits, ...)))
+  }
+  if (identical(output_format, "markdown")) {
+    return(print(print_md(x, group_name = group_name, digits = digits, ...)))
   }
 
   lab <- attr(x, "title", exact = TRUE)
@@ -251,7 +258,7 @@ print_html.ggeffects <- function(x,
 
 # print using tiny table
 .print_html_tt <- function(x, group_name = TRUE, digits = 2, theme = NULL, output = "html", ...) {
-  insight::check_if_installed("tinytable")
+  insight::check_if_installed("tinytable", minimum_version = "0.1.0")
 
   out <- format(
     x,
@@ -293,12 +300,11 @@ print_html.ggeffects <- function(x,
     out <- tinytable::style_tt(out, i = row_header_pos, italic = TRUE)
   }
   # apply theme, if any
-  out <- insight::apply_table_theme(out, x, theme = theme, sub_header_positions = row_header_pos)
+  if (identical(output, "html")) {
+    out <- insight::apply_table_theme(out, x, theme = theme, sub_header_positions = row_header_pos)
+  }
   # workaround, to make sure HTML is default output
-  m <- attr(out, "tinytable_meta")
-  m$output <- output
-  attr(out, "tinytable_meta") <- m
-
+  out@output <- output
   out
 }
 

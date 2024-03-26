@@ -5,7 +5,7 @@
 \alias{hypothesis_test}
 \alias{test_predictions.default}
 \alias{test_predictions.ggeffects}
-\title{(Pairwise) comparisons between predictions}
+\title{(Pairwise) comparisons between predictions (marginal effects)}
 \usage{
 test_predictions(model, ...)
 
@@ -136,7 +136,7 @@ marginal means.
 \description{
 Function to test differences of adjusted predictions for
 statistical significance. This is usually called contrasts or (pairwise)
-comparisons. \code{test_predictions()} is an alias.
+comparisons, or "marginal effects". \code{hypothesis_test()} is an alias.
 }
 \section{Introduction into contrasts and pairwise comparisons}{
 
@@ -189,10 +189,13 @@ depending on the significance level.
 \item \code{ggeffects_collapse_tables}: Logical, if \code{TRUE}, multiple tables for
 subgroups are combined into one table. Only works when there is more than
 one focal term, e.g. \code{options(ggeffects_collapse_tables = TRUE)}.
-\item \code{ggeffects_output_format}: String, either \code{"text"} or \code{"html"}. Defines the
-default output format from \code{predict_response()}. If \code{"html"}, a formatted HTML
-table is created and printed to the view pane. If \code{"text"} or \code{NULL}, a
-formatted table is printed to the console, e.g. \code{options(ggeffects_output_format = "html")}.
+\item \code{ggeffects_output_format}: String, either \code{"text"}, \code{"markdown"} or \code{"html"}.
+Defines the default output format from \code{predict_response()}. If \code{"html"}, a
+formatted HTML table is created and printed to the view pane. \code{"markdown"}
+creates a markdown-formatted table inside Rmarkdown documents, and prints
+a text-format table to the console when used interactively. If \code{"text"} or
+\code{NULL}, a formatted table is printed to the console, e.g.
+\code{options(ggeffects_output_format = "html")}.
 \item \code{ggeffects_html_engine}: String, either \code{"tt"} or \code{"gt"}. Defines the default
 engine to use for printing HTML tables. If \code{"tt"}, the \emph{tinytable} package
 is used, if \code{"gt"}, the \emph{gt} package is used, e.g.
@@ -203,7 +206,7 @@ Use \verb{options(<option_name> = NULL)} to remove the option.
 }
 
 \examples{
-\dontshow{if (requireNamespace("marginaleffects") && requireNamespace("parameters") && interactive()) (if (getRversion() >= "3.4") withAutoprint else force)(\{ # examplesIf}
+\dontshow{if (requireNamespace("marginaleffects") && requireNamespace("parameters") && requireNamespace("margins") && interactive()) (if (getRversion() >= "3.4") withAutoprint else force)(\{ # examplesIf}
 \donttest{
 data(efc)
 efc$c172code <- as.factor(efc$c172code)
@@ -250,6 +253,23 @@ test_predictions(m, c("c161sex", "c172code"), test = "b2 = b1")
 # interaction - slope by groups
 m <- lm(barthtot ~ c12hour + neg_c_7 * c172code + c161sex, data = efc)
 test_predictions(m, c("neg_c_7", "c172code"))
+
+# Example: marginal effects -----------------------------
+# -------------------------------------------------------
+data(iris)
+m <- lm(Petal.Width ~ Petal.Length + Species, data = iris)
+
+# we now want the marginal effects for "Species". We can calculate
+# the marginal effect using the "margins" package
+margins::margins(m, variables = "Species")
+
+# we get the same marginal effect from the "marginaleffects" package
+marginaleffects::avg_slopes(m, variables = "Species")
+
+# finally, test_predictions() returns the same. while the previous results
+# report the marginal effect compared to the reference level "setosa",
+# test_predictions() returns the marginal effects for all pairwise comparisons
+test_predictions(m, "Species")
 }
 \dontshow{\}) # examplesIf}
 }
