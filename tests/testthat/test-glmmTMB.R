@@ -68,12 +68,13 @@ test_that("validate ggpredict lmer against marginaleffects", {
     data = Owls,
     family = glmmTMB::nbinom1()
   ))
-  out1 <- marginaleffects::predictions(
+  out1 <- suppressWarnings(marginaleffects::predictions(
     m1,
     variables = "SexParent",
     newdata = marginaleffects::datagrid(m1),
-    vcov = FALSE
-  )
+    vcov = FALSE,
+    re.form = NULL
+  ))
   out1 <- out1[order(out1$SexParent), ]
   out2 <- ggpredict(
     m1,
@@ -141,6 +142,16 @@ test_that("ggpredict, glmmTMB", {
   expect_equal(p5$predicted[1], p6$predicted[1], tolerance = 1e-3)
 })
 
+test_that("ggpredict, glmmTMB", {
+  skip_on_os("linux")
+  set.seed(123)
+  out <- ggemmeans(m3, "mined", type = "zero_inflated")
+  expect_equal(out$conf.low, c(0.04904, 1.31134), tolerance = 1e-1)
+  set.seed(123)
+  out1 <- ggpredict(m3, "mined", type = "simulate")
+  out2 <- ggaverage(m3, "mined")
+  expect_equal(out1$predicted, out2$predicted, tolerance = 1e-2)
+})
 
 test_that("ggpredict, glmmTMB", {
   p1 <- ggpredict(m4, "mined", type = "fixed")
@@ -357,15 +368,26 @@ test_that("glmmTMB, validate all functions against predict", {
   out1 <- exp(predict(m, newdata = nd, type = "link"))
   out2 <- ggpredict(m, "spp", type = "fixed")
   out3 <- ggaverage(m, "spp", type = "conditional")
-  out4 <- marginaleffects::avg_predictions(m, variables = "spp", type = "conditional", vcov = vcov(m)$cond)
+  out4 <- suppressWarnings(marginaleffects::avg_predictions(
+    m,
+    variables = "spp",
+    type = "conditional",
+    re.form = NULL
+  ))
 
   expect_equal(out1, out2$predicted, tolerance = 1e-3, ignore_attr = TRUE)
   expect_equal(out3$predicted, out4$estimate, tolerance = 1e-3, ignore_attr = TRUE)
+  expect_equal(
+    out3$predicted,
+    c(2.36678, 1.70466, 2.7653, 2.05614, 3.94502, 3.74413, 2.38322),
+    tolerance = 1e-3,
+    ignore_attr = TRUE
+  )
 
   out1 <- predict(m, newdata = nd, type = "response")
   out2 <- ggpredict(m, "spp", type = "zero_inflated")
   out3 <- ggaverage(m, "spp")
-  out4 <- marginaleffects::avg_predictions(m, variables = "spp", vcov = vcov(m)$cond)
+  out4 <- suppressWarnings(marginaleffects::avg_predictions(m, variables = "spp", re.form = NULL))
 
   expect_equal(out1, out2$predicted, tolerance = 1e-3, ignore_attr = TRUE)
   expect_equal(out3$predicted, out4$estimate, tolerance = 1e-3, ignore_attr = TRUE)

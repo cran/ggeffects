@@ -21,6 +21,7 @@
                                       response.transform = NULL,
                                       original_model_frame = NULL,
                                       vcov.args = NULL,
+                                      margin = NULL,
                                       verbose = TRUE) {
   # check correct labels
   if (!is.null(x.axis.labels) && length(x.axis.labels) != length(stats::na.omit(unique(data$x)))) {
@@ -53,6 +54,8 @@
   attr(data, "response.transform") <- response.transform
   attr(data, "untransformed.predictions") <- untransformed.predictions
   attr(data, "vcov") <- vcov.args
+  attr(data, "margin") <- margin
+  attr(data, "df") <- .get_df(model)
 
   # add offset term information
   off_term <- insight::find_offset(model)
@@ -69,7 +72,7 @@
   if (!is.null(model_info)) {
     attr(data, "family") <- model_info$family
     attr(data, "link") <- model_info$link_function
-    attr(data, "logistic") <- as.character(as.numeric(model_info$is_binomial || model_info$is_ordinal || model_info$is_multinomial)) # nolint
+    attr(data, "logistic") <- as.character(as.numeric(model_info$is_binomial || model_info$is_ordinal || model_info$is_multinomial || identical(type, "zi.prob"))) # nolint
     attr(data, "is.trial") <- ifelse(model_info$is_trial && inherits(model, "brmsfit"), "1", "0")
   }
   attr(data, "link_inverse") <- insight::link_inverse(model)

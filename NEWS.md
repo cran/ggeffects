@@ -1,3 +1,28 @@
+# ggeffects 1.5.2
+
+## General
+
+* `ggemmeans()` (and hence, `predict_response(..., margin = "marginalmeans"))`
+  now supports `type = "zi_prob"` for zero-inflated models from package *glmmTMB*,
+  i.e. can now predict the zero-inflation probability.
+
+* `test_predictions()` and `ggaverage()` were updated to work with the latest
+  release of the *marginaleffects* package. That release fixed issues with
+  inaccurate standard errors for *glmmTMB* models.
+
+* `test_predictions()` gains a `margin` argument, to indicate how to marginalize
+  over non-focal terms. This ensures that estimates of pairwise comparisons are
+  in line with estimates of predictions.
+
+* `test_predictions()` gains an `engine` argument, to indicate which package to
+  use to compute pairwise comparisons or contrasts. By default, the *marginaleffects*
+  package is used, but you can also use the *emmeans* package.
+
+## Bug fixes
+
+* Fixed issue in `ggeffect()` when representative values for a focal term included
+  a zero, e.g. `terms = "focal [0,3,5]"`.
+
 # ggeffects 1.5.1
 
 ## General

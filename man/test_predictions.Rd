@@ -22,6 +22,8 @@ hypothesis_test(model, ...)
   df = NULL,
   ci_level = 0.95,
   collapse_levels = FALSE,
+  margin = "mean_reference",
+  engine = "marginaleffects",
   verbose = TRUE,
   ci.lvl = ci_level,
   ...
@@ -71,7 +73,9 @@ to test the interaction within "groups". \code{by} is only relevant for
 categorical predictors.}
 
 \item{test}{Hypothesis to test. By default, pairwise-comparisons are
-conducted. See section \emph{Introduction into contrasts and pairwise comparisons}.}
+conducted. See section \emph{Introduction into contrasts and pairwise comparisons}.
+If \code{engine = "emmeans"}, the \code{test} argument can also be \code{"interaction"},
+to calculate interaction contrasts (difference-in-difference contrasts).}
 
 \item{equivalence}{ROPE's lower and higher bounds. Should be \code{"default"} or
 a vector of length two (e.g., \code{c(-0.1, 0.1)}). If \code{"default"},
@@ -103,7 +107,7 @@ transformations are applied to the \emph{response scale}.
 }
 
 \strong{Note:} If the \code{scale} argument is not supported by the provided \code{model},
-it is automaticaly changed to a supported scale-type (a message is printed
+it is automatically changed to a supported scale-type (a message is printed
 when \code{verbose = TRUE}).}
 
 \item{p_adjust}{Character vector, if not \code{NULL}, indicates the method to
@@ -123,6 +127,18 @@ the model using \code{\link[insight:get_df]{insight::get_df()}} with \code{type 
 \item{collapse_levels}{Logical, if \code{TRUE}, term labels that refer to identical
 levels are no longer separated by "-", but instead collapsed into a unique
 term label (e.g., \code{"level a-level a"} becomes \code{"level a"}). See 'Examples'.}
+
+\item{margin}{Character string, indicates the method how to marginalize over
+non-focal terms. See \code{\link[=predict_response]{predict_response()}} for details. If \code{model} is an
+object of class \code{ggeffects}, the same \code{margin} argument is used as for the
+predictions.}
+
+\item{engine}{Character string, indicates the package to use for computing
+contrasts and comparisons. Can be either \code{"marginaleffects"} (default) or
+\code{"emmeans"}. The latter is useful when the \emph{marginaleffects} package is not
+available, or when the \emph{emmeans} package is preferred. Note that using
+\emph{emmeans} as backend is currently not as feature rich as the default
+(\emph{marginaleffects}) and still in development.}
 
 \item{verbose}{Toggle messages and warnings.}
 
@@ -168,6 +184,19 @@ cases, however, confidence intervals are not updated. Only the p-values are
 adjusted. \code{"esarey"} is slower, but confidence intervals are updated as well.
 }
 
+\section{Global options to choose package for calculating comparisons}{
+
+
+\code{ggeffects_test_engine} can be used as option to either use the \emph{marginaleffects}
+package for computing contrasts and comparisons (default), or the \emph{emmeans}
+package (e.g. \code{options(ggeffects_test_engine = "emmeans")}). The latter is
+useful when the \emph{marginaleffects} package is not available, or when the
+\emph{emmeans} package is preferred. You can also provide the engine directly, e.g.
+\code{test_predictions(..., engine = "emmeans")}. Note that using \emph{emmeans} as
+backend is currently not as feature rich as the default (\emph{marginaleffects})
+and still in development.
+}
+
 \section{Global Options to Customize Tables when Printing}{
 
 The \code{verbose} argument can be used to display or silence messages and
@@ -206,7 +235,7 @@ Use \verb{options(<option_name> = NULL)} to remove the option.
 }
 
 \examples{
-\dontshow{if (requireNamespace("marginaleffects") && requireNamespace("parameters") && requireNamespace("margins") && interactive()) (if (getRversion() >= "3.4") withAutoprint else force)(\{ # examplesIf}
+\dontshow{if (requireNamespace("marginaleffects") && requireNamespace("parameters") && interactive()) (if (getRversion() >= "3.4") withAutoprint else force)(\{ # examplesIf}
 \donttest{
 data(efc)
 efc$c172code <- as.factor(efc$c172code)
@@ -260,10 +289,7 @@ data(iris)
 m <- lm(Petal.Width ~ Petal.Length + Species, data = iris)
 
 # we now want the marginal effects for "Species". We can calculate
-# the marginal effect using the "margins" package
-margins::margins(m, variables = "Species")
-
-# we get the same marginal effect from the "marginaleffects" package
+# the marginal effect using the "marginaleffects" package
 marginaleffects::avg_slopes(m, variables = "Species")
 
 # finally, test_predictions() returns the same. while the previous results

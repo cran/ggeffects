@@ -31,11 +31,11 @@
 #' which is available for some other model classes as well (which respond to
 #' `simulate()`).
 #'
-#' **Note:** For `brmsfit`-models with zero-inflation component,
-#' there is no `type = "zero_inflated"` nor `type = "zi_random"`; predicted
-#' values for `MixMod`-models from **GLMMadaptive** with zero-inflation
-#' component *always* condition on the zero-inflation part of the model (see
-#' 'Details').
+#' **Note:** For `brmsfit`-models with zero-inflation component, there is no
+#' `type = "zero_inflated"` nor `type = "zi_random"`; predicted values for these
+#' models *always* condition on the zero-inflation part of the model. The same
+#' is true for `MixMod`-models from **GLMMadaptive** with zero-inflation component
+#' (see 'Details').
 #'
 #'   - `"fixed"` (or `"fe"` or `"count"`)
 #'
@@ -477,7 +477,8 @@ ggpredict_helper <- function(model,
     untransformed.predictions = untransformed.predictions,
     back.transform = back.transform,
     response.transform = response.transform,
-    vcov.args = .get_variance_covariance_matrix(model, vcov.fun, vcov.args, vcov.type, skip_if_null = TRUE, verbose = FALSE),
+    vcov.args = .get_variance_covariance_matrix(model, vcov.fun, vcov.args, vcov.type, skip_if_null = TRUE, verbose = FALSE), # nolint
+    margin = "mean_reference",
     verbose = verbose
   )
 }

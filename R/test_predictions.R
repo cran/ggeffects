@@ -8,6 +8,8 @@
 #' @param model A fitted model object, or an object of class `ggeffects`.
 #' @param test Hypothesis to test. By default, pairwise-comparisons are
 #'   conducted. See section _Introduction into contrasts and pairwise comparisons_.
+#'   If `engine = "emmeans"`, the `test` argument can also be `"interaction"`,
+#'   to calculate interaction contrasts (difference-in-difference contrasts).
 #' @param terms Character vector with the names of the focal terms from `model`,
 #'   for which contrasts or comparisons should be displayed. At least one term
 #'   is required, maximum length is three terms. If the first focal term is numeric,
@@ -19,6 +21,10 @@
 #'   variables. This is useful especially for interaction terms, where we want
 #'   to test the interaction within "groups". `by` is only relevant for
 #'   categorical predictors.
+#' @param margin Character string, indicates the method how to marginalize over
+#'   non-focal terms. See [`predict_response()`] for details. If `model` is an
+#'   object of class `ggeffects`, the same `margin` argument is used as for the
+#'   predictions.
 #' @param scale Character string, indicating the scale on which the contrasts
 #'   or comparisons are represented. Can be one of:
 #'
@@ -37,7 +43,7 @@
 #'     transformations are applied to the _response scale_.
 #'
 #'   **Note:** If the `scale` argument is not supported by the provided `model`,
-#'   it is automaticaly changed to a supported scale-type (a message is printed
+#'   it is automatically changed to a supported scale-type (a message is printed
 #'   when `verbose = TRUE`).
 #' @param equivalence ROPE's lower and higher bounds. Should be `"default"` or
 #'   a vector of length two (e.g., `c(-0.1, 0.1)`). If `"default"`,
@@ -63,6 +69,12 @@
 #' @param collapse_levels Logical, if `TRUE`, term labels that refer to identical
 #'   levels are no longer separated by "-", but instead collapsed into a unique
 #'   term label (e.g., `"level a-level a"` becomes `"level a"`). See 'Examples'.
+#' @param engine Character string, indicates the package to use for computing
+#' contrasts and comparisons. Can be either `"marginaleffects"` (default) or
+#' `"emmeans"`. The latter is useful when the _marginaleffects_ package is not
+#' available, or when the _emmeans_ package is preferred. Note that using
+#' _emmeans_ as backend is currently not as feature rich as the default
+#' (_marginaleffects_) and still in development.
 #' @param verbose Toggle messages and warnings.
 #' @param ci.lvl Deprecated, please use `ci_level`.
 #' @param ... Arguments passed down to [`data_grid()`] when creating the reference
@@ -118,6 +130,17 @@
 #'
 #' @inheritSection print Global Options to Customize Tables when Printing
 #'
+#' @section Global options to choose package for calculating comparisons:
+#'
+#' `ggeffects_test_engine` can be used as option to either use the _marginaleffects_
+#' package for computing contrasts and comparisons (default), or the _emmeans_
+#' package (e.g. `options(ggeffects_test_engine = "emmeans")`). The latter is
+#' useful when the _marginaleffects_ package is not available, or when the
+#' _emmeans_ package is preferred. You can also provide the engine directly, e.g.
+#' `test_predictions(..., engine = "emmeans")`. Note that using _emmeans_ as
+#' backend is currently not as feature rich as the default (_marginaleffects_)
+#' and still in development.
+#'
 #' @return A data frame containing predictions (e.g. for `test = NULL`),
 #' contrasts or pairwise comparisons of adjusted predictions or estimated
 #' marginal means.
@@ -127,7 +150,7 @@
 #' Determining and controlling the false positive rate. Comparative Political
 #' Studies, 1–33. Advance online publication. doi: 10.1177/0010414017730080
 #'
-#' @examplesIf requireNamespace("marginaleffects") && requireNamespace("parameters") && requireNamespace("margins") && interactive()
+#' @examplesIf requireNamespace("marginaleffects") && requireNamespace("parameters") && interactive()
 #' \donttest{
 #' data(efc)
 #' efc$c172code <- as.factor(efc$c172code)
@@ -181,10 +204,7 @@
 #' m <- lm(Petal.Width ~ Petal.Length + Species, data = iris)
 #'
 #' # we now want the marginal effects for "Species". We can calculate
-#' # the marginal effect using the "margins" package
-#' margins::margins(m, variables = "Species")
-#'
-#' # we get the same marginal effect from the "marginaleffects" package
+#' # the marginal effect using the "marginaleffects" package
 #' marginaleffects::avg_slopes(m, variables = "Species")
 #'
 #' # finally, test_predictions() returns the same. while the previous results
@@ -215,11 +235,40 @@ test_predictions.default <- function(model,
                                      df = NULL,
                                      ci_level = 0.95,
                                      collapse_levels = FALSE,
+                                     margin = "mean_reference",
+                                     engine = "marginaleffects",
                                      verbose = TRUE,
                                      ci.lvl = ci_level,
                                      ...) {
   # check if we have the appropriate package version installed
   insight::check_if_installed("marginaleffects", minimum_version = "0.16.0")
+
+  # margin-argument -----------------------------------------------------------
+  # harmonize the "margin" argument
+  # ---------------------------------------------------------------------------
+
+  # default for "margin" argument?
+  margin <- getOption("ggeffects_margin", margin)
+  # validate "margin" argument
+  margin <- match.arg(
+    margin,
+    c(
+      "mean_reference", "mean_mode", "marginalmeans", "empirical",
+      "counterfactual", "full_data", "ame", "marginaleffects"
+    )
+  )
+  # harmonize argument
+  margin <- switch(margin,
+    mean_reference = ,
+    mean_mode = "mean_reference",
+    marginalmeans = "marginalmeans",
+    "empirical"
+  )
+
+  # default for "engine" argument?
+  engine <- getOption("ggeffects_test_engine", engine)
+  # validate "engine" argument
+  engine <- match.arg(engine, c("marginaleffects", "emmeans"))
 
   # when model is a "ggeffects" object, due to environment issues, "model"
   # can be NULL (in particular in tests), thus check for NULL
@@ -250,9 +299,12 @@ test_predictions.default <- function(model,
   }
   miss_scale <- missing(scale)
 
+  # dot-arguments -------------------------------------------------------------
   # evaluate dots - remove conflicting additional arguments. We have our own
   # "scale" argument that modulates the "type" and "transform" arguments
   # in "marginaleffects"
+  # ---------------------------------------------------------------------------
+
   dot_args <- list(...)
   # default scale is response scale without any transformation
   dot_args$transform <- NULL
@@ -288,13 +340,30 @@ test_predictions.default <- function(model,
     dot_args$vcov_args <- NULL
   }
 
-  ## TODO: this is a current workaround for glmmTMB models, where we need to
-  ##       provide the vcov-argument directly to the marginaleffects-function
-  ##       Remove this workaround when marginaleffects supports glmmTMB models,
-  ##       see https://github.com/vincentarelbundock/marginaleffects/pull/1023
-  ##       and https://github.com/glmmTMB/glmmTMB/issues/915
+  # new policy for glmmTMB models
   if (inherits(model, "glmmTMB") && is.null(dot_args$vcov)) {
-    dot_args$vcov <- insight::get_varcov(model, component = "conditional")
+    dot_args$vcov <- TRUE
+  }
+
+  # engine --------------------------------------------------------------------
+  # here we switch to emmeans, if "engine" is set to "emmeans"
+  # ---------------------------------------------------------------------------
+  if (engine == "emmeans") {
+    return(.test_predictions_emmeans(
+      model = model,
+      terms = terms,
+      by = by,
+      test = test,
+      equivalence = equivalence,
+      scale = scale,
+      p_adjust = p_adjust,
+      df = df,
+      ci_level = ci_level,
+      collapse_levels = collapse_levels,
+      margin = margin,
+      verbose = verbose,
+      ...
+    ))
   }
 
   minfo <- insight::model_info(model, verbose = FALSE)
@@ -313,8 +382,13 @@ test_predictions.default <- function(model,
   }
 
   # for mixed models, we need different handling later...
-  need_average_predictions <- insight::is_mixed_model(model)
+  need_average_predictions <- include_random <- insight::is_mixed_model(model)
   msg_intervals <- FALSE
+  # for "marginalmeans", don't condition on random effects
+  if (margin == "marginalmeans" && include_random) {
+    include_random <- FALSE
+    dot_args$re.form <- NA
+  }
 
   # by-variables are included in terms
   if (!is.null(by)) {
@@ -337,7 +411,19 @@ test_predictions.default <- function(model,
       msg_intervals <- TRUE
     }
   }
-  datagrid <- data_grid(model, terms, group_factor = random_group, ...)
+
+  # data grids -----------------------------------------------------------------
+  # we need data grids only for marginal means or mean/mode, not for
+  # counterfactuals predictions that average over non-focal terms.
+  # ----------------------------------------------------------------------------
+
+  # data grid, varies depending on "margin" argument. For "marginalmeans",
+  # we need a balanced data grid
+  if (margin == "marginalmeans") {
+    datagrid <- marginaleffects::datagrid(model = model, grid_type = "balanced")
+  } else {
+    datagrid <- data_grid(model, terms, group_factor = random_group, ...)
+  }
 
   # check for valid by-variable
   if (!is.null(by)) {
@@ -365,19 +451,22 @@ test_predictions.default <- function(model,
   # response variable as "by" argument
   if (minfo$is_ordinal || minfo$is_multinomial) {
     by_arg <- unique(c(focal, insight::find_response(model)))
+  } else if (margin %in% c("marginalmeans", "empirical")) {
+    # for "marginalmeans", when we have a balanced data grid, we also need the
+    # focal term(s) as by-argument. And we need them for "empirical".
+    by_arg <- focal
   }
 
   # sanity check - variable names in the grid should not "mask" standard names
   # from the marginal effects output
   reserved <- c(
-    "rowid", "group", "term", "contrast", "estimate",
-    "std.error", "statistic", "conf.low", "conf.high", "p.value",
-    "p.value.nonsup", "p.value.noninf", "type"
+    "group", "term", "contrast", "estimate", "std.error", "statistic", "conf.low",
+    "conf.high", "p.value", "p.value.nonsup", "p.value.noninf", "type"
   )
   invalid_names <- reserved %in% colnames(datagrid)
   if (any(invalid_names)) {
     insight::format_error(
-      "Some variable names in the model are not allowed when using `hyothesis_test()` because they are reserved by the internally used {.pkg marginaleffects} package.", # nolint
+      "Some variable names in the model are not allowed when using `test_predictions()` because they are reserved by the internally used {.pkg marginaleffects} package.", # nolint
       paste0("Please rename following variables and fit your model again: ", toString(paste0("`", reserved[invalid_names], "`"))) # nolint
     )
   }
@@ -403,35 +492,57 @@ test_predictions.default <- function(model,
     df <- .get_df(model)
   }
 
+  # ===========================================================================
+  # the following, very long code block, mainly does two things: first, extract
+  # the requested pairwise comparisons or contrasts, either for slopes or for
+  # categorical predictors. The result is a data frame named ".comparisons".
+  # second, a very long block of code extracts the labels for the contrasts or
+  # comparisons, to have nice, readable labels in the printed output. That data
+  # frame is named "out". At the end of this function, we combine both data.
+  # ===========================================================================
+
+  # numeric focal terms (slopes) ----------------------------------------------
+  # we *only* calculate (average) slopes when numeric focal terms come first
+  # thus, we don't need to care about the "margin" argument here
+  # ---------------------------------------------------------------------------
+
   # if *first* focal predictor is numeric, compute average slopes
   if (isTRUE(focal_numeric[1])) {
 
-    # testing slopes =====
-
     # just the "trend" (slope) of one focal predictor
     if (length(focal) == 1) {
+
+      # contrasts of slopes ---------------------------------------------------
+      # here comes the code to test wether a slope is significantly different
+      # from null (contrasts)
+      # -----------------------------------------------------------------------
+
       # argument "test" will be ignored for average slopes
       test <- NULL
       # prepare argument list for "marginaleffects::slopes"
       # we add dot-args later, that modulate the scale of the contrasts
       fun_args <- list(
-        model,
+        model = model,
         variables = focal,
         df = df,
         conf_level = ci_level
       )
-      .comparisons <- do.call(
-        get("avg_slopes", asNamespace("marginaleffects")),
-        c(fun_args, dot_args)
-      )
+      .comparisons <- .call_me("avg_slopes", fun_args, dot_args, include_random)
+      # "extracting" labels for this simple case is easy...
       out <- data.frame(x_ = "slope", stringsAsFactors = FALSE)
       colnames(out) <- focal
 
     } else {
+
+      # pairwise comparison of slopes -----------------------------------------
+      # here comes the code to test wether slopes between groups are
+      # significantly different from each other (pairwise comparison)
+      # -----------------------------------------------------------------------
+
       # prepare argument list for "marginaleffects::slopes"
       # we add dot-args later, that modulate the scale of the contrasts
       fun_args <- list(
-        model,
+        model = model,
         variables = focal[1],
         by = focal[2:length(focal)],
         newdata = datagrid,
@@ -441,17 +552,18 @@ test_predictions.default <- function(model,
       )
       # "trends" (slopes) of numeric focal predictor by group levels
       # of other focal predictor
-      .comparisons <- do.call(
-        get("slopes", asNamespace("marginaleffects")),
-        c(fun_args, dot_args)
-      )
+      .comparisons <- .call_me("slopes", fun_args, dot_args, include_random)
 
-      ## here comes the code for extracting nice term labels ==============
+      # labelling terms ------------------------------------------------------
+      # here comes the code for extracting nice term labels
+      # ----------------------------------------------------------------------
 
       # for pairwise comparisons, we need to extract contrasts
       if (!is.null(test) && all(test == "pairwise")) {
 
-        ## pairwise comparisons of slopes -----
+        # pairwise comparisons of slopes --------------------------------------
+        # here comes the code to extract labels for pairwise comparison of slopes
+        # ---------------------------------------------------------------------
 
         # before we extract labels, we need to check whether any factor level
         # contains a "," - in this case, strplit() will not work properly
@@ -494,7 +606,9 @@ test_predictions.default <- function(model,
 
       } else if (is.null(test)) {
 
-        ## contrasts of slopes -----
+        # contrasts of slopes -------------------------------------------------
+        # here comes the code to extract labels for trends of slopes
+        # ---------------------------------------------------------------------
 
         # if we have simple slopes without pairwise comparisons, we can
         # copy the information directly from the marginaleffects-object
@@ -507,7 +621,9 @@ test_predictions.default <- function(model,
 
       } else {
 
-        ## hypothesis testing of slopes -----
+        # hypothesis testing of slopes ----------------------------------------
+        # here comes the code to extract labels for special hypothesis tests
+        # ---------------------------------------------------------------------
 
         # if we have specific comparisons of estimates, like "b1 = b2", we
         # want to replace these shortcuts with the full related predictor names
@@ -516,7 +632,7 @@ test_predictions.default <- function(model,
           # prepare argument list for "marginaleffects::slopes"
           # we add dot-args later, that modulate the scale of the contrasts
           fun_args <- list(
-            model,
+            model = model,
             variables = focal[1],
             by = focal[2:length(focal)],
             hypothesis = NULL,
@@ -525,10 +641,7 @@ test_predictions.default <- function(model,
           )
           # re-compute comoparisons for all combinations, so we know which
           # estimate refers to which combination of predictor levels
-          .full_comparisons <- do.call(
-            get("slopes", asNamespace("marginaleffects")),
-            c(fun_args, dot_args)
-          )
+          .full_comparisons <- .call_me("slopes", fun_args, dot_args, include_random)
           # replace "hypothesis" labels with names/levels of focal predictors
           hypothesis_label <- .extract_labels(
             full_comparisons = .full_comparisons,
@@ -545,44 +658,61 @@ test_predictions.default <- function(model,
 
   } else {
 
-    # testing groups (factors) ======
+    # testing groups (factors) ------------------------------------------------
+    # Here comes the code for pairwise comparisons of categorical focal terms
+    # -------------------------------------------------------------------------
 
-    by_variables <- focal # for average predictions
+    by_variables <- NULL # for average predictions
+    fun <- "predictions"
+
+    # "variables" argument ----------------------------------------------------
+    # for mixed models, and for "marginalmeans" and "empirical", we need to
+    # provide the "variables" argument to "marginaleffects::predictions".
+    # furthermore, for mixed models, we average across random effects and thus
+    # use "avg_predictions" instead of "predictions"
+    # -------------------------------------------------------------------------
+
     if (need_average_predictions) {
       # marginaleffects handles single and multiple variables differently here
       if (length(focal) > 1) {
-        by_variables <- sapply(focal, function(i) unique(datagrid[[i]]), simplify = FALSE)
+        by_variables <- sapply(focal, function(i) unique(datagrid[[i]]), simplify = FALSE) # nolint
+      } else {
+        by_variables <- focal
       }
-      # prepare argument list for "marginaleffects::avg_predictions"
-      # we add dot-args later, that modulate the scale of the contrasts
-      fun_args <- list(
-        model,
-        variables = by_variables,
-        newdata = datagrid,
-        hypothesis = test,
-        df = df,
-        conf_level = ci_level
-      )
+      by_arg <- NULL
       fun <- "avg_predictions"
-    } else {
-      # prepare argument list for "marginaleffects::predictions"
-      # we add dot-args later, that modulate the scale of the contrasts
-      fun_args <- list(
+    } else if (margin %in% c("marginalmeans", "empirical")) {
+      # for "marginalmeans", we need "variables" argument. This must be a list
+      # with representative values. Else, we cannot calculate comparisons at
+      # representative values of the balanced data grid
+      by_variables <- .data_grid(
         model,
-        by = by_arg,
-        newdata = datagrid,
-        hypothesis = test,
-        df = df,
-        conf_level = ci_level
+        model_frame = insight::get_data(model),
+        terms = terms,
+        value_adjustment = "mean",
+        emmeans.only = TRUE
       )
-      fun <- "predictions"
     }
-    .comparisons <- do.call(
-      get(fun, asNamespace("marginaleffects")),
-      c(fun_args, dot_args)
+    # prepare argument list for "marginaleffects::predictions"
+    # we add dot-args later, that modulate the scale of the contrasts
+    fun_args <- list(
+      model = model,
+      by = by_arg,
+      variables = by_variables,
+      newdata = datagrid,
+      hypothesis = test,
+      df = df,
+      conf_level = ci_level
     )
+    # for counterfactual predictions, we need no data grid
+    if (margin == "empirical") {
+      fun_args$newdata <- NULL
+    }
+    .comparisons <- .call_me(fun, fun_args, dot_args, include_random)
 
-    ## here comes the code for extracting nice term labels ==============
+    # nice term labels --------------------------------------------------------
+    # here comes the code for extracting nice term labels ---------------------
+    # -------------------------------------------------------------------------
 
     # pairwise comparisons - we now extract the group levels from the "term"
     # column and create separate columns for contrats of focal predictors
@@ -599,6 +729,8 @@ test_predictions.default <- function(model,
       # contains a "," - in this case, strplit() will not work properly
       .comparisons$term <- .fix_comma_levels(.comparisons$term, datagrid, focal)
 
+      # split and recombine levels of focal terms. We now have a data frame
+      # where each column represents one factor level of one focal predictor
       contrast_terms <- data.frame(
         do.call(rbind, strsplit(.comparisons$term, "(,| - )")),
         stringsAsFactors = FALSE
@@ -611,50 +743,89 @@ test_predictions.default <- function(model,
         insight::trim_ws(i)
       })
 
-      if (need_average_predictions) {
+      if (need_average_predictions || margin %in% c("marginalmeans", "empirical")) {
+        # in .comparisons$term, for mixed models and when "margin" is either
+        # "marginalmeans" or "empirical", we have the factor levels as values,
+        # where factor levels from different variables are comma-separated. There
+        # are edge cases where we have more than one focal term, but for one of
+        # those only one value is requested, e.g.: `terms = c("sex", "education [high]")`
+        # in this case, .comparisons$term only contains levels of the first focal
+        # term, and no comma (no levels of second focal term are comma separated).
+        # in such cases, we simply remove those focal terms, which levels are not
+        # appearing in .comparisons$term
+
+        # we first need to get the relevant values / factor levels we want to
+        # check for. These can be different from the data grid, when representative
+        # values are specified in brackets via the "terms" argument.
+        if (is.list(by_variables)) {
+          values_to_check <- by_variables
+        } else {
+          values_to_check <- lapply(datagrid[focal], unique)
+        }
+
+        # we then check whether representative values of focal terms actually
+        # appear in our pairwise comparisons data frame.
+        focal_found <- vapply(values_to_check, function(i) {
+          any(vapply(as.character(i), function(j) {
+            any(grepl(j, unique(as.character(.comparisons$term)), fixed = TRUE))
+          }, TRUE))
+        }, TRUE)
+
+        # we temporarily update our focal terms, for extracting labels.
+        if (all(focal_found)) {
+          updated_focal <- focal
+        } else {
+          updated_focal <- focal[focal_found]
+        }
+
         # for "avg_predictions()", we already have the correct labels of factor
         # levels, we just need to re-arrange, so that each column represents a
         # pairwise combination of factor levels for each factor
-        out <- as.data.frame(lapply(seq_along(focal), function(i) {
-          tmp <- contrast_terms[seq(i, ncol(contrast_terms), by = length(focal))]
+        out <- as.data.frame(lapply(seq_along(updated_focal), function(i) {
+          tmp <- contrast_terms[seq(i, ncol(contrast_terms), by = length(updated_focal))]
           unlist(lapply(seq_len(nrow(tmp)), function(j) {
             .contrasts <- as.character(unlist(tmp[j, ]))
-            .contrasts_string <- paste(.contrasts, collapse = "-")
+            paste(.contrasts, collapse = "-")
           }))
         }), stringsAsFactors = FALSE)
+
       } else {
+
+        # only for temporary use, for colnames, see below
+        updated_focal <- focal
         # check whether we have row numbers, or (e.g., for polr or ordinal models)
         # factor levels. When we have row numbers, we coerce them to numeric and
         # extract related factor levels. Else, in case of ordinal outcomes, we
         # should already have factor levels...
-        if (all(vapply(contrast_terms, function(i) anyNA(as.numeric(i)), TRUE)) || minfo$is_ordinal || minfo$is_multinomial) { # nolint
-          out <- as.data.frame(lapply(focal, function(i) {
+        if (all(vapply(contrast_terms, function(i) anyNA(suppressWarnings(as.numeric(i))), TRUE)) || minfo$is_ordinal || minfo$is_multinomial) { # nolint
+          out <- as.data.frame(lapply(updated_focal, function(i) {
             unlist(lapply(seq_len(nrow(contrast_terms)), function(j) {
-              .contrasts_string <- paste(unlist(contrast_terms[j, ]), collapse = "-")
+              paste(unlist(contrast_terms[j, ]), collapse = "-")
             }))
           }), stringsAsFactors = FALSE)
         } else {
           # for "predictions()", we now have the row numbers. We can than extract
           # the factor levels from the data of the data grid, as row numbers in
           # "contrast_terms" correspond to rows in "grid".
-          out <- as.data.frame(lapply(focal, function(i) {
+          out <- as.data.frame(lapply(updated_focal, function(i) {
             unlist(lapply(seq_len(nrow(contrast_terms)), function(j) {
               .contrasts <- datagrid[[i]][as.numeric(unlist(contrast_terms[j, ]))]
-              .contrasts_string <- paste(.contrasts, collapse = "-")
+              paste(.contrasts, collapse = "-")
             }))
           }), stringsAsFactors = FALSE)
         }
+
       }
       # the final result is a data frame with one column per focal predictor,
       # and the pairwise combinations of factor levels are the values
-      colnames(out) <- focal
+      colnames(out) <- updated_focal
 
     } else if (is.null(test)) {
 
       ## contrasts of group levels -----
 
       # we have simple contrasts - we can just copy from the data frame
-      # returned by "marginaleffects"
+      # returned by "marginaleffects" to get nice labels
       out <- as.data.frame(.comparisons[focal], stringsAsFactors = FALSE)
 
     } else {
@@ -667,30 +838,24 @@ test_predictions.default <- function(model,
       if (any(grepl("b[0-9]+", .comparisons$term))) {
         # re-compute comoparisons for all combinations, so we know which
         # estimate refers to which combination of predictor levels
-        if (need_average_predictions) {
-          fun_args <- list(
-            model,
-            variables = by_variables,
-            newdata = datagrid,
-            hypothesis = NULL,
-            df = df,
-            conf_level = ci_level
-          )
+        if (need_average_predictions || margin %in% c("marginalmeans", "empirical")) {
           fun <- "avg_predictions"
         } else {
-          fun_args <- list(
-            model,
-            newdata = datagrid,
-            hypothesis = NULL,
-            df = df,
-            conf_level = ci_level
-          )
           fun <- "predictions"
         }
-        .full_comparisons <- do.call(
-          get(fun, asNamespace("marginaleffects")),
-          c(fun_args, dot_args)
+        fun_args <- list(
+          model = model,
+          variables = by_variables,
+          newdata = datagrid,
+          hypothesis = NULL,
+          df = df,
+          conf_level = ci_level
         )
+        # for counterfactual predictions, we need no data grid
+        if (margin == "empirical") {
+          fun_args$newdata <- NULL
+        }
+        .full_comparisons <- .call_me(fun, fun_args, dot_args, include_random)
 
         # replace "hypothesis" labels with names/levels of focal predictors
         hypothesis_label <- .extract_labels(
@@ -774,7 +939,7 @@ test_predictions.default <- function(model,
     )
   } else if (minfo$is_ordinal || minfo$is_multinomial) {
     resp_levels <- levels(insight::get_response(model))
-    if (!is.null(resp_levels) && all(rowMeans(sapply(resp_levels, grepl, .comparisons$term, fixed = TRUE)) > 0)) {
+    if (!is.null(resp_levels) && all(rowMeans(sapply(resp_levels, grepl, .comparisons$term, fixed = TRUE)) > 0)) { # nolint
       colnames(out)[seq_along(focal)] <- paste0("Response Level by ", paste0(focal, collapse = " & "))
       if (length(focal) > 1) {
         out[2:length(focal)] <- NULL
@@ -806,21 +971,23 @@ test_predictions.default <- function(model,
 #' @rdname test_predictions
 #' @export
 test_predictions.ggeffects <- function(model,
-                                      by = NULL,
-                                      test = "pairwise",
-                                      equivalence = NULL,
-                                      scale = "response",
-                                      p_adjust = NULL,
-                                      df = NULL,
-                                      collapse_levels = FALSE,
-                                      verbose = TRUE,
-                                      ...) {
+                                       by = NULL,
+                                       test = "pairwise",
+                                       equivalence = NULL,
+                                       scale = "response",
+                                       p_adjust = NULL,
+                                       df = NULL,
+                                       collapse_levels = FALSE,
+                                       verbose = TRUE,
+                                       ...) {
   # retrieve focal predictors
   focal <- attributes(model)$original.terms
   # retrieve ci level predictors
   ci_level <- attributes(model)$ci.lvl
   # information about vcov-matrix
   vcov_matrix <- attributes(model)$vcov
+  # information about margin
+  margin <- attributes(model)$margin
   # retrieve relevant information and generate data grid for predictions
   model <- .get_model_object(model)
 
@@ -841,6 +1008,7 @@ test_predictions.ggeffects <- function(model,
     df = df,
     ci_level = ci_level,
     collapse_levels = collapse_levels,
+    margin = margin,
     verbose = verbose
   )
 
@@ -849,6 +1017,20 @@ test_predictions.ggeffects <- function(model,
 
 
 # helper ------------------------
+
+
+.call_me <- function(fun, fun_args, dot_args, include_random) {
+  # concatenate all arguments
+  all_args <- .compact_list(c(fun_args, dot_args))
+  # since ".compact_list" removes NULL objects, we add it back for mixed models
+  if (include_random) {
+    all_args$re.form <- NULL
+    # avoid message
+    suppressMessages(suppressWarnings(do.call(get(fun, asNamespace("marginaleffects")), all_args)))
+  } else {
+    do.call(get(fun, asNamespace("marginaleffects")), all_args)
+  }
+}
 
 
 .collapse_levels <- function(out, datagrid, focal, by) {
@@ -989,6 +1171,10 @@ format.ggcomparisons <- function(x, collapse_ci = FALSE, collapse_p = FALSE, ...
   if (is.null(dots$ci_brackets)) {
     dots$ci_brackets <- getOption("ggeffects_ci_brackets", c("", ""))
   }
+  # zap small values by default
+  if (is.null(dots$zap_small)) {
+    dots$zap_small <- TRUE
+  }
   # set default for collapse_ci
   collapse_ci <- getOption("ggeffects_collapse_ci", collapse_ci)
   # set default for collapse_p
@@ -1015,7 +1201,11 @@ print.ggcomparisons <- function(x, ...) {
   }
 
   test_pairwise <- identical(attributes(x)$test, "pairwise")
+  test_consecutive <- identical(attributes(x)$test, "consecutive")
+  test_interaction <- identical(attributes(x)$test, "interaction")
+  test_custom <- identical(attributes(x)$test, "custom")
   estimate_name <- attributes(x)$estimate_name
+  by_factor <- attributes(x)$by_factor
   rope_range <- attributes(x)$rope_range
   msg_intervals <- isTRUE(attributes(x)$msg_intervals)
   verbose <- isTRUE(attributes(x)$verbose)
@@ -1030,9 +1220,15 @@ print.ggcomparisons <- function(x, ...) {
     caption <- c("# TOST-test for Practical Equivalence", "blue")
   } else if (any(slopes)) {
     x[slopes] <- NULL
-    caption <- c(paste0("# Linear trend for ", names(slopes)[slopes]), "blue")
+    caption <- c(paste0("# (Average) Linear trend for ", names(slopes)[slopes]), "blue")
   } else if (test_pairwise) {
     caption <- c("# Pairwise comparisons", "blue")
+  } else if (test_consecutive) {
+    caption <- c("# Consecutive contrasts", "blue")
+  } else if (test_interaction) {
+    caption <- c("# Interaction contrasts", "blue")
+  } else if (test_custom) {
+    caption <- c("# Custom contrasts", "blue")
   } else {
     caption <- NULL
   }
@@ -1053,6 +1249,23 @@ print.ggcomparisons <- function(x, ...) {
       if (response_table == 1) {
         cat(insight::export_table(tab, title = caption, footer = NULL, ...))
       } else if (response_table == length(out)) {
+        cat(insight::export_table(tab, title = NULL, footer = footer, ...))
+      } else {
+        cat(insight::export_table(tab, title = NULL, footer = NULL, ...))
+      }
+    }
+  } else if (!is.null(by_factor) && by_factor %in% colnames(x)) {
+    # split tables by "by" variable? Need a different handling for captions here
+    out <- split(x, x[[by_factor]])
+    if (!is.null(caption)) {
+      insight::print_color(caption[1], caption[2])
+      cat("\n")
+    }
+    for (by_table in seq_along(out)) {
+      insight::print_color(paste0("\n", by_factor, " = ", names(out)[by_table], "\n\n"), "red")
+      tab <- out[[by_table]]
+      tab[[by_factor]] <- NULL
+      if (by_table == length(out)) {
         cat(insight::export_table(tab, title = NULL, footer = footer, ...))
       } else {
         cat(insight::export_table(tab, title = NULL, footer = NULL, ...))
@@ -1096,7 +1309,7 @@ print.ggcomparisons <- function(x, ...) {
   if (msg_intervals && verbose) {
     insight::format_alert(paste(
       "\nIntervals used for contrasts and comparisons are regular confidence intervals, not prediction intervals.",
-      "To obtain the same type of intervals for your predictions, use `predict_response(..., interval = \"confidence\")`."
+      "To obtain the same type of intervals for your predictions, use `predict_response(..., interval = \"confidence\")`." # nolint
     ))
   }
 }
@@ -1123,6 +1336,9 @@ print_md.ggcomparisons <- function(x, collapse_ci = FALSE, theme = NULL, ...) {
                                       output = "html",
                                       ...) {
   test_pairwise <- identical(attributes(x)$test, "pairwise")
+  test_interaction <- identical(attributes(x)$test, "interaction")
+  test_consecutive <- identical(attributes(x)$test, "consecutive")
+  test_custom <- identical(attributes(x)$test, "custom")
   estimate_name <- attributes(x)$estimate_name
   rope_range <- attributes(x)$rope_range
   msg_intervals <- isTRUE(attributes(x)$msg_intervals)
@@ -1138,9 +1354,15 @@ print_md.ggcomparisons <- function(x, collapse_ci = FALSE, theme = NULL, ...) {
     caption <- "TOST-test for Practical Equivalence"
   } else if (any(slopes)) {
     x[slopes] <- NULL
-    caption <- paste0("Linear trend for ", names(slopes)[slopes])
+    caption <- paste0("(Average) Linear trend for ", names(slopes)[slopes])
   } else if (test_pairwise) {
     caption <- "Pairwise comparisons"
+  } else if (test_interaction) {
+    caption <- "Interaction contrasts"
+  } else if (test_consecutive) {
+    caption <- "Consecutive contrasts"
+  } else if (test_custom) {
+    caption <- "Custom contrasts"
   } else {
     caption <- NULL
   }
