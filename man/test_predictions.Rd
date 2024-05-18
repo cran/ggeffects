@@ -7,12 +7,12 @@
 \alias{test_predictions.ggeffects}
 \title{(Pairwise) comparisons between predictions (marginal effects)}
 \usage{
-test_predictions(model, ...)
+test_predictions(object, ...)
 
-hypothesis_test(model, ...)
+hypothesis_test(object, ...)
 
 \method{test_predictions}{default}(
-  model,
+  object,
   terms = NULL,
   by = NULL,
   test = "pairwise",
@@ -30,7 +30,7 @@ hypothesis_test(model, ...)
 )
 
 \method{test_predictions}{ggeffects}(
-  model,
+  object,
   by = NULL,
   test = "pairwise",
   equivalence = NULL,
@@ -38,12 +38,15 @@ hypothesis_test(model, ...)
   p_adjust = NULL,
   df = NULL,
   collapse_levels = FALSE,
+  engine = "marginaleffects",
   verbose = TRUE,
   ...
 )
 }
 \arguments{
-\item{model}{A fitted model object, or an object of class \code{ggeffects}.}
+\item{object}{A fitted model object, or an object of class \code{ggeffects}. If
+\code{object} is of class \code{ggeffects}, arguments \code{terms}, \code{margin} and \code{ci_level}
+are taken from the \code{ggeffects} object and don't need to be specified.}
 
 \item{...}{Arguments passed down to \code{\link[=data_grid]{data_grid()}} when creating the reference
 grid and to \code{\link[marginaleffects:predictions]{marginaleffects::predictions()}} resp. \code{\link[marginaleffects:slopes]{marginaleffects::slopes()}}.
@@ -52,19 +55,23 @@ comparisons and contrasts to different scales. \code{vcov} can be used to
 calculate heteroscedasticity-consistent standard errors for contrasts.
 See examples at the bottom of
 \href{https://strengejacke.github.io/ggeffects/articles/introduction_comparisons_1.html}{this vignette}
-for further details. To define a heteroscedasticity-consistent
-variance-covariance matrix, you can either use the same arguments as for
-\code{predict_response()} etc., namely \code{vcov_fun}, \code{vcov_type} and \code{vcov_args}.
-These are then transformed into a matrix and passed down to the \code{vcov}
-argument in \emph{marginaleffects}. Or you directly use the \code{vcov} argument. See
-\code{?marginaleffects::slopes} for further details.}
+for further details.
 
-\item{terms}{Character vector with the names of the focal terms from \code{model},
-for which contrasts or comparisons should be displayed. At least one term
-is required, maximum length is three terms. If the first focal term is numeric,
-contrasts or comparisons for the \emph{slopes} of this numeric predictor are
-computed (possibly grouped by the levels of further categorical focal
-predictors).}
+To define a heteroscedasticity-consistent variance-covariance matrix, you can
+either use the same arguments as for \code{predict_response()} etc., namely
+\code{vcov_fun}, \code{vcov_type} and \code{vcov_args}. These are then transformed into a
+matrix and passed down to the \code{vcov} argument in \strong{marginaleffects}. Or you
+directly use the \code{vcov} argument. See \code{?marginaleffects::slopes} for further
+details.}
+
+\item{terms}{If \code{object} is an object of class \code{ggeffects}, the same \code{terms}
+argument is used as for the predictions, i.e. \code{terms} can be ignored. Else,
+if \code{object} is a model object, \code{terms} must be a character vector with the
+names of the focal terms from \code{object}, for which contrasts or comparisons
+should be displayed. At least one term is required, maximum length is three
+terms. If the first focal term is numeric, contrasts or comparisons for the
+\emph{slopes} of this numeric predictor are computed (possibly grouped by the
+levels of further categorical focal predictors).}
 
 \item{by}{Character vector specifying the names of predictors to condition on.
 Hypothesis test is then carried out for focal terms by each level of \code{by}
@@ -72,10 +79,32 @@ variables. This is useful especially for interaction terms, where we want
 to test the interaction within "groups". \code{by} is only relevant for
 categorical predictors.}
 
-\item{test}{Hypothesis to test. By default, pairwise-comparisons are
-conducted. See section \emph{Introduction into contrasts and pairwise comparisons}.
-If \code{engine = "emmeans"}, the \code{test} argument can also be \code{"interaction"},
-to calculate interaction contrasts (difference-in-difference contrasts).}
+\item{test}{Hypothesis to test, defined as character string. Can be one of:
+\itemize{
+\item \code{"pairwise"} (default), to test pairwise comparisons.
+\item \code{"contrast"} to test simple contrasts (i.e. each level is tested against
+the average over \emph{all} levels).
+\item \code{"exclude"} to test simple contrasts (i.e. each level is tested against
+the average over \emph{all other} levels, excluding the contrast that is being
+tested).
+\item \code{"interaction"} to test interaction contrasts (difference-in-difference
+contrasts).
+\item \code{"consecutive"} to test contrasts between consecutive levels of a predictor.
+\item \code{"polynomial"} to test orthogonal polynomial contrasts, assuming
+equally-spaced factor levels.
+\item A character string with a custom hypothesis, e.g. \code{"b2 = b1"}. This would
+test if the second level of a predictor is different from the first level.
+Custom hypotheses are very flexible. It is also possible to test interaction
+contrasts (difference-in-difference contrasts) with custom hypotheses, e.g.
+\code{"(b2 - b1) = (b4 - b3)"}. See also section \emph{Introduction into contrasts
+and pairwise comparisons}.
+\item A data frame with custom contrasts. See 'Examples'.
+\item \code{NULL}, in which case simple contrasts are computed.
+}
+
+Technical details about the packages used as back-end to calculate contrasts
+and pairwise comparisons are provided in the section \emph{Packages used as back-end
+to calculate contrasts and pairwise comparisons} below.}
 
 \item{equivalence}{ROPE's lower and higher bounds. Should be \code{"default"} or
 a vector of length two (e.g., \code{c(-0.1, 0.1)}). If \code{"default"},
@@ -106,7 +135,7 @@ count models);
 transformations are applied to the \emph{response scale}.
 }
 
-\strong{Note:} If the \code{scale} argument is not supported by the provided \code{model},
+\strong{Note:} If the \code{scale} argument is not supported by the provided \code{object},
 it is automatically changed to a supported scale-type (a message is printed
 when \code{verbose = TRUE}).}
 
@@ -122,23 +151,36 @@ below.}
 confidence intervals. If \code{NULL}, degrees of freedom will be extracted from
 the model using \code{\link[insight:get_df]{insight::get_df()}} with \code{type = "wald"}.}
 
-\item{ci_level}{Numeric, the level of the confidence intervals.}
+\item{ci_level}{Numeric, the level of the confidence intervals. If \code{object}
+is an object of class \code{ggeffects}, the same \code{ci_level} argument is used as
+for the predictions, i.e. \code{ci_level} can be ignored.}
 
 \item{collapse_levels}{Logical, if \code{TRUE}, term labels that refer to identical
 levels are no longer separated by "-", but instead collapsed into a unique
 term label (e.g., \code{"level a-level a"} becomes \code{"level a"}). See 'Examples'.}
 
 \item{margin}{Character string, indicates the method how to marginalize over
-non-focal terms. See \code{\link[=predict_response]{predict_response()}} for details. If \code{model} is an
+non-focal terms. See \code{\link[=predict_response]{predict_response()}} for details. If \code{object} is an
 object of class \code{ggeffects}, the same \code{margin} argument is used as for the
-predictions.}
+predictions, i.e. \code{margin} can be ignored.}
 
 \item{engine}{Character string, indicates the package to use for computing
-contrasts and comparisons. Can be either \code{"marginaleffects"} (default) or
-\code{"emmeans"}. The latter is useful when the \emph{marginaleffects} package is not
-available, or when the \emph{emmeans} package is preferred. Note that using
-\emph{emmeans} as backend is currently not as feature rich as the default
-(\emph{marginaleffects}) and still in development.}
+contrasts and comparisons. Usually, this argument can be ignored, unless you
+want to explicitly use another package than \emph{marginaleffects} to calculate
+contrasts and pairwise comparisons. \code{engine} can be either \code{"marginaleffects"}
+(default) or \code{"emmeans"}. The latter is useful when the \strong{marginaleffects}
+package is not available, or when the \strong{emmeans} package is preferred. Note
+that using \strong{emmeans} as back-end is currently not as feature rich as the default
+(\strong{marginaleffects}) and still in development. Setting \code{engine = "emmeans"}
+provides some additional test options: \code{"interaction"} to calculate interaction
+contrasts, \code{"consecutive"} to calculate contrasts between consecutive levels of a
+predictor, or a data frame with custom contrasts (see also \code{test}). There is
+an experimental option as well, \code{engine = "ggeffects"}. However, this is
+currently work-in-progress and offers muss less options as the default engine,
+\code{"marginaleffects"}. It can be faster in some cases, though, and works for
+comparing predicted random effects in mixed models. If the \strong{marginaleffects}
+package is not installed, the \strong{emmeans} package is used automatically. If
+this package is not installed as well, \code{engine = "ggeffects"} is used.}
 
 \item{verbose}{Toggle messages and warnings.}
 
@@ -160,6 +202,55 @@ comparisons, or "marginal effects". \code{hypothesis_test()} is an alias.
 There are many ways to test contrasts or pairwise comparisons. A
 detailed introduction with many (visual) examples is shown in
 \href{https://strengejacke.github.io/ggeffects/articles/introduction_comparisons_1.html}{this vignette}.
+}
+
+\section{Simple workflow for pairwise comparisons}{
+
+
+A simple workflow includes calculating adjusted predictions and passing the
+results directly to \code{test_predictions()}, e.g.:
+
+\if{html}{\out{<div class="sourceCode">}}\preformatted{# 1. fit your model
+model <- lm(mpg ~ hp + wt + am, data = mtcars)
+# 2. calculate adjusted predictions
+pr <- predict_response(model, "am")
+pr
+# 3. test pairwise comparisons
+test_predictions(pr)
+}\if{html}{\out{</div>}}
+
+See also \href{https://strengejacke.github.io/ggeffects/articles/practical_glm_workflow.html}{this vignette}.
+}
+
+\section{Packages used as back-end to calculate contrasts and pairwise comparisons}{
+
+
+The \code{test} argument is used to define which kind of contrast or comparison
+should be calculated. The default is to use the \strong{marginaleffects} package.
+Here are some technical details about the packages used as back-end. When
+\code{test} is...
+\itemize{
+\item \code{"pairwise"} (default), pairwise comparisons are based on the \strong{marginaleffects}
+package.
+\item \code{"contrast"} uses the \strong{emmeans} package, i.e. \code{emmeans::contrast(method = "eff")}
+is called.
+\item \code{"exclude"} relies on the \strong{emmeans} package, i.e. \code{emmeans::contrast(method = "del.eff")}
+is called.
+\item \code{"polynomial"} relies on the \strong{emmeans} package, i.e. \code{emmeans::contrast(method = "poly")}
+is called.
+\item \code{"interaction"} uses the \strong{emmeans} package, i.e. \code{emmeans::contrast(interaction = ...)}
+is called.
+\item \code{"consecutive"} also relies on the \strong{emmeans} package, i.e.
+\code{emmeans::contrast(method = "consec")} is called.
+\item a character string with a custom hypothesis, the \strong{marginaleffects}
+package is used.
+\item a data frame with custom contrasts, \strong{emmeans} is used again.
+\item \code{NULL} calls functions from the \strong{marginaleffects} package with
+\code{hypothesis = NULL}.
+\item If all focal terms are only present as random effects in a mixed model,
+functions from the \strong{ggeffects} package are used. There is an example in
+\href{https://strengejacke.github.io/ggeffects/articles/practical_intersectionality.html}{this vignette}.
+}
 }
 
 \section{P-value adjustment for multiple comparisons}{
@@ -187,14 +278,24 @@ adjusted. \code{"esarey"} is slower, but confidence intervals are updated as wel
 \section{Global options to choose package for calculating comparisons}{
 
 
-\code{ggeffects_test_engine} can be used as option to either use the \emph{marginaleffects}
-package for computing contrasts and comparisons (default), or the \emph{emmeans}
+\code{ggeffects_test_engine} can be used as option to either use the \strong{marginaleffects}
+package for computing contrasts and comparisons (default), or the \strong{emmeans}
 package (e.g. \code{options(ggeffects_test_engine = "emmeans")}). The latter is
-useful when the \emph{marginaleffects} package is not available, or when the
-\emph{emmeans} package is preferred. You can also provide the engine directly, e.g.
-\code{test_predictions(..., engine = "emmeans")}. Note that using \emph{emmeans} as
-backend is currently not as feature rich as the default (\emph{marginaleffects})
+useful when the \strong{marginaleffects} package is not available, or when the
+\strong{emmeans} package is preferred. You can also provide the engine directly, e.g.
+\code{test_predictions(..., engine = "emmeans")}. Note that using \strong{emmeans} as
+backend is currently not as feature rich as the default (\strong{marginaleffects})
 and still in development.
+
+If \code{engine = "emmeans"}, the \code{test} argument can also be \code{"interaction"}
+to calculate interaction contrasts (difference-in-difference contrasts),
+\code{"consecutive"} to calculate contrasts between consecutive levels of a predictor,
+or a data frame with custom contrasts. If \code{test} is one of the latter options,
+and \code{engine} is not specified, the \code{engine} is automatically set to \code{"emmeans"}.
+
+If the \strong{marginaleffects} package is not installed, the \strong{emmeans} package is
+used automatically. If this package is not installed as well,
+\code{engine = "ggeffects"} is used.
 }
 
 \section{Global Options to Customize Tables when Printing}{
@@ -282,6 +383,26 @@ test_predictions(m, c("c161sex", "c172code"), test = "b2 = b1")
 # interaction - slope by groups
 m <- lm(barthtot ~ c12hour + neg_c_7 * c172code + c161sex, data = efc)
 test_predictions(m, c("neg_c_7", "c172code"))
+
+# Interaction and consecutive contrasts -----------------
+# -------------------------------------------------------
+data(coffee_data, package = "ggeffects")
+m <- lm(alertness ~ time * coffee + sex, data = coffee_data)
+
+# consecutive contrasts
+test_predictions(m, "time", by = "coffee", test = "consecutive")
+
+# interaction contrasts - difference-in-difference comparisons
+pr <- predict_response(m, c("time", "coffee"), margin = "marginalmeans")
+test_predictions(pr, test = "interaction")
+
+# Custom contrasts --------------------------------------
+# -------------------------------------------------------
+wakeup_time <- data.frame(
+  "wakeup vs later" = c(-2, 1, 1) / 2, # make sure each "side" sums to (+/-)1!
+  "start vs end of day" = c(-1, 0, 1)
+)
+test_predictions(m, "time", by = "coffee", test = wakeup_time)
 
 # Example: marginal effects -----------------------------
 # -------------------------------------------------------

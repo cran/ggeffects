@@ -1,6 +1,7 @@
 skip_on_os(c("mac", "solaris"))
 skip_if_not_installed("marginaleffects")
 skip_if_not_installed("emmeans")
+skip_if_not_installed("datawizard")
 
 test_that("test_predictions, engine emmeans", {
   data(efc, package = "ggeffects")
@@ -18,6 +19,7 @@ test_that("test_predictions, engine emmeans", {
   out2 <- test_predictions(m, "c172code", engine = "emmeans")
   expect_equal(out1$Contrast, out2$Contrast, tolerance = 1e-3)
   expect_identical(out1$c172code, out2$c172code)
+  expect_equal(attributes(out1)$standard_error, attributes(out2)$standard_error, tolerance = 1e-3)
 
   # slope
   out1 <- test_predictions(m, "neg_c_7")
@@ -30,8 +32,9 @@ test_that("test_predictions, engine emmeans", {
 
   # categorical
   out1 <- test_predictions(m, c("c172code", "c161sex"))
+  out1 <- datawizard::data_arrange(out1, c("c172code", "c161sex"))
   out2 <- test_predictions(m, c("c172code", "c161sex"), engine = "emmeans")
-  expect_equal(out1$Slope, out2$Slope, tolerance = 1e-3)
+  expect_equal(out1$Contrast, out2$Contrast, tolerance = 1e-3)
   expect_identical(out1$c172code, out2$c172code)
 
   # difference-in-difference
@@ -41,6 +44,9 @@ test_that("test_predictions, engine emmeans", {
   expect_identical(out2$c172code, c("1-2", "1-3", "2-3"))
   expect_identical(out2$c161sex, c("male and female", "male and female", "male and female"))
   expect_identical(attributes(out2)$test, "interaction")
+  # test = "interaction" works w/o setting engine
+  out3 <- test_predictions(m, c("c172code", "c161sex"), test = "interaction")
+  expect_equal(out2, out3, ignore_attr = TRUE, tolerance = 1e-4)
 
   # interaction numeric * categorical
   m <- lm(barthtot ~ c12hour + neg_c_7 * c161sex, data = efc)
@@ -49,6 +55,7 @@ test_that("test_predictions, engine emmeans", {
   expect_equal(out1$Contrast, out2$Contrast, tolerance = 1e-3)
 
   out1 <- test_predictions(m, c("c161sex", "neg_c_7"))
+  out1 <- datawizard::data_arrange(out1, c("c161sex", "neg_c_7"))
   out2 <- test_predictions(m, c("c161sex", "neg_c_7"), engine = "emmeans")
   expect_equal(out1$Contrast, out2$Contrast, tolerance = 1e-3)
   expect_identical(out1$neg_c_7, out2$neg_c_7)
@@ -109,7 +116,7 @@ test_that("test_predictions, engine emmeans, glm binomial", {
   # # difference-in-difference
   out1 <- test_predictions(m, c("groups", "var_binom"), test = "(b1 - b3) = (b2 - b4)", margin = "marginaleffects")
   out2 <- test_predictions(m, c("groups", "var_binom"), engine = "emmeans", test = "interaction")
-  expect_equal(out1$Contrast, out2$Contrast[1], tolerance = 1e-2)
+  expect_equal(out1$Contrast, out2$Contrast[4], tolerance = 1e-2)
 })
 
 
@@ -135,27 +142,27 @@ test_that("test_predictions, engine emmeans, by and variable name = level value"
   out1 <- test_predictions(m, c("time", "coffee"), engine = "emmeans")
   emm <- emmeans::emmeans(m, specs = c("time", "coffee"))
   out2 <- as.data.frame(emmeans::contrast(emm, method = "pairwise"))
-  expect_equal(out1$Contrast, out2$estimate, tolerance = 1e-3)
+  expect_equal(out1$Contrast[1:3], out2$estimate[c(12, 10, 11)], tolerance = 1e-3)
   expect_identical(
     unlist(Map(
       function(i, j) paste(i[1], j[1], "-", i[2], j[2]),
       strsplit(out1$time, "-", fixed = TRUE),
       strsplit(out1$coffee, "-", fixed = TRUE)
-    )),
-    out2$contrast
+    ))[1:3],
+    out2$contrast[c(12, 10, 11)]
   )
 
   out1 <- test_predictions(m, c("time", "coffee"), by = "sex", engine = "emmeans")
   emm <- emmeans::emmeans(m, specs = c("time", "coffee"), by = "sex")
   out2 <- as.data.frame(emmeans::contrast(emm, method = "pairwise"))
-  expect_equal(out1$Contrast, out2$estimate, tolerance = 1e-3)
+  expect_equal(out1$Contrast[1:3], out2$estimate[c(12, 10, 11)], tolerance = 1e-3)
   expect_identical(
     unlist(Map(
       function(i, j) paste(i[1], j[1], "-", i[2], j[2]),
       strsplit(out1$time, "-", fixed = TRUE),
       strsplit(out1$coffee, "-", fixed = TRUE)
-    )),
-    as.character(out2$contrast)
+    ))[1:3],
+    as.character(out2$contrast)[c(12, 10, 11)]
   )
 
   expect_snapshot(print(test_predictions(m, c("time", "coffee"), engine = "emmeans")))
@@ -164,13 +171,13 @@ test_that("test_predictions, engine emmeans, by and variable name = level value"
   # check if ggeffects objects works
   pr <- predict_response(m, c("time", "coffee"), margin = "marginalmeans")
   out <- test_predictions(pr, by = "coffee", engine = "emmeans", p_adjust = "tukey")
-  expect_equal(out$Contrast, c(1.92766, -1.92766, -3.85532, -5.78298, -5.78298, 0), tolerance = 1e-3)
+  expect_equal(out$Contrast, c(-1.92766, 1.92766, -3.85532, -5.78298, -5.78298, 0), tolerance = 1e-3)
   expect_equal(out$p.value, c(0.59923, 0.59923, 0.13394, 0.01235, 0.01235, 1), tolerance = 1e-3)
   expect_identical(
     out$time,
     c(
-      "morning-noon", "morning-afternoon", "noon-afternoon", "morning-noon",
-      "morning-afternoon", "noon-afternoon"
+      "morning-afternoon", "morning-noon", "noon-afternoon", "morning-afternoon",
+      "morning-noon", "noon-afternoon"
     )
   )
 
@@ -178,8 +185,11 @@ test_that("test_predictions, engine emmeans, by and variable name = level value"
   out1 <- test_predictions(m, "time", by = "coffee", engine = "emmeans")
   emm <- emmeans::emmeans(m, specs = "time", by = "coffee")
   out2 <- as.data.frame(emmeans::contrast(emm, method = "pairwise"))
-  expect_equal(out1$Contrast, out2$estimate, tolerance = 1e-3)
-  expect_identical(gsub("-", " - ", out1$time, fixed = TRUE), as.character(out2$contrast))
+  expect_equal(out1$Contrast, out2$estimate[c(2, 1, 3, 5, 4, 6)], tolerance = 1e-3)
+  expect_identical(
+    gsub("-", " - ", out1$time, fixed = TRUE),
+    as.character(out2$contrast)[c(2, 1, 3, 5, 4, 6)]
+  )
 })
 
 
@@ -190,8 +200,14 @@ test_that("test_predictions, engine emmeans, consecutive and custom contrasts", 
   out1 <- test_predictions(m, "time", by = "coffee", engine = "emmeans", test = "consec")
   em_time.coffee <- emmeans::emmeans(m, c("time", "coffee"))
   out2 <- as.data.frame(emmeans::contrast(em_time.coffee, method = "consec", by = "coffee"))
-  expect_equal(out1$Contrast, out2$estimate, tolerance = 1e-3)
-  expect_identical(gsub("-", " - ", out1$time, fixed = TRUE), as.character(out2$contrast))
+  # works without setting engine
+  out3 <- test_predictions(m, "time", by = "coffee", test = "consec")
+  expect_equal(out1$Contrast, out2$estimate[c(2, 1, 4, 3)], tolerance = 1e-3)
+  expect_equal(out1$Contrast, out3$Contrast, tolerance = 1e-3)
+  expect_identical(
+    gsub("-", " - ", out1$time, fixed = TRUE),
+    as.character(out2$contrast)[c(2, 1, 4, 3)]
+  )
 
   w.time <- data.frame(
     "wakeup vs later" = c(-2, 1, 1) / 2, # make sure each "side" sums to (+/-)1!
@@ -199,6 +215,9 @@ test_that("test_predictions, engine emmeans, consecutive and custom contrasts", 
   )
   out1 <- test_predictions(m, "time", by = "coffee", engine = "emmeans", test = w.time)
   out2 <- as.data.frame(emmeans::contrast(em_time.coffee, method = w.time, by = "coffee"))
-  expect_equal(out1$Contrast, out2$estimate, tolerance = 1e-3)
-  expect_identical(out1$time, as.character(out2$contrast))
+  # works without setting engine
+  out3 <- test_predictions(m, "time", by = "coffee", test = w.time)
+  expect_equal(out1$Contrast, out2$estimate[c(2, 1, 4, 3)], tolerance = 1e-3)
+  expect_equal(out1$Contrast, out3$Contrast, tolerance = 1e-3)
+  expect_identical(out1$time, as.character(out2$contrast)[c(2, 1, 4, 3)])
 })

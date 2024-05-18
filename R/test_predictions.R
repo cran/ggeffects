@@ -5,108 +5,190 @@
 #'   statistical significance. This is usually called contrasts or (pairwise)
 #'   comparisons, or "marginal effects". `hypothesis_test()` is an alias.
 #'
-#' @param model A fitted model object, or an object of class `ggeffects`.
-#' @param test Hypothesis to test. By default, pairwise-comparisons are
-#'   conducted. See section _Introduction into contrasts and pairwise comparisons_.
-#'   If `engine = "emmeans"`, the `test` argument can also be `"interaction"`,
-#'   to calculate interaction contrasts (difference-in-difference contrasts).
-#' @param terms Character vector with the names of the focal terms from `model`,
-#'   for which contrasts or comparisons should be displayed. At least one term
-#'   is required, maximum length is three terms. If the first focal term is numeric,
-#'   contrasts or comparisons for the *slopes* of this numeric predictor are
-#'   computed (possibly grouped by the levels of further categorical focal
-#'   predictors).
+#' @param object A fitted model object, or an object of class `ggeffects`. If
+#' `object` is of class `ggeffects`, arguments `terms`, `margin` and `ci_level`
+#' are taken from the `ggeffects` object and don't need to be specified.
+#' @param test Hypothesis to test, defined as character string. Can be one of:
+#'
+#'   - `"pairwise"` (default), to test pairwise comparisons.
+#'   - `"contrast"` to test simple contrasts (i.e. each level is tested against
+#'     the average over _all_ levels).
+#'   - `"exclude"` to test simple contrasts (i.e. each level is tested against
+#'     the average over _all other_ levels, excluding the contrast that is being
+#'     tested).
+#'   - `"interaction"` to test interaction contrasts (difference-in-difference
+#'     contrasts).
+#'   - `"consecutive"` to test contrasts between consecutive levels of a predictor.
+#'   - `"polynomial"` to test orthogonal polynomial contrasts, assuming
+#'     equally-spaced factor levels.
+#'   - A character string with a custom hypothesis, e.g. `"b2 = b1"`. This would
+#'     test if the second level of a predictor is different from the first level.
+#'     Custom hypotheses are very flexible. It is also possible to test interaction
+#'     contrasts (difference-in-difference contrasts) with custom hypotheses, e.g.
+#'     `"(b2 - b1) = (b4 - b3)"`. See also section _Introduction into contrasts
+#'     and pairwise comparisons_.
+#'   - A data frame with custom contrasts. See 'Examples'.
+#'   - `NULL`, in which case simple contrasts are computed.
+#'
+#' Technical details about the packages used as back-end to calculate contrasts
+#' and pairwise comparisons are provided in the section _Packages used as back-end
+#' to calculate contrasts and pairwise comparisons_ below.
+#' @param terms If `object` is an object of class `ggeffects`, the same `terms`
+#' argument is used as for the predictions, i.e. `terms` can be ignored. Else,
+#' if `object` is a model object, `terms` must be a character vector with the
+#' names of the focal terms from `object`, for which contrasts or comparisons
+#' should be displayed. At least one term is required, maximum length is three
+#' terms. If the first focal term is numeric, contrasts or comparisons for the
+#' *slopes* of this numeric predictor are computed (possibly grouped by the
+#' levels of further categorical focal predictors).
 #' @param by Character vector specifying the names of predictors to condition on.
-#'   Hypothesis test is then carried out for focal terms by each level of `by`
-#'   variables. This is useful especially for interaction terms, where we want
-#'   to test the interaction within "groups". `by` is only relevant for
-#'   categorical predictors.
+#' Hypothesis test is then carried out for focal terms by each level of `by`
+#' variables. This is useful especially for interaction terms, where we want
+#' to test the interaction within "groups". `by` is only relevant for
+#' categorical predictors.
 #' @param margin Character string, indicates the method how to marginalize over
-#'   non-focal terms. See [`predict_response()`] for details. If `model` is an
-#'   object of class `ggeffects`, the same `margin` argument is used as for the
-#'   predictions.
+#' non-focal terms. See [`predict_response()`] for details. If `object` is an
+#' object of class `ggeffects`, the same `margin` argument is used as for the
+#' predictions, i.e. `margin` can be ignored.
 #' @param scale Character string, indicating the scale on which the contrasts
-#'   or comparisons are represented. Can be one of:
+#' or comparisons are represented. Can be one of:
 #'
-#'   - `"response"` (default), which would return contrasts on the response
-#'     scale (e.g. for logistic regression, as probabilities);
-#'   - `"link"` to return contrasts on scale of the linear predictors
-#'     (e.g. for logistic regression, as log-odds);
-#'   - `"probability"` (or `"probs"`) returns contrasts on the probability scale,
-#'     which is required for some model classes, like `MASS::polr()`;
-#'   - `"oddsratios"` to return contrasts on the odds ratio scale (only applies
-#'     to logistic regression models);
-#'   - `"irr"` to return contrasts on the odds ratio scale (only applies to
-#'     count models);
-#'   - or a transformation function like `"exp"` or `"log"`, to return transformed
-#'     (exponentiated respectively logarithmic) contrasts; note that these
-#'     transformations are applied to the _response scale_.
+#' - `"response"` (default), which would return contrasts on the response
+#'   scale (e.g. for logistic regression, as probabilities);
+#' - `"link"` to return contrasts on scale of the linear predictors
+#'   (e.g. for logistic regression, as log-odds);
+#' - `"probability"` (or `"probs"`) returns contrasts on the probability scale,
+#'   which is required for some model classes, like `MASS::polr()`;
+#' - `"oddsratios"` to return contrasts on the odds ratio scale (only applies
+#'   to logistic regression models);
+#' - `"irr"` to return contrasts on the odds ratio scale (only applies to
+#'   count models);
+#' - or a transformation function like `"exp"` or `"log"`, to return transformed
+#'   (exponentiated respectively logarithmic) contrasts; note that these
+#'   transformations are applied to the _response scale_.
 #'
-#'   **Note:** If the `scale` argument is not supported by the provided `model`,
-#'   it is automatically changed to a supported scale-type (a message is printed
-#'   when `verbose = TRUE`).
+#' **Note:** If the `scale` argument is not supported by the provided `object`,
+#' it is automatically changed to a supported scale-type (a message is printed
+#' when `verbose = TRUE`).
 #' @param equivalence ROPE's lower and higher bounds. Should be `"default"` or
-#'   a vector of length two (e.g., `c(-0.1, 0.1)`). If `"default"`,
-#'   [`bayestestR::rope_range()`] is used. Instead of using the `equivalence`
-#'   argument, it is also possible to call the `equivalence_test()` method
-#'   directly. This requires the **parameters** package to be loaded. When
-#'   using `equivalence_test()`, two more columns with information about the
-#'   ROPE coverage and decision on H0 are added. Furthermore, it is possible
-#'   to `plot()` the results from `equivalence_test()`. See
-#'   [`bayestestR::equivalence_test()`] resp. [`parameters::equivalence_test.lm()`]
-#'   for details.
+#' a vector of length two (e.g., `c(-0.1, 0.1)`). If `"default"`,
+#' [`bayestestR::rope_range()`] is used. Instead of using the `equivalence`
+#' argument, it is also possible to call the `equivalence_test()` method
+#' directly. This requires the **parameters** package to be loaded. When
+#' using `equivalence_test()`, two more columns with information about the
+#' ROPE coverage and decision on H0 are added. Furthermore, it is possible
+#' to `plot()` the results from `equivalence_test()`. See
+#' [`bayestestR::equivalence_test()`] resp. [`parameters::equivalence_test.lm()`]
+#' for details.
 #' @param p_adjust Character vector, if not `NULL`, indicates the method to
-#'   adjust p-values. See [`stats::p.adjust()`] or [`stats::p.adjust.methods`]
-#'   for details. Further possible adjustment methods are `"tukey"` or `"sidak"`,
-#'   and for `johnson_neyman()`, `"fdr"` (or `"bh"`) and `"esarey"` (or its
-#'   short-cut `"es"`) are available options. Some caution is necessary when
-#'   adjusting p-value for multiple comparisons. See also section _P-value adjustment_
-#'   below.
+#' adjust p-values. See [`stats::p.adjust()`] or [`stats::p.adjust.methods`]
+#' for details. Further possible adjustment methods are `"tukey"` or `"sidak"`,
+#' and for `johnson_neyman()`, `"fdr"` (or `"bh"`) and `"esarey"` (or its
+#' short-cut `"es"`) are available options. Some caution is necessary when
+#' adjusting p-value for multiple comparisons. See also section _P-value adjustment_
+#' below.
 #' @param df Degrees of freedom that will be used to compute the p-values and
-#'   confidence intervals. If `NULL`, degrees of freedom will be extracted from
-#'   the model using [`insight::get_df()`] with `type = "wald"`.
-#' @param ci_level Numeric, the level of the confidence intervals.
+#' confidence intervals. If `NULL`, degrees of freedom will be extracted from
+#' the model using [`insight::get_df()`] with `type = "wald"`.
+#' @param ci_level Numeric, the level of the confidence intervals. If `object`
+#' is an object of class `ggeffects`, the same `ci_level` argument is used as
+#' for the predictions, i.e. `ci_level` can be ignored.
 #' @param collapse_levels Logical, if `TRUE`, term labels that refer to identical
-#'   levels are no longer separated by "-", but instead collapsed into a unique
-#'   term label (e.g., `"level a-level a"` becomes `"level a"`). See 'Examples'.
+#' levels are no longer separated by "-", but instead collapsed into a unique
+#' term label (e.g., `"level a-level a"` becomes `"level a"`). See 'Examples'.
 #' @param engine Character string, indicates the package to use for computing
-#' contrasts and comparisons. Can be either `"marginaleffects"` (default) or
-#' `"emmeans"`. The latter is useful when the _marginaleffects_ package is not
-#' available, or when the _emmeans_ package is preferred. Note that using
-#' _emmeans_ as backend is currently not as feature rich as the default
-#' (_marginaleffects_) and still in development.
+#' contrasts and comparisons. Usually, this argument can be ignored, unless you
+#' want to explicitly use another package than *marginaleffects* to calculate
+#' contrasts and pairwise comparisons. `engine` can be either `"marginaleffects"`
+#' (default) or `"emmeans"`. The latter is useful when the **marginaleffects**
+#' package is not available, or when the **emmeans** package is preferred. Note
+#' that using **emmeans** as back-end is currently not as feature rich as the default
+#' (**marginaleffects**) and still in development. Setting `engine = "emmeans"`
+#' provides some additional test options: `"interaction"` to calculate interaction
+#' contrasts, `"consecutive"` to calculate contrasts between consecutive levels of a
+#' predictor, or a data frame with custom contrasts (see also `test`). There is
+#' an experimental option as well, `engine = "ggeffects"`. However, this is
+#' currently work-in-progress and offers muss less options as the default engine,
+#' `"marginaleffects"`. It can be faster in some cases, though, and works for
+#' comparing predicted random effects in mixed models. If the **marginaleffects**
+#' package is not installed, the **emmeans** package is used automatically. If
+#' this package is not installed as well, `engine = "ggeffects"` is used.
 #' @param verbose Toggle messages and warnings.
 #' @param ci.lvl Deprecated, please use `ci_level`.
 #' @param ... Arguments passed down to [`data_grid()`] when creating the reference
-#'   grid and to [`marginaleffects::predictions()`] resp. [`marginaleffects::slopes()`].
-#'   For instance, arguments `type` or `transform` can be used to back-transform
-#'   comparisons and contrasts to different scales. `vcov` can be used to
-#'   calculate heteroscedasticity-consistent standard errors for contrasts.
-#'   See examples at the bottom of
-#'   [this vignette](https://strengejacke.github.io/ggeffects/articles/introduction_comparisons_1.html)
-#'   for further details. To define a heteroscedasticity-consistent
-#'   variance-covariance matrix, you can either use the same arguments as for
-#'   `predict_response()` etc., namely `vcov_fun`, `vcov_type` and `vcov_args`.
-#'   These are then transformed into a matrix and passed down to the `vcov`
-#'   argument in *marginaleffects*. Or you directly use the `vcov` argument. See
-#'   `?marginaleffects::slopes` for further details.
+#' grid and to [`marginaleffects::predictions()`] resp. [`marginaleffects::slopes()`].
+#' For instance, arguments `type` or `transform` can be used to back-transform
+#' comparisons and contrasts to different scales. `vcov` can be used to
+#' calculate heteroscedasticity-consistent standard errors for contrasts.
+#' See examples at the bottom of
+#' [this vignette](https://strengejacke.github.io/ggeffects/articles/introduction_comparisons_1.html)
+#' for further details.
+#'
+#' To define a heteroscedasticity-consistent variance-covariance matrix, you can
+#' either use the same arguments as for `predict_response()` etc., namely
+#' `vcov_fun`, `vcov_type` and `vcov_args`. These are then transformed into a
+#' matrix and passed down to the `vcov` argument in **marginaleffects**. Or you
+#' directly use the `vcov` argument. See `?marginaleffects::slopes` for further
+#' details.
 #'
 #' @seealso There is also an `equivalence_test()` method in the **parameters**
-#'   package ([`parameters::equivalence_test.lm()`]), which can be used to
-#'   test contrasts or comparisons for practical equivalence. This method also
-#'   has a `plot()` method, hence it is possible to do something like:
-#'   ```
-#'   library(parameters)
-#'   predict_response(model, focal_terms) |>
-#'     equivalence_test() |>
-#'     plot()
-#'  ```
+#' package ([`parameters::equivalence_test.lm()`]), which can be used to
+#' test contrasts or comparisons for practical equivalence. This method also
+#' has a `plot()` method, hence it is possible to do something like:
+#' ```
+#' library(parameters)
+#' predict_response(model, focal_terms) |>
+#'   equivalence_test() |>
+#'   plot()
+#' ```
 #'
 #' @section Introduction into contrasts and pairwise comparisons:
 #'
 #' There are many ways to test contrasts or pairwise comparisons. A
 #' detailed introduction with many (visual) examples is shown in
 #' [this vignette](https://strengejacke.github.io/ggeffects/articles/introduction_comparisons_1.html).
+#'
+#' @section Simple workflow for pairwise comparisons:
+#'
+#' A simple workflow includes calculating adjusted predictions and passing the
+#' results directly to `test_predictions()`, e.g.:
+#' ```
+#' # 1. fit your model
+#' model <- lm(mpg ~ hp + wt + am, data = mtcars)
+#' # 2. calculate adjusted predictions
+#' pr <- predict_response(model, "am")
+#' pr
+#' # 3. test pairwise comparisons
+#' test_predictions(pr)
+#' ```
+#' See also [this vignette](https://strengejacke.github.io/ggeffects/articles/practical_glm_workflow.html).
+#'
+#' @section Packages used as back-end to calculate contrasts and pairwise comparisons:
+#'
+#' The `test` argument is used to define which kind of contrast or comparison
+#' should be calculated. The default is to use the **marginaleffects** package.
+#' Here are some technical details about the packages used as back-end. When
+#' `test` is...
+#'   - `"pairwise"` (default), pairwise comparisons are based on the **marginaleffects**
+#'     package.
+#'   - `"contrast"` uses the **emmeans** package, i.e. `emmeans::contrast(method = "eff")`
+#'     is called.
+#'   - `"exclude"` relies on the **emmeans** package, i.e. `emmeans::contrast(method = "del.eff")`
+#'     is called.
+#'   - `"polynomial"` relies on the **emmeans** package, i.e. `emmeans::contrast(method = "poly")`
+#'     is called.
+#'   - `"interaction"` uses the **emmeans** package, i.e. `emmeans::contrast(interaction = ...)`
+#'     is called.
+#'   - `"consecutive"` also relies on the **emmeans** package, i.e.
+#'     `emmeans::contrast(method = "consec")` is called.
+#'   - a character string with a custom hypothesis, the **marginaleffects**
+#'     package is used.
+#'   - a data frame with custom contrasts, **emmeans** is used again.
+#'   - `NULL` calls functions from the **marginaleffects** package with
+#'     `hypothesis = NULL`.
+#'   - If all focal terms are only present as random effects in a mixed model,
+#'     functions from the **ggeffects** package are used. There is an example in
+#'     [this vignette](https://strengejacke.github.io/ggeffects/articles/practical_intersectionality.html).
 #'
 #' @section P-value adjustment for multiple comparisons:
 #'
@@ -132,14 +214,24 @@
 #'
 #' @section Global options to choose package for calculating comparisons:
 #'
-#' `ggeffects_test_engine` can be used as option to either use the _marginaleffects_
-#' package for computing contrasts and comparisons (default), or the _emmeans_
+#' `ggeffects_test_engine` can be used as option to either use the **marginaleffects**
+#' package for computing contrasts and comparisons (default), or the **emmeans**
 #' package (e.g. `options(ggeffects_test_engine = "emmeans")`). The latter is
-#' useful when the _marginaleffects_ package is not available, or when the
-#' _emmeans_ package is preferred. You can also provide the engine directly, e.g.
-#' `test_predictions(..., engine = "emmeans")`. Note that using _emmeans_ as
-#' backend is currently not as feature rich as the default (_marginaleffects_)
+#' useful when the **marginaleffects** package is not available, or when the
+#' **emmeans** package is preferred. You can also provide the engine directly, e.g.
+#' `test_predictions(..., engine = "emmeans")`. Note that using **emmeans** as
+#' backend is currently not as feature rich as the default (**marginaleffects**)
 #' and still in development.
+#'
+#' If `engine = "emmeans"`, the `test` argument can also be `"interaction"`
+#' to calculate interaction contrasts (difference-in-difference contrasts),
+#' `"consecutive"` to calculate contrasts between consecutive levels of a predictor,
+#' or a data frame with custom contrasts. If `test` is one of the latter options,
+#' and `engine` is not specified, the `engine` is automatically set to `"emmeans"`.
+#'
+#' If the **marginaleffects** package is not installed, the **emmeans** package is
+#' used automatically. If this package is not installed as well,
+#' `engine = "ggeffects"` is used.
 #'
 #' @return A data frame containing predictions (e.g. for `test = NULL`),
 #' contrasts or pairwise comparisons of adjusted predictions or estimated
@@ -198,6 +290,26 @@
 #' m <- lm(barthtot ~ c12hour + neg_c_7 * c172code + c161sex, data = efc)
 #' test_predictions(m, c("neg_c_7", "c172code"))
 #'
+#' # Interaction and consecutive contrasts -----------------
+#' # -------------------------------------------------------
+#' data(coffee_data, package = "ggeffects")
+#' m <- lm(alertness ~ time * coffee + sex, data = coffee_data)
+#'
+#' # consecutive contrasts
+#' test_predictions(m, "time", by = "coffee", test = "consecutive")
+#'
+#' # interaction contrasts - difference-in-difference comparisons
+#' pr <- predict_response(m, c("time", "coffee"), margin = "marginalmeans")
+#' test_predictions(pr, test = "interaction")
+#'
+#' # Custom contrasts --------------------------------------
+#' # -------------------------------------------------------
+#' wakeup_time <- data.frame(
+#'   "wakeup vs later" = c(-2, 1, 1) / 2, # make sure each "side" sums to (+/-)1!
+#'   "start vs end of day" = c(-1, 0, 1)
+#' )
+#' test_predictions(m, "time", by = "coffee", test = wakeup_time)
+#'
 #' # Example: marginal effects -----------------------------
 #' # -------------------------------------------------------
 #' data(iris)
@@ -213,7 +325,7 @@
 #' test_predictions(m, "Species")
 #' }
 #' @export
-test_predictions <- function(model, ...) {
+test_predictions <- function(object, ...) {
   UseMethod("test_predictions")
 }
 
@@ -225,7 +337,7 @@ hypothesis_test <- test_predictions
 
 #' @rdname test_predictions
 #' @export
-test_predictions.default <- function(model,
+test_predictions.default <- function(object,
                                      terms = NULL,
                                      by = NULL,
                                      test = "pairwise",
@@ -240,9 +352,6 @@ test_predictions.default <- function(model,
                                      verbose = TRUE,
                                      ci.lvl = ci_level,
                                      ...) {
-  # check if we have the appropriate package version installed
-  insight::check_if_installed("marginaleffects", minimum_version = "0.16.0")
-
   # margin-argument -----------------------------------------------------------
   # harmonize the "margin" argument
   # ---------------------------------------------------------------------------
@@ -265,27 +374,65 @@ test_predictions.default <- function(model,
     "empirical"
   )
 
+  # check for installed packages ----------------------------------------------
+  # check if we have the appropriate package version installed
+  # ---------------------------------------------------------------------------
+
   # default for "engine" argument?
   engine <- getOption("ggeffects_test_engine", engine)
   # validate "engine" argument
-  engine <- match.arg(engine, c("marginaleffects", "emmeans"))
+  engine <- .safe(match.arg(engine, c("marginaleffects", "emmeans")))
+
+  # throw error if invalid engine
+  if (is.null(engine)) {
+    insight::format_error(
+      "Argument `engine` must be either \"marginaleffects\" or \"emmeans\". If you want to use `engine = \"ggeffects\"`, you need to provide the `ggeffects` object directly, e.g.:", # nolint
+      paste0("\n  ", insight::color_text("pr <- predict_response(model, ...)", "cyan")),
+      insight::color_text("test_predictions(pr, engine = \"ggeffects\")", "cyan")
+    )
+  }
+
+  # for test = "interaction" or "consecutive", we need to call emmeans!
+  if (.is_emmeans_contrast(test)) {
+    engine <- "emmeans"
+  }
+  if (!insight::check_if_installed("marginaleffects", quietly = TRUE) && engine == "marginaleffects") { # nolint
+    engine <- "emmeans"
+  }
+  # if we don't have the package installed, we switch to emmeans
+  if (!insight::check_if_installed("emmeans", quietly = TRUE) && engine == "emmeans") {
+    # if we even don't have emmeans, we throw an error
+    insight::format_error(
+      "The `marginaleffects` and `emmeans` packages are required for this function. Please install them from CRAN by running `install.packages(c(\"emmeans\", \"marginaleffects\"))`." # nolint
+    )
+  }
 
   # when model is a "ggeffects" object, due to environment issues, "model"
   # can be NULL (in particular in tests), thus check for NULL
-  if (is.null(model)) {
-    insight::format_error("`model` not found. Try to directly pass the model object to `test_predictions()`.")
+  if (is.null(object)) {
+    insight::format_error(
+      "No model object found. Try to directly pass the model object to `test_predictions()`, e.g.:",
+      paste0("\n  ", insight::color_text("model <- lm(mpg ~ gear, data = mtcars)", "cyan")),
+      insight::color_text("test_predictions(model, \"gear\")", "cyan")
+    )
+  }
+
+  # for gamm/gamm4 objects, we have a list with two items, mer and gam
+  # extract just the gam-part then
+  if (is.gamm(object) || is.gamm4(object)) {
+    object <- object$gam
   }
 
   # only model objects are supported...
-  if (!insight::is_model_supported(model)) {
+  if (!insight::is_model_supported(object)) {
     insight::format_error(
-      paste0("Objects of class `", class(model)[1], "` are not yet supported.")
+      paste0("Objects of class `", class(object)[1], "` are not yet supported.")
     )
   }
 
   # for parsnip-models, use $fit element
-  if (inherits(model, "model_fit")) {
-    model <- model$fit
+  if (inherits(object, "model_fit")) {
+    object <- object$fit
   }
 
   # process arguments
@@ -298,6 +445,21 @@ test_predictions.default <- function(model,
     ci_level <- 0.95
   }
   miss_scale <- missing(scale)
+
+  # random effects -----------------------------------------------------------
+  # check if we have random effects in the model, and if pairwise comparisons
+  # should be done for randome effects only (i.e. all focal terms are specified
+  # as random effects in the model). If so, we need to tell the user that they
+  # have to use `engine = "ggeffects"`
+  # ---------------------------------------------------------------------------
+
+  random_pars <- insight::find_random(object, split_nested = TRUE, flatten = TRUE)
+  if (verbose && !is.null(random_pars) && all(.clean_terms(terms) %in% random_pars)) {
+    insight::format_warning(
+      "All focal terms are included as random effects in the model. To calculate pairwise comparisons for random effects, use `engine = \"ggeffects\"`." # nolint
+    )
+  }
+
 
   # dot-arguments -------------------------------------------------------------
   # evaluate dots - remove conflicting additional arguments. We have our own
@@ -328,12 +490,12 @@ test_predictions.default <- function(model,
   }
 
   # make sure we have a valid type-argument...
-  dot_args$type <- .sanitize_type_argument(model, dot_args$type, verbose = ifelse(miss_scale, FALSE, verbose))
+  dot_args$type <- .sanitize_type_argument(object, dot_args$type, verbose = ifelse(miss_scale, FALSE, verbose))
 
   # make sure we have a valid vcov-argument when user supplies "standard" vcov-arguments
   # from ggpredict, like "vcov_fun" etc. - then remove vcov_-arguments
   if (!is.null(dot_args$vcov_fun)) {
-    dot_args$vcov <- .get_variance_covariance_matrix(model, dot_args$vcov_fun, dot_args$vcov_args, dot_args$vcov_type)
+    dot_args$vcov <- .get_variance_covariance_matrix(object, dot_args$vcov_fun, dot_args$vcov_args, dot_args$vcov_type)
     # remove non supported args
     dot_args$vcov_fun <- NULL
     dot_args$vcov_type <- NULL
@@ -341,7 +503,7 @@ test_predictions.default <- function(model,
   }
 
   # new policy for glmmTMB models
-  if (inherits(model, "glmmTMB") && is.null(dot_args$vcov)) {
+  if (inherits(object, "glmmTMB") && is.null(dot_args$vcov)) {
     dot_args$vcov <- TRUE
   }
 
@@ -350,7 +512,7 @@ test_predictions.default <- function(model,
   # ---------------------------------------------------------------------------
   if (engine == "emmeans") {
     return(.test_predictions_emmeans(
-      model = model,
+      object,
       terms = terms,
       by = by,
       test = test,
@@ -366,7 +528,8 @@ test_predictions.default <- function(model,
     ))
   }
 
-  minfo <- insight::model_info(model, verbose = FALSE)
+  minfo <- insight::model_info(object, verbose = FALSE)
+  model_data <- .get_model_data(object)
 
   # make sure that we have logistic regression when scale is "oddsratios"
   if (scale == "oddsratios" && !minfo$is_logit) {
@@ -382,7 +545,7 @@ test_predictions.default <- function(model,
   }
 
   # for mixed models, we need different handling later...
-  need_average_predictions <- include_random <- insight::is_mixed_model(model)
+  need_average_predictions <- include_random <- insight::is_mixed_model(object)
   msg_intervals <- FALSE
   # for "marginalmeans", don't condition on random effects
   if (margin == "marginalmeans" && include_random) {
@@ -402,7 +565,7 @@ test_predictions.default <- function(model,
   # check if we have a mixed model - in this case, we need to ensure that our
   # random effect variable (group factor) is included in the grid
   if (need_average_predictions) {
-    random_group <- insight::find_random(model, split_nested = TRUE, flatten = TRUE)
+    random_group <- insight::find_random(object, split_nested = TRUE, flatten = TRUE)
     if (!all(random_group %in% terms)) {
       terms <- unique(c(terms, random_group))
     }
@@ -420,37 +583,24 @@ test_predictions.default <- function(model,
   # data grid, varies depending on "margin" argument. For "marginalmeans",
   # we need a balanced data grid
   if (margin == "marginalmeans") {
-    datagrid <- marginaleffects::datagrid(model = model, grid_type = "balanced")
+    datagrid <- marginaleffects::datagrid(model = object, grid_type = "balanced")
   } else {
-    datagrid <- data_grid(model, terms, group_factor = random_group, ...)
+    datagrid <- data_grid(object, terms, group_factor = random_group, ...)
+    # make sure characters are preserved
+    for (i in colnames(datagrid)) {
+      if (i %in% colnames(model_data) && is.character(model_data[[i]])) {
+        datagrid[[i]] <- as.character(datagrid[[i]])
+      }
+    }
   }
 
   # check for valid by-variable
-  if (!is.null(by)) {
-    # all by-terms need to be in data grid
-    if (!all(by %in% colnames(datagrid))) {
-      insight::format_error(
-        paste0("Variable(s) `", toString(by[!by %in% colnames(datagrid)]), "` not found in data grid.")
-      )
-    }
-    # by-terms must be categorical
-    by_factors <- vapply(datagrid[by], is.factor, TRUE)
-    if (!all(by_factors)) {
-      insight::format_error(
-        "All variables in `by` must be categorical.",
-        paste0(
-          "The following variables in `by` are not categorical: ",
-          toString(paste0("`", by[!by_factors], "`"))
-        )
-      )
-    }
-  }
-
+  by <- .validate_by_argument(by, datagrid)
   by_arg <- NULL
   # for models with ordinal/categorical outcome, we need focal terms and
   # response variable as "by" argument
   if (minfo$is_ordinal || minfo$is_multinomial) {
-    by_arg <- unique(c(focal, insight::find_response(model)))
+    by_arg <- unique(c(focal, insight::find_response(object)))
   } else if (margin %in% c("marginalmeans", "empirical")) {
     # for "marginalmeans", when we have a balanced data grid, we also need the
     # focal term(s) as by-argument. And we need them for "empirical".
@@ -481,7 +631,7 @@ test_predictions.default <- function(model,
   if (!is.null(equivalence)) {
     if (all(equivalence == "default")) {
       insight::check_if_installed("bayestestR")
-      rope_range <- bayestestR::rope_range(model)
+      rope_range <- bayestestR::rope_range(object)
     } else {
       rope_range <- equivalence
     }
@@ -489,7 +639,7 @@ test_predictions.default <- function(model,
 
   # extract degrees of freedom
   if (is.null(df)) {
-    df <- .get_df(model)
+    df <- .get_df(object)
   }
 
   # ===========================================================================
@@ -522,7 +672,7 @@ test_predictions.default <- function(model,
       # prepare argument list for "marginaleffects::slopes"
       # we add dot-args later, that modulate the scale of the contrasts
       fun_args <- list(
-        model = model,
+        model = object,
         variables = focal,
         df = df,
         conf_level = ci_level
@@ -542,7 +692,7 @@ test_predictions.default <- function(model,
       # prepare argument list for "marginaleffects::slopes"
       # we add dot-args later, that modulate the scale of the contrasts
       fun_args <- list(
-        model = model,
+        model = object,
         variables = focal[1],
         by = focal[2:length(focal)],
         newdata = datagrid,
@@ -632,7 +782,7 @@ test_predictions.default <- function(model,
           # prepare argument list for "marginaleffects::slopes"
           # we add dot-args later, that modulate the scale of the contrasts
           fun_args <- list(
-            model = model,
+            model = object,
             variables = focal[1],
             by = focal[2:length(focal)],
             hypothesis = NULL,
@@ -686,8 +836,8 @@ test_predictions.default <- function(model,
       # with representative values. Else, we cannot calculate comparisons at
       # representative values of the balanced data grid
       by_variables <- .data_grid(
-        model,
-        model_frame = insight::get_data(model),
+        object,
+        model_frame = model_data,
         terms = terms,
         value_adjustment = "mean",
         emmeans.only = TRUE
@@ -696,7 +846,7 @@ test_predictions.default <- function(model,
     # prepare argument list for "marginaleffects::predictions"
     # we add dot-args later, that modulate the scale of the contrasts
     fun_args <- list(
-      model = model,
+      model = object,
       by = by_arg,
       variables = by_variables,
       newdata = datagrid,
@@ -844,7 +994,7 @@ test_predictions.default <- function(model,
           fun <- "predictions"
         }
         fun_args <- list(
-          model = model,
+          model = object,
           variables = by_variables,
           newdata = datagrid,
           hypothesis = NULL,
@@ -938,7 +1088,7 @@ test_predictions.default <- function(model,
       out
     )
   } else if (minfo$is_ordinal || minfo$is_multinomial) {
-    resp_levels <- levels(insight::get_response(model))
+    resp_levels <- levels(insight::get_response(object))
     if (!is.null(resp_levels) && all(rowMeans(sapply(resp_levels, grepl, .comparisons$term, fixed = TRUE)) > 0)) { # nolint
       colnames(out)[seq_along(focal)] <- paste0("Response Level by ", paste0(focal, collapse = " & "))
       if (length(focal) > 1) {
@@ -952,6 +1102,7 @@ test_predictions.default <- function(model,
   attr(out, "test") <- test
   attr(out, "p_adjust") <- p_adjust
   attr(out, "df") <- df
+  attr(out, "by_factor") <- by
   attr(out, "rope_range") <- rope_range
   attr(out, "scale") <- scale
   attr(out, "scale_label") <- .scale_label(minfo, scale)
@@ -960,9 +1111,11 @@ test_predictions.default <- function(model,
   attr(out, "estimate_name") <- estimate_name
   attr(out, "msg_intervals") <- msg_intervals
   attr(out, "verbose") <- verbose
+  attr(out, "engine") <- "marginaleffects"
+  attr(out, "datagrid") <- datagrid
   attr(out, "standard_error") <- .comparisons$std.error
-  attr(out, "link_inverse") <- insight::link_inverse(model)
-  attr(out, "link_function") <- insight::link_function(model)
+  attr(out, "link_inverse") <- insight::link_inverse(object)
+  attr(out, "link_function") <- insight::link_function(object)
 
   out
 }
@@ -970,7 +1123,7 @@ test_predictions.default <- function(model,
 
 #' @rdname test_predictions
 #' @export
-test_predictions.ggeffects <- function(model,
+test_predictions.ggeffects <- function(object,
                                        by = NULL,
                                        test = "pairwise",
                                        equivalence = NULL,
@@ -978,18 +1131,66 @@ test_predictions.ggeffects <- function(model,
                                        p_adjust = NULL,
                                        df = NULL,
                                        collapse_levels = FALSE,
+                                       engine = "marginaleffects",
                                        verbose = TRUE,
                                        ...) {
+  # check for installed packages ----------------------------------------------
+  # check if we have the appropriate package version installed
+  # ---------------------------------------------------------------------------
+
+  # default for "engine" argument?
+  engine <- getOption("ggeffects_test_engine", engine)
+  # validate "engine" argument
+  engine <- match.arg(engine, c("marginaleffects", "emmeans", "ggeffects"))
+
+  if (!insight::check_if_installed("marginaleffects", quietly = TRUE) && engine == "marginaleffects") { # nolint
+    engine <- "emmeans"
+  }
+  # if we don't have the package installed, we switch to emmeans
+  if (!insight::check_if_installed("emmeans", quietly = TRUE) && engine == "emmeans") {
+    engine <- "ggeffects"
+  }
+
   # retrieve focal predictors
-  focal <- attributes(model)$original.terms
+  focal <- attributes(object)$original.terms
   # retrieve ci level predictors
-  ci_level <- attributes(model)$ci.lvl
+  ci_level <- attributes(object)$ci.lvl
+
+  # check if all focal terms are random effects - if so, we switch to ggeffects
+  # because we cannot calculate comparisons for random effects with marginaleffects
+  # or emmeans
+  model <- .get_model_object(name = attr(object, "model.name", exact = TRUE))
+  random_pars <- insight::find_random(model, split_nested = TRUE, flatten = TRUE)
+  if (!is.null(random_pars) && all(.clean_terms(focal) %in% random_pars) && !is.na(ci_level)) {
+    engine <- "ggeffects"
+  }
+
+  # experimental! ------------------------------------------------------------
+  # Not officially documented. This is currently work in progress and not
+  # yet fully supported. The "ggeffects" engine is not yet fully implemented.
+  # ---------------------------------------------------------------------------
+  if (engine == "ggeffects") {
+    return(.test_predictions_ggeffects(
+      object,
+      by = by,
+      test = test,
+      equivalence = equivalence,
+      scale = scale,
+      p_adjust = p_adjust,
+      df = attributes(object)$df,
+      ci_level = ci_level,
+      collapse_levels = collapse_levels,
+      verbose = verbose,
+      ...
+    ))
+  }
+
   # information about vcov-matrix
-  vcov_matrix <- attributes(model)$vcov
+  vcov_matrix <- attributes(object)$vcov
   # information about margin
-  margin <- attributes(model)$margin
+  margin <- attributes(object)$margin
   # retrieve relevant information and generate data grid for predictions
-  model <- .get_model_object(model)
+  object <- .get_model_object(name = attr(object, "model.name", exact = TRUE))
 
   dot_args <- list(...)
   # set default for marginaleffects, we pass this via dots
@@ -998,7 +1199,7 @@ test_predictions.ggeffects <- function(model,
   }
 
   my_args <- list(
-    model,
+    object,
     terms = focal,
     by = by,
     test = test,
@@ -1009,6 +1210,7 @@ test_predictions.ggeffects <- function(model,
     ci_level = ci_level,
     collapse_levels = collapse_levels,
     margin = margin,
+    engine = engine,
     verbose = verbose
   )
 
@@ -1030,6 +1232,31 @@ test_predictions.ggeffects <- function(model,
   } else {
     do.call(get(fun, asNamespace("marginaleffects")), all_args)
   }
+}
+
+
+.validate_by_argument <- function(by, datagrid) {
+  # check for valid by-variable
+  if (!is.null(by)) {
+    # all by-terms need to be in data grid
+    if (!all(by %in% colnames(datagrid))) {
+      insight::format_error(
+        paste0("Variable(s) `", toString(by[!by %in% colnames(datagrid)]), "` not found in data grid.")
+      )
+    }
+    # by-terms must be categorical
+    by_factors <- vapply(datagrid[by], is.factor, TRUE)
+    if (!all(by_factors)) {
+      insight::format_error(
+        "All variables in `by` must be categorical.",
+        paste0(
+          "The following variables in `by` are not categorical: ",
+          toString(paste0("`", by[!by_factors], "`"))
+        )
+      )
+    }
+  }
+  by
 }
 
 
@@ -1157,409 +1384,6 @@ test_predictions.ggeffects <- function(model,
 }
 
 
-
-# methods ----------------------------
-
-
-#' @export
-format.ggcomparisons <- function(x, collapse_ci = FALSE, collapse_p = FALSE, ...) {
-  ci <- attributes(x)$ci_level
-  out <- insight::standardize_names(x)
-  attr(out, "ci") <- ci
-  # format confidence intervals
-  dots <- list(...)
-  if (is.null(dots$ci_brackets)) {
-    dots$ci_brackets <- getOption("ggeffects_ci_brackets", c("", ""))
-  }
-  # zap small values by default
-  if (is.null(dots$zap_small)) {
-    dots$zap_small <- TRUE
-  }
-  # set default for collapse_ci
-  collapse_ci <- getOption("ggeffects_collapse_ci", collapse_ci)
-  # set default for collapse_p
-  collapse_p <- getOption("ggeffects_collapse_p", collapse_p)
-
-  out <- do.call(insight::format_table, c(list(out), dots))
-  # collapse p?
-  out <- .collapse_p(out, collapse_p)
-  # collapse CI?
-  out <- .collapse_ci(out, collapse_ci, ci_brackets = dots$ci_brackets)
-  out
-}
-
-
-#' @export
-print.ggcomparisons <- function(x, ...) {
-  # check if default format is "html" or "markdown"
-  output_format <- getOption("ggeffects_output_format", "text")
-  if (identical(output_format, "html")) {
-    return(print(print_html(x, ...)))
-  }
-  if (identical(output_format, "markdown")) {
-    return(print(print_md(x, ...)))
-  }
-
-  test_pairwise <- identical(attributes(x)$test, "pairwise")
-  test_consecutive <- identical(attributes(x)$test, "consecutive")
-  test_interaction <- identical(attributes(x)$test, "interaction")
-  test_custom <- identical(attributes(x)$test, "custom")
-  estimate_name <- attributes(x)$estimate_name
-  by_factor <- attributes(x)$by_factor
-  rope_range <- attributes(x)$rope_range
-  msg_intervals <- isTRUE(attributes(x)$msg_intervals)
-  verbose <- isTRUE(attributes(x)$verbose)
-  scale_outcome <- attributes(x)$scale
-  scale_label <- attributes(x)$scale_label
-  is_linear <- isTRUE(attributes(x)$linear_model)
-
-  # get header and footer, then print table
-  x <- format(x, ...)
-  slopes <- vapply(x, function(i) all(i == "slope"), TRUE)
-  if (!is.null(rope_range)) {
-    caption <- c("# TOST-test for Practical Equivalence", "blue")
-  } else if (any(slopes)) {
-    x[slopes] <- NULL
-    caption <- c(paste0("# (Average) Linear trend for ", names(slopes)[slopes]), "blue")
-  } else if (test_pairwise) {
-    caption <- c("# Pairwise comparisons", "blue")
-  } else if (test_consecutive) {
-    caption <- c("# Consecutive contrasts", "blue")
-  } else if (test_interaction) {
-    caption <- c("# Interaction contrasts", "blue")
-  } else if (test_custom) {
-    caption <- c("# Custom contrasts", "blue")
-  } else {
-    caption <- NULL
-  }
-  footer <- attributes(x)$hypothesis_label
-  if (!is.null(footer)) {
-    footer <- insight::format_message(paste0("Tested hypothesis: ", footer))
-    footer <- paste0("\n", footer, "\n")
-  }
-
-  # split tables by response levels?
-  if ("Response_Level" %in% colnames(x)) {
-    x$Response_Level <- factor(x$Response_Level, levels = unique(x$Response_Level))
-    out <- split(x, x$Response_Level)
-    for (response_table in seq_along(out)) {
-      insight::print_color(paste0("\n# Response Level: ", names(out)[response_table], "\n\n"), "red")
-      tab <- out[[response_table]]
-      tab$Response_Level <- NULL
-      if (response_table == 1) {
-        cat(insight::export_table(tab, title = caption, footer = NULL, ...))
-      } else if (response_table == length(out)) {
-        cat(insight::export_table(tab, title = NULL, footer = footer, ...))
-      } else {
-        cat(insight::export_table(tab, title = NULL, footer = NULL, ...))
-      }
-    }
-  } else if (!is.null(by_factor) && by_factor %in% colnames(x)) {
-    # split tables by "by" variable? Need a different handling for captions here
-    out <- split(x, x[[by_factor]])
-    if (!is.null(caption)) {
-      insight::print_color(caption[1], caption[2])
-      cat("\n")
-    }
-    for (by_table in seq_along(out)) {
-      insight::print_color(paste0("\n", by_factor, " = ", names(out)[by_table], "\n\n"), "red")
-      tab <- out[[by_table]]
-      tab[[by_factor]] <- NULL
-      if (by_table == length(out)) {
-        cat(insight::export_table(tab, title = NULL, footer = footer, ...))
-      } else {
-        cat(insight::export_table(tab, title = NULL, footer = NULL, ...))
-      }
-    }
-  } else {
-    cat(insight::export_table(x, title = caption, footer = footer, ...))
-  }
-
-  # what type of estimates do we have?
-  type <- switch(estimate_name,
-    Predicted = "Predictions",
-    Contrast = "Contrasts",
-    Slope = "Slopes",
-    "Estimates"
-  )
-
-  # tell user about scale of estimate type
-  if (verbose && !(is_linear && identical(scale_outcome, "response"))) {
-    if (is.null(scale_label)) {
-      scale_label <- switch(scale_outcome,
-        response = "response",
-        probs = ,
-        probability = "probability",
-        exp = "exponentiated",
-        log = "log",
-        link = "link",
-        oddsratios = "odds ratio",
-        irr = "incident rate ratio",
-        "unknown"
-      )
-      msg <- paste0("\n", type, " are presented on the ", scale_label, " scale.")
-    } else {
-      msg <- paste0("\n", type, " are presented as ", scale_label, ".")
-    }
-    insight::format_alert(msg)
-  }
-
-  # tell user about possible discrepancies between prediction intervals of
-  # predictions and confidence intervals of contrasts/comparisons
-  if (msg_intervals && verbose) {
-    insight::format_alert(paste(
-      "\nIntervals used for contrasts and comparisons are regular confidence intervals, not prediction intervals.",
-      "To obtain the same type of intervals for your predictions, use `predict_response(..., interval = \"confidence\")`." # nolint
-    ))
-  }
-}
-
-
-#' @export
-print_html.ggcomparisons <- function(x, collapse_ci = FALSE, theme = NULL, engine = c("tt", "gt"), ...) {
-  engine <- getOption("ggeffects_html_engine", engine)
-  engine <- match.arg(engine)
-  .print_html_ggcomparisons(x, collapse_ci = collapse_ci, theme = theme, engine = engine, ...)
-}
-
-
-#' @export
-print_md.ggcomparisons <- function(x, collapse_ci = FALSE, theme = NULL, ...) {
-  .print_html_ggcomparisons(x, collapse_ci = collapse_ci, theme = theme, engine = "tt", output = "markdown", ...)
-}
-
-
-.print_html_ggcomparisons <- function(x,
-                                      collapse_ci = FALSE,
-                                      theme = NULL,
-                                      engine = c("tt", "gt"),
-                                      output = "html",
-                                      ...) {
-  test_pairwise <- identical(attributes(x)$test, "pairwise")
-  test_interaction <- identical(attributes(x)$test, "interaction")
-  test_consecutive <- identical(attributes(x)$test, "consecutive")
-  test_custom <- identical(attributes(x)$test, "custom")
-  estimate_name <- attributes(x)$estimate_name
-  rope_range <- attributes(x)$rope_range
-  msg_intervals <- isTRUE(attributes(x)$msg_intervals)
-  verbose <- isTRUE(attributes(x)$verbose)
-  scale_outcome <- attributes(x)$scale
-  scale_label <- attributes(x)$scale_label
-  is_linear <- isTRUE(attributes(x)$linear_model)
-
-  # get header and footer, then print table
-  x <- format(x, collapse_ci = collapse_ci, ...)
-  slopes <- vapply(x, function(i) all(i == "slope"), TRUE)
-  if (!is.null(rope_range)) {
-    caption <- "TOST-test for Practical Equivalence"
-  } else if (any(slopes)) {
-    x[slopes] <- NULL
-    caption <- paste0("(Average) Linear trend for ", names(slopes)[slopes])
-  } else if (test_pairwise) {
-    caption <- "Pairwise comparisons"
-  } else if (test_interaction) {
-    caption <- "Interaction contrasts"
-  } else if (test_consecutive) {
-    caption <- "Consecutive contrasts"
-  } else if (test_custom) {
-    caption <- "Custom contrasts"
-  } else {
-    caption <- NULL
-  }
-
-  footer <- attributes(x)$hypothesis_label
-  if (!is.null(footer)) {
-    footer <- paste0("Tested hypothesis: ", footer)
-  }
-
-  if (verbose) {
-    # what type of estimates do we have?
-    type <- switch(estimate_name,
-      Predicted = "Predictions",
-      Contrast = "Contrasts",
-      Slope = "Slopes",
-      "Estimates"
-    )
-
-    # line separator
-    line_sep <- ifelse(identical(output, "html"), "<br/>", ", ")
-
-    # tell user about scale of estimate type
-    if (!(is_linear && identical(scale_outcome, "response"))) {
-      if (is.null(scale_label)) {
-        scale_label <- switch(scale_outcome,
-          response = "response",
-          probs = ,
-          probability = "probability",
-          exp = "exponentiated",
-          log = "log",
-          link = "link",
-          oddsratios = "odds ratio",
-          irr = "incident rate ratio",
-          "unknown"
-        )
-        footer <- paste0(
-          footer,
-          ifelse(is.null(footer), "", line_sep),
-          type,
-          " are presented on the ",
-          scale_label,
-          " scale."
-        )
-      } else {
-        footer <- paste0(
-          footer,
-          ifelse(is.null(footer), "", line_sep),
-          type,
-          " are presented as ",
-          scale_label,
-          "."
-        )
-      }
-    }
-  }
-
-  # format footer, make it a bit smaller
-  if (identical(output, "html")) {
-    footer <- .format_html_footer(footer)
-  }
-
-  # start here for using tinytables
-  if (engine == "tt") {
-    insight::check_if_installed("tinytable", minimum_version = "0.1.0")
-    # used for subgroup headers, if available
-    row_header_pos <- row_header_labels <- NULL
-
-    # split tables by response levels?
-    if ("Response_Level" %in% colnames(x)) {
-      # find start row of each subgroup
-      row_header_pos <- which(!duplicated(x$Response_Level))
-      # create named list, required for tinytables
-      row_header_labels <- as.list(stats::setNames(row_header_pos, as.vector(x$Response_Level[row_header_pos])))
-      # since we have the group names in "row_header_labels" now , we can remove the column
-      x$Response_Level <- NULL
-      # make sure that the row header positions are correct - each header
-      # must be shifted by the number of rows above
-      for (i in 2:length(row_header_pos)) {
-        row_header_pos[i] <- row_header_pos[i] + (i - 1)
-      }
-    }
-
-    # base table
-    out <- tinytable::tt(x, caption = caption, notes = footer)
-    # add subheaders, if any
-    if (!is.null(row_header_labels)) {
-      out <- tinytable::group_tt(out, i = row_header_labels, indent = 2)
-      out <- tinytable::style_tt(out, i = row_header_pos, italic = TRUE)
-    }
-    # apply theme, if any
-    if (identical(output, "html")) {
-      out <- insight::apply_table_theme(out, x, theme = theme, sub_header_positions = row_header_pos)
-    }
-    # workaround, to make sure HTML is default output
-    out@output <- output
-    out
-  } else {
-    # here we go with gt
-    if ("Response_Level" %in% colnames(x)) {
-      group_by <- c("Response_Level", "groups")
-    } else {
-      group_by <- "groups"
-    }
-    insight::export_table(
-      x,
-      format = "html",
-      group_by = "groups",
-      footer = footer,
-      caption = caption
-    )
-  }
-}
-
-
-#' @export
-plot.see_equivalence_test_ggeffects <- function(x,
-                                                size_point = 0.7,
-                                                rope_color = "#0171D3",
-                                                rope_alpha = 0.2,
-                                                show_intercept = FALSE,
-                                                n_columns = 1,
-                                                ...) {
-  insight::check_if_installed("ggplot2")
-  .data <- NULL
-
-  .rope <- c(x$ROPE_low[1], x$ROPE_high[1])
-
-  # check for user defined arguments
-
-  fill.color <- c("#CD423F", "#018F77", "#FCDA3B")
-  legend.title <- "Decision on H0"
-  x.title <- NULL
-
-  fill.color <- fill.color[sort(unique(match(x$ROPE_Equivalence, c("Accepted", "Rejected", "Undecided"))))]
-
-  add.args <- match.call(expand.dots = FALSE)[["..."]]
-  if ("colors" %in% names(add.args)) fill.color <- eval(add.args[["colors"]])
-  if ("x.title" %in% names(add.args)) x.title <- eval(add.args[["x.title"]])
-  if ("legend.title" %in% names(add.args)) legend.title <- eval(add.args[["legend.title"]])
-  if ("labels" %in% names(add.args)) plot_labels <- eval(add.args[["labels"]])
-
-  rope.line.alpha <- 1.25 * rope_alpha
-  if (rope.line.alpha > 1) rope.line.alpha <- 1
-
-  # make sure we have standardized column names for parameters and estimates
-  parameter_columns <- attributes(x)$parameter_columns
-  estimate_columns <- which(colnames(x) %in% c("Estimate", "Slope", "Predicted", "Contrast"))
-  colnames(x)[estimate_columns[1]] <- "Estimate"
-
-  if (length(parameter_columns) > 1) {
-    x$Parameter <- unname(apply(x[parameter_columns], MARGIN = 1, toString))
-  } else {
-    x$Parameter <- x[[parameter_columns]]
-  }
-
-  p <- ggplot2::ggplot(
-    x,
-    ggplot2::aes(
-      y = .data[["Parameter"]],
-      x = .data[["Estimate"]],
-      xmin = .data[["CI_low"]],
-      xmax = .data[["CI_high"]],
-      colour = .data[["ROPE_Equivalence"]]
-    )
-  ) +
-    ggplot2::annotate(
-      "rect",
-      xmin = .rope[1],
-      xmax = .rope[2],
-      ymin = 0,
-      ymax = Inf,
-      fill = rope_color,
-      alpha = (rope_alpha / 3)
-    ) +
-    ggplot2::geom_vline(
-      xintercept = .rope,
-      linetype = "dashed",
-      colour = rope_color,
-      linewidth = 0.8,
-      alpha = rope.line.alpha
-    ) +
-    ggplot2::geom_vline(
-      xintercept = 0,
-      colour = rope_color,
-      linewidth = 0.8,
-      alpha = rope.line.alpha
-    ) +
-    ggplot2::geom_pointrange(size = size_point) +
-    ggplot2::scale_colour_manual(values = fill.color) +
-    ggplot2::labs(y = x.title, x = NULL, colour = legend.title) +
-    ggplot2::theme(legend.position = "bottom") +
-    ggplot2::scale_y_discrete()
-
-  p
-}
-
-
 # p-value adjustment -------------------
 
 .p_adjust <- function(params, p_adjust, datagrid, focal, statistic = NULL, df = Inf, verbose = TRUE) {
@@ -1595,7 +1419,7 @@ plot.see_equivalence_test_ggeffects <- function(x,
           params$p.value <- 2 * stats::pt(abs(statistic), df = df, lower.tail = FALSE)
         }
       } else if (verbose) {
-        insight::format_warning("No test-statistic found. No p-values were adjusted.")
+        insight::format_warning("No test-statistic found. P-values were not adjusted.")
       }
     } else if (tolower(p_adjust) == "sidak") {
       # sidak adjustment

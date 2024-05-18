@@ -12,24 +12,24 @@ Regression Models.* Journal of Open Source Software, 3(26), 772. doi:
 
 ## Why do we need (marginal/conditional) effects or (adjusted) predicted values?
 
-Results of regression models are typically presented as tables that are
-easy to understand. For more complex models that include interaction or
-transformed terms (like quadratic or spline terms), tables with raw
-regression coefficients are less helpful and difficult to interpret. In
-such cases, *adjusted predictions* or *marginal means* are far easier to
-understand. In particular, the visualization of such effects or
-predictions allows to intuitively get the idea of how predictors and
+After fitting a model, it is useful generate model-based estimates
+(expected values, or *adjusted predictions*) of the response variable
+for different combinations of predictor values. Such estimates can be
+used to make inferences about relationships between variables.
+
+*Adjusted predictions* or *marginal means* are often easier to
+understand than raw regression coefficients. In particular, their
+visualization allows to intuitively get the idea of how predictors and
 outcome are associated, even for complex models.
 
 ## Aims of this package
 
 **ggeffects** is a light-weight package that aims at easily calculating
-adjusted predictions (or: *estimated marginal means*) at the mean or at
-representative values of covariates from statistical models.
-Furthermore, it is possible to compute contrasts or pairwise
-comparisons, to test predictions and differences in predictions for
-statistical significance. Finally, you can easily produce nice figures
-to visualize the results.
+adjusted predictions and estimated marginal means at meaningful values
+of covariates from statistical models. Furthermore, it is possible to
+compute contrasts or pairwise comparisons, to test predictions and
+differences in predictions for statistical significance. Finally, you
+can easily produce nice figures to visualize the results.
 
 What you basically would need for your workflow is:
 
@@ -93,8 +93,10 @@ You should use *ggeffects*…
   to learn more about how to use *ggeffects* for model diagnostics.
 
 A workflow in R would then include using following functions in this
-order: `predict_response()`, `test_predictions()` and `plot()` - that’s
-all you need!
+order: `predict_response()`, `plot()`, and `test_predictions()` - that’s
+all you need! See also [this example
+workflow](https://strengejacke.github.io/ggeffects/articles/practical_glm_workflow.html)
+using logistic regression.
 
 ## Installation
 
@@ -443,7 +445,7 @@ entry-spacing="0">
 Dickerman, Barbra A., and Miguel A. Hernán. 2020. “Counterfactual
 Prediction Is Not Only for Causal Inference.” *European Journal of
 Epidemiology* 35 (7): 615–17.
-<https://doi.org/10.1007/s10654-020-00659-8>.
+<https://www.ncbi.nlm.nih.gov/pmc/articles/PMC7393612/>.
 
 </div>
 

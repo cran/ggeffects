@@ -1,4 +1,4 @@
-.test_predictions_emmeans <- function(model,
+.test_predictions_emmeans <- function(object,
                                       terms = NULL,
                                       by = NULL,
                                       test = "pairwise",
@@ -11,17 +11,17 @@
                                       margin = "marginalmeans",
                                       verbose = TRUE,
                                       ...) {
-  insight::check_if_installed("emmeans")
+  insight::check_if_installed(c("emmeans", "datawizard"))
 
   # model information
-  minfo <- insight::model_info(model, verbose = FALSE)
-  model_data <- insight::get_data(model)
+  minfo <- insight::model_info(object, verbose = FALSE)
+  model_data <- insight::get_data(object, verbose = FALSE)
 
   ## TODO: add further scale options later?
 
   # for now, only response scale
   if (!identical(scale, "response")) {
-    insight::format_error("Only `scale = 'response'` is currently supported.")
+    insight::format_error("Only `scale = \"response\"` is currently supported.")
   }
 
   custom_contrasts <- NULL
@@ -35,27 +35,14 @@
     custom_contrasts <- test
     test <- "custom"
   }
-  test <- match.arg(test, c("contrast", "pairwise", "interaction", "custom", "consecutive"))
+  test <- match.arg(
+    test,
+    c("contrast", "pairwise", "interaction", "custom", "exclude", "consecutive", "polynomial")
+  )
 
   # check for valid by-variable
+  by <- .validate_by_argument(by, model_data)
   if (!is.null(by)) {
-    # all by-terms need to be in data grid
-    if (!all(by %in% colnames(model_data))) {
-      insight::format_error(
-        paste0("Variable(s) `", toString(by[!by %in% colnames(model_data)]), "` not found in data grid.")
-      )
-    }
-    # by-terms must be categorical
-    by_factors <- vapply(model_data[by], is.factor, TRUE)
-    if (!all(by_factors)) {
-      insight::format_error(
-        "All variables in `by` must be categorical.",
-        paste0(
-          "The following variables in `by` are not categorical: ",
-          toString(paste0("`", by[!by_factors], "`"))
-        )
-      )
-    }
     # remove "by" from "terms"
     terms <- terms[!terms %in% by]
   }
@@ -64,17 +51,17 @@
   focal <- .clean_terms(terms)
 
   # check if focal terms appear in fixed effects
-  if (!all(focal %in% insight::find_variables(model, effects = "fixed", flatten = TRUE))) {
+  if (!all(focal %in% insight::find_variables(object, effects = "fixed", flatten = TRUE))) {
     insight::format_error("Focal terms must be fixed effects.")
   }
 
   # data grids -----------------------------------------------------------------
   # we create data grids and list with representative values here. needed later
   # ----------------------------------------------------------------------------
-  datagrid <- data_grid(model, terms, verbose = FALSE, ...)
+  datagrid <- data_grid(object, terms, verbose = FALSE, ...)
 
   at_list <- .data_grid(
-    model,
+    object,
     model_frame = model_data,
     terms = terms,
     value_adjustment = "mean",
@@ -94,7 +81,7 @@
 
   # extract degrees of freedom
   if (is.null(df)) {
-    df <- .get_df(model)
+    df <- .get_df(object)
   }
 
   # pvalue adjustment
@@ -116,7 +103,7 @@
       # here comes the code to test wether a slope is significantly different
       # from null (contrasts)
       # -----------------------------------------------------------------------
-      emm <- emmeans::emtrends(model, spec = focal, var = focal, regrid = "response")
+      emm <- emmeans::emtrends(object, spec = focal, var = focal, regrid = "response")
       .comparisons <- emmeans::test(emm)
       out <- as.data.frame(emm)
       # save p-values, these get lost after call to "confint()"
@@ -132,7 +119,7 @@
       # significantly different from each other (pairwise comparison)
       # -----------------------------------------------------------------------
       my_args <- .compact_list(list(
-        model,
+        object,
         specs = focal[2:length(focal)],
         var = focal[1],
         at = at_list,
@@ -148,6 +135,8 @@
         custom = custom_contrasts,
         consecutive = "consec",
         contrast = "eff",
+        exclude = "del.eff",
+        polynomial = "poly",
         pairwise = "pairwise"
       )
       .comparisons <- emmeans::contrast(emm, method = contrast_method, adjust = p_adjust)
@@ -175,7 +164,7 @@
     # Here comes the code for pairwise comparisons of categorical focal terms
     # -------------------------------------------------------------------------
     my_args <- .compact_list(list(
-      model,
+      object,
       specs = focal,
       at = at_list,
       by = by,
@@ -188,6 +177,8 @@
       custom = emmeans::contrast(emm, method = custom_contrasts, adjust = p_adjust),
       consecutive = emmeans::contrast(emm, method = "consec", adjust = p_adjust),
       contrast = emmeans::contrast(emm, method = "eff", adjust = p_adjust),
+      exclude = emmeans::contrast(emm, method = "del.eff", adjust = p_adjust),
+      polynomial = emmeans::contrast(emm, method = "poly", adjust = p_adjust),
       pairwise = emmeans::contrast(emm, method = "pairwise", adjust = p_adjust),
       interaction = {
         arg <- as.list(rep("pairwise", times = length(focal)))
@@ -242,7 +233,7 @@
         out[[i]] <- gsub(" - ", " and ", out[[i]], fixed = TRUE)
         out[[i]] <- gsub("-", " and ", out[[i]], fixed = TRUE)
       }
-    } else if (test == "contrast") {
+    } else if (test %in% c("contrast", "exclude")) {
       # for test = NULL, we remove the "effect" label
       out[[1]] <- gsub(" effect$", "", out[[1]])
     }
@@ -265,8 +256,16 @@
 
   ## TODO: fix levels with "-"
 
-  out$df <- NULL
-  out$std.error <- NULL
+  out$std.error <- as.data.frame(.comparisons)$SE
+
+  # we now sort rows, first by "by", than by "focal". Since "by" terms can also
+  # be in "focal", we need to remove "by" from "focal" first.
+  if (!is.null(by)) {
+    focal <- c(by, focal[!focal %in% by])
+    # restore original type of focal terms, for data_arrange
+    out <- .restore_focal_types(out, focal, model_data)
+  }
+  out <- suppressWarnings(datawizard::data_arrange(out, focal, safe = TRUE))
 
   class(out) <- c("ggcomparisons", "data.frame")
   attr(out, "ci_level") <- ci_level
@@ -274,15 +273,20 @@
   attr(out, "p_adjust") <- p_adjust
   attr(out, "df") <- df
   attr(out, "by_factor") <- by
+  attr(out, "datagrid") <- datagrid
   attr(out, "linear_model") <- minfo$is_linear
   attr(out, "estimate_name") <- estimate_name
   attr(out, "verbose") <- verbose
+  attr(out, "engine") <- "emmeans"
   attr(out, "scale") <- scale
   attr(out, "scale_label") <- .scale_label(minfo, scale)
-  attr(out, "standard_error") <- as.data.frame(.comparisons)$std.error
-  attr(out, "link_inverse") <- insight::link_inverse(model)
-  attr(out, "link_function") <- insight::link_function(model)
+  attr(out, "standard_error") <- out$std.error
+  attr(out, "link_inverse") <- insight::link_inverse(object)
+  attr(out, "link_function") <- insight::link_function(object)
   attr(out, "digits") <- NULL
+
+  out$std.error <- NULL
+  out$df <- NULL
 
   out
 }
@@ -317,4 +321,46 @@
     }
   }
   x
+}
+
+
+.is_emmeans_contrast <- function(test) {
+  identical(test, "interaction") ||
+    identical(test, "consec") ||
+    identical(test, "exclude") ||
+    identical(test, "polynomial") ||
+    identical(test, "consecutive") ||
+    is.data.frame(test)
+}
+
+
+.restore_focal_types <- function(out, focal, model_data) {
+  if (is.null(focal)) {
+    return(out)
+  }
+  if (is.null(model_data)) {
+    return(out)
+  }
+  if (!all(focal %in% colnames(out))) {
+    return(out)
+  }
+  if (!all(focal %in% colnames(model_data))) {
+    return(out)
+  }
+  focal <- unique(focal)
+  # check type for all focal terms
+  for (i in focal) {
+    # check if all levels from comparisons also appear in the data - else, we
+    # cannot safely restore the type
+    if (all(unique(out[[i]]) %in% unique(model_data[[i]]))) {
+      if (is.factor(model_data[[i]]) && !is.factor(out[[i]])) {
+        # restore factors
+        out[[i]] <- factor(out[[i]], levels = levels(model_data[[i]]))
+      } else if (is.character(model_data[[i]]) && !is.character(out[[i]])) {
+        # restore characters
+        out[[i]] <- as.character(out[[i]])
+      }
+    }
+  }
+  out
 }

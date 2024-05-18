@@ -14,8 +14,15 @@
 #'   `facet`, and defaults to `FALSE` if `x` has no such column. Set
 #'   `facets = TRUE` to wrap the plot into facets even for grouping variables
 #'   (see 'Examples'). `grid` is an alias for `facets`.
+#' @param n_rows Number of rows to align plots. By default, all plots are aligned
+#'   in one row. For facets, or multiple panels, plots can also be aligned in
+#'   multiiple rows, to avoid that plots are too small.
 #' @param show_data Logical, if `TRUE`, a layer with raw data from response
 #'   by predictor on the x-axis, plotted as point-geoms, is added to the plot.
+#'   Note that if the model has a transformed response variable, and the
+#'   predicted values are *not* back-transformed (i.e. if `back_transform = FALSE`),
+#'   the raw data points are plotted on the transformed scale, i.e. same scale
+#'   as the predictions.
 #' @param data_labels Logical, if `TRUE` and row names in data are available,
 #'   data points will be labelled by their related row name.
 #' @param limit_range Logical, if `TRUE`, limits the range of the prediction
@@ -167,6 +174,7 @@ plot.ggeffects <- function(x,
                            facets,
                            grid,
                            one_plot = TRUE,
+                           n_rows = NULL,
                            verbose = TRUE,
                            # deprecated arguments
                            ci = show_ci,
@@ -197,63 +205,83 @@ plot.ggeffects <- function(x,
   # check alias
   if (!missing(rawdata)) {
     show_data <- rawdata
+    .deprecated_warning(old = "rawdata", new = "show_data")
   }
   if (!missing(add.data)) {
     show_data <- add.data
+    .deprecated_warning(old = "add.data", new = "show_data")
   }
   if (!missing(ci)) {
     show_ci <- ci
+    .deprecated_warning(old = "ci", new = "show_ci")
   }
   if (!missing(ci.style)) {
     ci_style <- ci.style
+    .deprecated_warning(old = "ci.style", new = "ci_style")
   }
   if (!missing(residuals)) {
     show_residuals <- residuals
+    .deprecated_warning(old = "residuals", new = "show_residuals")
   }
   if (!missing(residuals.line)) {
     show_residuals_line <- residuals.line
+    .deprecated_warning(old = "residuals.line", new = "show_residuals_line")
   }
   if (!missing(label.data)) {
     data_labels <- label.data
+    .deprecated_warning(old = "label.data", new = "data_labels")
   }
   if (!missing(limit.range)) {
     limit_range <- limit.range
+    .deprecated_warning(old = "limit.range", new = "limit_range")
   }
   if (!missing(collapse.group)) {
     collapse_group <- collapse.group
+    .deprecated_warning(old = "collapse.group", new = "collapse_group")
   }
   if (!missing(dot.alpha)) {
     dot_alpha <- dot.alpha
+    .deprecated_warning(old = "dot.alpha", new = "dot_alpha")
   }
   if (!missing(dot.size)) {
     dot_size <- dot.size
+    .deprecated_warning(old = "dot.size", new = "dot_size")
   }
   if (!missing(one.plot)) {
     one_plot <- one.plot
+    .deprecated_warning(old = "one.plot", new = "one_plot")
   }
   if (!missing(line.size)) {
     line_size <- line.size
+    .deprecated_warning(old = "line.size", new = "line_size")
   }
   if (!missing(connect.lines)) {
     connect_lines <- connect.lines
+    .deprecated_warning(old = "connect.lines", new = "connect_lines")
   }
   if (!missing(show.title)) {
     show_title <- show.title
+    .deprecated_warning(old = "show.title", new = "show_title")
   }
   if (!missing(show.x.title)) {
     show_x_title <- show.x.title
+    .deprecated_warning(old = "show.x.title", new = "show_x_title")
   }
   if (!missing(show.y.title)) {
     show_y_title <- show.y.title
+    .deprecated_warning(old = "show.y.title", new = "show_y_title")
   }
   if (!missing(use.theme)) {
     use_theme <- use.theme
+    .deprecated_warning(old = "use.theme", new = "use_theme")
   }
   if (!missing(show.legend)) {
     show_legend <- show.legend
+    .deprecated_warning(old = "show.legend", new = "show_legend")
   }
   if (!missing(log.y)) {
     log_y <- log.y
+    .deprecated_warning(old = "log.y", new = "log_y")
   }
 
   # set some defaults for jittering
@@ -312,6 +340,8 @@ plot.ggeffects <- function(x,
   has_facets <- .obj_has_name(x, "facet") && length(unique(x$facet)) > 1
   has_panel <- .obj_has_name(x, "panel") && length(unique(x$panel)) > 1
 
+  # special case, for ordinal models where latent = TRUE
+  latent_thresholds <- attr(x, "latent_thresholds", exact = TRUE)
 
   # if we add data points, limit to range
   if (isTRUE(limit_range)) {
@@ -491,7 +521,7 @@ plot.ggeffects <- function(x,
         case = case,
         jitter = jitter,
         jitter.miss = jitter.miss,
-        rawdata = rawdata,
+        show_data = show_data,
         label.data = label.data,
         residuals = show_residuals,
         residuals.line = show_residuals_line,
@@ -503,11 +533,13 @@ plot.ggeffects <- function(x,
         y.breaks = y.breaks,
         y.limits = y.limits,
         use.theme = use_theme,
+        n_rows = NULL,
+        latent_thresholds = latent_thresholds,
         verbose = verbose,
         ...
       )
 
-      if (one.plot) {
+      if (one_plot) {
         if (.i < length(panels)) {
           pl <- pl + ggplot2::labs(x = NULL)
         }
@@ -539,7 +571,7 @@ plot.ggeffects <- function(x,
       case = case,
       jitter = jitter,
       jitter.miss = jitter.miss,
-      rawdata = show_data,
+      show_data = show_data,
       label.data = data_labels,
       residuals = show_residuals,
       residuals.line = show_residuals_line,
@@ -551,14 +583,16 @@ plot.ggeffects <- function(x,
       y.breaks = y.breaks,
       y.limits = y.limits,
       use.theme = use_theme,
+      n_rows = n_rows,
+      latent_thresholds = latent_thresholds,
       verbose = verbose,
       ...
     )
   }
 
 
-  if (has_panel && one.plot && requireNamespace("see", quietly = TRUE)) {
-    do.call(see::plots, p)
+  if (has_panel && one_plot && requireNamespace("see", quietly = TRUE)) {
+    do.call(see::plots, list(p, n_rows = n_rows))
   } else {
     p
   }
@@ -584,7 +618,7 @@ plot_panel <- function(x,
                        case,
                        jitter,
                        jitter.miss,
-                       rawdata,
+                       show_data,
                        label.data,
                        residuals,
                        residuals.line,
@@ -596,6 +630,8 @@ plot_panel <- function(x,
                        y.breaks,
                        y.limits,
                        use.theme,
+                       n_rows,
+                       latent_thresholds,
                        verbose = TRUE,
                        ...) {
   # fake init
@@ -614,7 +650,7 @@ plot_panel <- function(x,
 
   # when group variable is numeric (like mean +/- SD), we need to preserve
   # numeric values
-  if (rawdata && isTRUE(attr(x, "continuous.group"))) {
+  if (show_data && isTRUE(attr(x, "continuous.group"))) {
     x$group_col <- as.numeric(as.character(x$group))
   } else {
     x$group_col <- x$group
@@ -708,7 +744,7 @@ plot_panel <- function(x,
 
   # get raw data
   rawdat <- attr(x, "rawdata", exact = TRUE)
-  if (rawdata) {
+  if (show_data) {
     p <- .add_raw_data_to_plot(
       p, x, rawdat, label.data, ci.style, dot.alpha, dot.size, dodge, jitter,
       jitter.miss, colors, verbose = verbose
@@ -783,13 +819,13 @@ plot_panel <- function(x,
     # Thus, we need to specify the color directly as argument
     if (single_color) {
       p <- p + ggplot2::geom_line(
-        size = line.size,
+        linewidth = line.size,
         position = ggplot2::position_dodge(width = dodge),
         colour = colors
       )
     } else {
       p <- p + ggplot2::geom_line(
-        size = line.size,
+        linewidth = line.size,
         position = ggplot2::position_dodge(width = dodge)
       )
     }
@@ -812,7 +848,7 @@ plot_panel <- function(x,
             ggplot2::aes(ymin = .data[["conf.low"]], ymax = .data[["conf.high"]]),
             position = ggplot2::position_dodge(width = dodge),
             width = 0,
-            size = line.size,
+            linewidth = line.size,
             colour = colors
           )
         } else {
@@ -820,7 +856,7 @@ plot_panel <- function(x,
             ggplot2::aes(ymin = .data[["conf.low"]], ymax = .data[["conf.high"]]),
             position = ggplot2::position_dodge(width = dodge),
             width = 0,
-            size = line.size
+            linewidth = line.size
           )
         }
       } else {
@@ -839,7 +875,7 @@ plot_panel <- function(x,
             position = ggplot2::position_dodge(width = dodge),
             width = 0,
             linetype = lt,
-            size = line.size,
+            linewidth = line.size,
             colour = colors
           )
         } else {
@@ -848,7 +884,7 @@ plot_panel <- function(x,
             position = ggplot2::position_dodge(width = dodge),
             width = 0,
             linetype = lt,
-            size = line.size
+            linewidth = line.size
           )
         }
       }
@@ -895,7 +931,7 @@ plot_panel <- function(x,
           ggplot2::geom_errorbar(
             ggplot2::aes(ymin = .data[["conf.low"]], ymax = .data[["conf.high"]], shape = NULL),
             position = ggplot2::position_dodge(width = dodge),
-            size = line.size,
+            linewidth = line.size,
             width = 0,
             colour = colors
           )
@@ -907,7 +943,7 @@ plot_panel <- function(x,
           ggplot2::geom_errorbar(
             ggplot2::aes(ymin = .data[["conf.low"]], ymax = .data[["conf.high"]], shape = NULL),
             position = ggplot2::position_dodge(width = dodge),
-            size = line.size,
+            linewidth = line.size,
             width = 0
           )
       }
@@ -961,19 +997,37 @@ plot_panel <- function(x,
 
   if (facets_grp) {
     # facet groups
-    p <- p + ggplot2::facet_wrap(~group, scales = "free_x")
+    p <- p + ggplot2::facet_wrap(~group, scales = "free_x", nrow = n_rows)
     # remove legends
     p <- p + ggplot2::guides(colour = "none", linetype = "none", shape = "none")
   } else if (facet_polr) {
-    p <- p + ggplot2::facet_wrap(~response.level, scales = "free_x")
+    p <- p + ggplot2::facet_wrap(~response.level, scales = "free_x", nrow = n_rows)
   } else if (facets) {
-    p <- p + ggplot2::facet_wrap(~facet, scales = "free_x")
+    p <- p + ggplot2::facet_wrap(~facet, scales = "free_x", nrow = n_rows)
+  }
+
+
+  # add latent_thresholds ----
+
+  if (!is.null(latent_thresholds)) {
+    p <- p + ggplot2::geom_hline(
+      yintercept = unname(latent_thresholds),
+      linetype = "dotted",
+      colour = "black",
+      alpha = 0.3
+    ) + ggplot2::annotate(
+      geom = "text",
+      x = 0.5,
+      y = unname(latent_thresholds) + 0.2,
+      label = names(latent_thresholds),
+      alpha = 0.6
+    )
   }
 
 
   # set colors ----
 
-  if (isTRUE(rawdata) && isTRUE(attr(x, "continuous.group"))) {
+  if (isTRUE(show_data) && isTRUE(attr(x, "continuous.group"))) {
     p <- p +
       ggplot2::scale_color_gradientn(
         colors = colors,
@@ -1173,6 +1227,91 @@ plot.ggalleffects <- function(x,
 }
 
 
+#' @export
+plot.see_equivalence_test_ggeffects <- function(x,
+                                                size_point = 0.7,
+                                                rope_color = "#0171D3",
+                                                rope_alpha = 0.2,
+                                                show_intercept = FALSE,
+                                                n_columns = 1,
+                                                ...) {
+  insight::check_if_installed("ggplot2")
+  .data <- NULL
+
+  .rope <- c(x$ROPE_low[1], x$ROPE_high[1])
+
+  # check for user defined arguments
+
+  fill.color <- c("#CD423F", "#018F77", "#FCDA3B")
+  legend.title <- "Decision on H0"
+  x.title <- NULL
+
+  fill.color <- fill.color[sort(unique(match(x$ROPE_Equivalence, c("Accepted", "Rejected", "Undecided"))))]
+
+  add.args <- match.call(expand.dots = FALSE)[["..."]]
+  if ("colors" %in% names(add.args)) fill.color <- eval(add.args[["colors"]])
+  if ("x.title" %in% names(add.args)) x.title <- eval(add.args[["x.title"]])
+  if ("legend.title" %in% names(add.args)) legend.title <- eval(add.args[["legend.title"]])
+  if ("labels" %in% names(add.args)) plot_labels <- eval(add.args[["labels"]])
+
+  rope.line.alpha <- 1.25 * rope_alpha
+  if (rope.line.alpha > 1) rope.line.alpha <- 1
+
+  # make sure we have standardized column names for parameters and estimates
+  parameter_columns <- attributes(x)$parameter_columns
+  estimate_columns <- which(colnames(x) %in% c("Estimate", "Slope", "Predicted", "Contrast"))
+  colnames(x)[estimate_columns[1]] <- "Estimate"
+
+  if (length(parameter_columns) > 1) {
+    x$Parameter <- unname(apply(x[parameter_columns], MARGIN = 1, toString))
+  } else {
+    x$Parameter <- x[[parameter_columns]]
+  }
+
+  p <- ggplot2::ggplot(
+    x,
+    ggplot2::aes(
+      y = .data[["Parameter"]],
+      x = .data[["Estimate"]],
+      xmin = .data[["CI_low"]],
+      xmax = .data[["CI_high"]],
+      colour = .data[["ROPE_Equivalence"]]
+    )
+  ) +
+    ggplot2::annotate(
+      "rect",
+      xmin = .rope[1],
+      xmax = .rope[2],
+      ymin = 0,
+      ymax = Inf,
+      fill = rope_color,
+      alpha = (rope_alpha / 3)
+    ) +
+    ggplot2::geom_vline(
+      xintercept = .rope,
+      linetype = "dashed",
+      colour = rope_color,
+      linewidth = 0.8,
+      alpha = rope.line.alpha
+    ) +
+    ggplot2::geom_vline(
+      xintercept = 0,
+      colour = rope_color,
+      linewidth = 0.8,
+      alpha = rope.line.alpha
+    ) +
+    ggplot2::geom_pointrange(size = size_point) +
+    ggplot2::scale_colour_manual(values = fill.color) +
+    ggplot2::labs(y = x.title, x = NULL, colour = legend.title) +
+    ggplot2::theme(legend.position = "bottom") +
+    ggplot2::scale_y_discrete()
+
+  p
+}
+
+
+# helper ---------------------------------------------------------------------
+
 #' @keywords internal
 .percents <- function(x) {
   insight::format_value(x = x, as_percent = TRUE, digits = 0)
@@ -1258,7 +1397,7 @@ plot.ggalleffects <- function(x,
 
     # no jitter? Tell user about overlap
     if ((is.null(jitter) || isTRUE(all(jitter == 0))) && verbose) {
-      insight::format_alert("Data points may overlap. Use the `jitter` argument to add some amount of random variation to the location of data points and avoid overplotting.")
+      insight::format_alert("Data points may overlap. Use the `jitter` argument to add some amount of random variation to the location of data points and avoid overplotting.") # nolint
     }
 
     # for binary response, no jittering by default
@@ -1279,6 +1418,8 @@ plot.ggalleffects <- function(x,
         jitter <- c(0, 0)
       }
 
+      # if we have error bars, these are dodged, so we need to dodge the
+      # data points as well
       if (ci.style == "errorbar") {
         if (grps) {
           p <- p + ggplot2::geom_point(
@@ -1538,7 +1679,7 @@ plot.ggalleffects <- function(x,
       shape = 16
     )
     if (verbose) {
-      insight::format_alert("Data points may overlap. Use the `jitter` argument to add some amount of random variation to the location of data points and avoid overplotting.")
+      insight::format_alert("Data points may overlap. Use the `jitter` argument to add some amount of random variation to the location of data points and avoid overplotting.") # nolint
     }
   } else {
     p <- p + ggplot2::geom_point(
@@ -1562,29 +1703,38 @@ plot.ggalleffects <- function(x,
 
 
 #' @keywords internal
-.get_model_object <- function(x) {
-  obj_name <- attr(x, "model.name", exact = TRUE)
-  model <- NULL
+.get_model_object <- function(x = NULL, name = NULL) {
+  if (!is.null(name)) {
+    obj_name <- name
+  } else {
+    obj_name <- attr(x, "model.name", exact = TRUE)
+  }
+  .model_obj <- NULL
   if (!is.null(obj_name)) {
     obj <- str2lang(obj_name)
-    model <- .safe(get(obj_name, envir = parent.frame()))
-    if (is.null(model)) {
-      model <- .safe(get(obj_name, envir = globalenv()))
+    .model_obj <- .safe(get(obj_name, envir = parent.frame()))
+    if (is.null(.model_obj)) {
+      .model_obj <- .safe(get(obj_name, envir = globalenv()))
     }
-    if (is.null(model)) {
-      model <- .safe(dynGet(obj_name, ifnotfound = NULL))
+    if (is.null(.model_obj)) {
+      .model_obj <- .safe(dynGet(obj_name, ifnotfound = NULL))
     }
-    if (is.null(model)) {
-      model <- .safe(.dynEval(obj, ifnotfound = NULL))
+    if (is.null(.model_obj)) {
+      .model_obj <- .safe(.dynEval(obj, ifnotfound = NULL))
     }
     # we may have a list of models, which are accessed via "modellist$model"
     # or "modellist[["model"]]"
-    if (is.null(model) && grepl("\\$|\\[", obj_name)) {
-      model <- .safe(eval(obj))
-      if (is.null(model)) {
-        model <- .safe(.dynEval(obj, ifnotfound = NULL))
+    if (is.null(.model_obj) && grepl("\\$|\\[", obj_name)) {
+      .model_obj <- .safe(eval(obj))
+      if (is.null(.model_obj)) {
+        .model_obj <- .safe(.dynEval(obj, ifnotfound = NULL))
       }
     }
   }
-  model
+  .model_obj
+}
+
+
+.deprecated_warning <- function(old, new) {
+  insight::format_warning(paste0("Argument `", old, "` is deprecated and will be removed in the future. Please use `", new, "` instead.")) # nolint
 }

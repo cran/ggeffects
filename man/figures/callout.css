@@ -1,0 +1,32 @@
+.callout-tip {
+  border: solid 3px #fbd46d;
+  border-radius: 5px;
+  background-color: #f7fbe1;
+  color: #303960;
+  padding: 0px;
+  margin-bottom: 1.5em;
+  margin-top: 1.5em;
+}
+
+.callout-tip li {
+  margin-bottom: 0.4em;
+  margin-top: 0.4em;
+  margin-right: 17px;
+}
+
+.indent_p {
+  padding-left: 17px;
+}
+
+.callout-tip code {
+  color: #d32626;
+}
+
+.callout-tip h1, .callout-tip h1, .callout-tip h2 {
+  font-size: 1.3em;
+  color: #d32626;
+  padding: 3px;
+  padding-left: 15px;
+  background-color: #fbd46d;
+  margin-bottom: 15px;
+}

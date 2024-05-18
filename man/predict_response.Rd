@@ -37,18 +37,19 @@ e.g. \code{list(x = 40:60)}.
 \item A formula, e.g. \code{terms = ~ x + z}, which is internally converted to a
 character vector. This is probably the least flexible way, as you cannot
 specify representative values for the focal terms.
-\item A data frame representig a "data grid" or "reference grid". Predictions
+\item A data frame representing a "data grid" or "reference grid". Predictions
 are then made for all combinations of the variables in the data frame.
 }
 
-\code{term} at least requires one variable name. The maximum length is four terms,
-where the second to fourth term indicate the groups, i.e. predictions of first
+\code{terms} at least requires one variable name. The maximum length is four terms,
+where the second to fourth term indicate the groups, i.e. predictions of the first
 term are grouped at meaningful values or levels of the remaining terms (see
 \code{\link[=values_at]{values_at()}}). It is also possible to define specific values for focal
 terms, at which adjusted predictions should be calculated (see details below).
 All remaining covariates that are not specified in \code{terms} are "marginalized",
-see the \code{margin} argument. See also argument \code{condition} to fix non-focal
-terms to specific values.}
+see the \code{margin} argument in \code{?predict_response}. See also argument \code{condition}
+to fix non-focal terms to specific values, and argument \code{typical} for
+\code{ggpredict()} or \code{ggemmeans()}.}
 
 \item{margin}{Character string, indicating how to marginalize over the
 \emph{non-focal} predictors, i.e. those variables that are \emph{not} specified in
@@ -71,7 +72,7 @@ for more details.}
 \item{type}{Character, indicating whether predictions should be conditioned
 on specific model components or not. Consequently, most options only apply
 for survival models, mixed effects models and/or models with zero-inflation
-(and their Bayesian counter-parts); only exeption is \code{type = "simulate"},
+(and their Bayesian counter-parts); only exception is \code{type = "simulate"},
 which is available for some other model classes as well (which respond to
 \code{simulate()}).
 
@@ -81,13 +82,14 @@ models \emph{always} condition on the zero-inflation part of the model. The same
 is true for \code{MixMod}-models from \strong{GLMMadaptive} with zero-inflation
 component (see 'Details').
 
-\strong{Note 2:} If \code{margin = "empirical"} (i.e. counterfactual predictions), the
-\code{type} argument is handled differently. It is set to \code{"response"} by default,
-and usually accepts all values from the \code{type}-argument of the model's respective
-\code{predict()} method. E.g., passing a \code{glm} object would allow the options
-\code{"response"}, \code{"link"}, and \code{"terms"}. Thus, the following options apply to
-\code{predict_response()} when \code{margin} is \emph{not} \code{"empirical"}, and are passed to
-\code{ggpredict()} or \code{ggemmeans()}, respectively (depending on the value of \code{margin}):
+\strong{Note 2:} If \code{margin = "empirical"}, or when calling \code{ggaverage()} respectively,
+(i.e. counterfactual predictions), the \code{type} argument is handled differently.
+It is set to \code{"response"} by default, but usually accepts all possible options
+from the \code{type}-argument of the model's respective \code{predict()} method. E.g.,
+passing a \code{glm} object would allow the options \code{"response"}, \code{"link"}, and
+\code{"terms"}. Thus, the following options apply to \code{predict_response()} when
+\code{margin} is \emph{not} \code{"empirical"}, and are passed to \code{ggpredict()} or
+\code{ggemmeans()}, respectively (depending on the value of \code{margin}):
 \itemize{
 \item \code{"fixed"} (or \code{"fe"} or \code{"count"})
 
@@ -99,12 +101,6 @@ this would return the predicted mean from the count component (without
 zero-inflation). For models with zero-inflation component, this type calls
 \code{predict(..., type = "link")} (however, predicted values are
 back-transformed to the response scale).
-\item \code{"fixed_ppd"}
-
-Only applies to \code{margin = "mean_reference"}, and only for Bayesian
-models of class \code{stanreg} or \code{brmsfit}. Computes the posterior predictive
-distribution. It is the same as setting \code{type = "fixed"} in combination with
-\code{ppd = TRUE}.
 \item \code{"random"} (or \code{"re"})
 
 This only applies to mixed models, and \code{type = "random"} does not condition
@@ -124,12 +120,6 @@ To get predicted values for each level of the random effects groups, add the
 name of the related random effect term to the \code{terms}-argument
 (for more details, see
 \href{https://strengejacke.github.io/ggeffects/articles/introduction_effectsatvalues.html}{this vignette}).
-\item \code{"random_ppd"}
-
-Only applies to \code{margin = "mean_reference"},, and only for Bayesian
-models of class \code{stanreg} or \code{brmsfit}. Computes the posterior predictive
-distribution. It is the same as setting \code{type = "random"} in combination with
-\code{ppd = TRUE}.
 \item \code{"zero_inflated"} (or \code{"fe.zi"} or \code{"zi"})
 
 Predicted values are conditioned on the fixed effects and the zero-inflation
@@ -160,16 +150,17 @@ Predicted values and confidence resp. prediction intervals are
 based on simulations, i.e. calls to \code{simulate()}. This type
 of prediction takes all model uncertainty into account, including
 random effects variances. Currently supported models are objects of
-class \code{lm}, \code{glm}, \code{glmmTMB}, \code{wbm}, \code{MixMod}
-and \code{merMod}. See \code{...} for details on number of simulations.
+class \code{lm}, \code{glm}, \code{glmmTMB}, \code{wbm}, \code{MixMod} and \code{merMod}.
+See \code{...} for details on number of simulations.
 \item \code{"survival"} and \code{"cumulative_hazard"} (or \code{"surv"} and \code{"cumhaz"})
 
 Applies only to \code{coxph}-objects from the \strong{survial}-package and
 calculates the survival probability or the cumulative hazard of an event.
 }
 
-When \code{margin = "empirical"}, the \code{type} argument accepts all values from
-the \code{type}-argument of the model's respective \code{predict()}-method.}
+When \code{margin = "empirical"} (or when calling \code{ggaverage()}), the \code{type}
+argument accepts all values from the \code{type}-argument of the model's respective
+\code{predict()}-method.}
 
 \item{condition}{Named character vector, which indicates covariates that
 should be held constant at specific values. Unlike \code{typical}, which
@@ -185,7 +176,12 @@ original response-scale.}
 \item{ppd}{Logical, if \code{TRUE}, predictions for Stan-models are based on the
 posterior predictive distribution \code{\link[rstantools:posterior_predict]{rstantools::posterior_predict()}}. If
 \code{FALSE} (the default), predictions are based on posterior draws of the linear
-predictor \code{\link[rstantools:posterior_linpred]{rstantools::posterior_linpred()}}.}
+predictor \code{\link[rstantools:posterior_epred]{rstantools::posterior_epred()}}. This is roughly comparable to
+the distinction between \emph{confidence} and \emph{prediction} intervals. \code{ppd = TRUE}
+incorporates the residual variance and hence returned intervals are similar to
+prediction intervals. Consequently, if \code{interval = "prediction"}, \code{ppd} is
+automatically set to \code{TRUE}. The \code{ppd} argument will be deprecated in a
+future version. Please use \code{interval = "prediction"} instead.}
 
 \item{vcov_fun}{Variance-covariance matrix used to compute uncertainty
 estimates (e.g., for confidence intervals based on robust standard errors).
@@ -232,7 +228,10 @@ data). Only applies to \code{margin = "empirical"}.}
 the uncertainty of predicted values. For mixed models, \code{interval = "prediction"}
 is the default for \code{type = "random"}. When \code{type = "fixed"}, the default is
 \code{interval = "confidence"}. Note that prediction intervals are not available
-for all models, but only for models that work with \code{\link[insight:get_sigma]{insight::get_sigma()}}.}
+for all models, but only for models that work with \code{\link[insight:get_sigma]{insight::get_sigma()}}.
+For Bayesian models, when \code{interval = "confidence"}, predictions are based on
+posterior draws of the linear predictor \code{\link[rstantools:posterior_epred]{rstantools::posterior_epred()}}.
+If \code{interval = "prediction"}, \code{\link[rstantools:posterior_predict]{rstantools::posterior_predict()}} is called.}
 
 \item{verbose}{Toggle messages or warnings.}
 
@@ -278,6 +277,11 @@ names instead of the standardized names \code{"x"} etc.
 }
 }
 \description{
+After fitting a model, it is useful generate model-based estimates (expected
+values, or \emph{adjusted predictions}) of the response variable for different
+combinations of predictor values. Such estimates can be used to make
+inferences about relationships between variables.
+
 The \strong{ggeffects} package computes marginal means and adjusted predicted
 values for the response, at the margin of specific values or levels from
 certain model terms. The package is built around three core functions:
@@ -313,9 +317,9 @@ for details.
 
 \strong{Limitations}
 
-The support for some models, for example from package \strong{MCMCglmm}, is
-rather experimental and may fail for certain models. If you encounter
-any errors, please file an issue \href{https://github.com/strengejacke/ggeffects/issues}{at Github}.
+The support for some models, for example from package \strong{MCMCglmm}, is not
+fully tested and may fail for certain models. If you encounter any errors,
+please file an issue \href{https://github.com/strengejacke/ggeffects/issues}{at Github}.
 }
 \section{Supported Models}{
 
@@ -395,8 +399,9 @@ values.
 Meaningful values of focal terms can be specified via the \code{terms} argument.
 Specifying meaningful or representative values as string pattern is the
 preferred way in the \strong{ggeffects} package. However, it is also possible to
-use a \code{list()} for the focal terms if prefer the "classical" R way, which is
-described in \href{https://strengejacke.github.io/ggeffects/articles/introduction_effectsatvalues.html}{this vignette}.
+use a \code{list()} for the focal terms if prefer the "classical" R way. \code{terms}
+can also be a data (or reference) grid provided as data frame. All options
+are described in \href{https://strengejacke.github.io/ggeffects/articles/introduction_effectsatvalues.html}{this vignette}.
 
 Indicating levels in square brackets allows for selecting only certain
 groups or values resp. value ranges. The term name and the start of the
@@ -426,17 +431,19 @@ You can take a random sample of any size with \code{sample=n}, e.g
 \code{terms = "income [sample=8]"}, which will sample eight values from
 all possible values of the variable \code{income}. This option is especially
 useful for plotting predictions at certain levels of random effects
-group levels, where the group factor has many levels that can be completely
+group levels, where the group factor has too many levels to be completely
 plotted. For more details, see
 \href{https://strengejacke.github.io/ggeffects/articles/introduction_effectsatvalues.html}{this vignette}.
 
 Finally, numeric vectors for which no specific values are given, a "pretty range"
 is calculated (see \code{\link[=pretty_range]{pretty_range()}}), to avoid memory allocation problems
 for vectors with many unique values. If a numeric vector is specified as
-second or third term (i.e. if this vector represents a grouping structure),
+second or third term (i.e. if this focal term is used for "stratification"),
 representative values (see \code{\link[=values_at]{values_at()}}) are chosen (unless other values
-are specified). If all values for a numeric vector should be used to compute
-predictions, you may use e.g. \code{terms = "age [all]"}. See also package vignettes.
+are specified), which are typically the mean value, as well as one standard
+deviation below and above the mean. If all values for a numeric vector should
+be used to compute predictions, you may use e.g. \code{terms = "age [all]"}. See
+also package vignettes.
 
 To create a pretty range that should be smaller or larger than the default
 range (i.e. if no specific values would be given), use the \code{n} tag, e.g.
@@ -449,11 +456,13 @@ larger range of predicted values.
 
 \code{predict_response()} also works with \strong{Stan}-models from the \strong{rstanarm} or
 \strong{brms}-packages. The predicted values are the median value of all drawn
+posterior samples. Standard errors are the median absolute deviation of the
 posterior samples. The confidence intervals for Stan-models are Bayesian
-predictive intervals. By default (i.e. \code{ppd = FALSE}), the predictions are
-based on \code{\link[rstantools:posterior_linpred]{rstantools::posterior_linpred()}} and hence have some limitations:
-the uncertainty of the error term is not taken into account. The recommendation
-is to use the posterior predictive distribution (\code{\link[rstantools:posterior_predict]{rstantools::posterior_predict()}}).
+predictive intervals. By default, the predictions are based on
+\code{\link[rstantools:posterior_epred]{rstantools::posterior_epred()}} and hence have the limitations that the
+uncertainty of the error term (residual variance) is not taken into account.
+The recommendation is to use the posterior predictive distribution
+(\code{\link[rstantools:posterior_predict]{rstantools::posterior_predict()}}), i.e. setting \code{interval = "prediction"}.
 }
 
 \section{Zero-Inflated and Zero-Inflated Mixed Models with brms}{
@@ -606,7 +615,7 @@ ggplot(dat, aes(x = x, y = predicted, colour = group)) +
   )
 
 # or with ggeffects' plot-method
-plot(dat, ci = FALSE)
+plot(dat, show_ci = FALSE)
 }
 
 # predictions for polynomial terms
@@ -624,8 +633,8 @@ predict_response(fit, terms = "e17age")
 \item Brooks ME, Kristensen K, Benthem KJ van, Magnusson A, Berg CW, Nielsen A,
 et al. glmmTMB Balances Speed and Flexibility Among Packages for Zero-inflated
 Generalized Linear Mixed Modeling. The R Journal. 2017;9: 378-400.
-\item Johnson PC, O'Hara RB. 2014. Extension of Nakagawa & Schielzeth's R2GLMM
-to random slopes models. Methods Ecol Evol, 5: 944-946.
+\item Johnson PC. 2014. Extension of Nakagawa & Schielzeth's R2GLMM to random
+slopes models. Methods Ecol Evol, 5: 944-946.
 \item Dickerman BA, Hernan, MA. Counterfactual prediction is not only for causal
 inference. Eur J Epidemiol 35, 615–617 (2020).
 }

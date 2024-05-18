@@ -1,3 +1,74 @@
+# ggeffects 1.6.0
+
+## General
+
+* `ggpredict()` now works for models of class `clm2` from package *ordinal*,
+  however, confidence intervals are not yet supported for these models.
+
+* `ggeffect()` now passes the `latent` argument for models with ordinal outcome
+  down to `effects::Effect()`, to plot effects for ordinal models on the latent
+  scale.
+
+* When argument `test` in `test_predictions()` is `"interaction"`,
+  `"consecutive"`, or a data frame, *emmeans* is automatically used as backend,
+  as this is the relevant package that supports these argument types.
+
+* `format()` (and hence, `print()`) for `test_predictions()` gains a
+  `combine_levels` argument, to combine levels of the focal term in the output
+  table.
+
+* The `engine` argument in `test_predictions()` can now also be `"ggeffects"`.
+  However, this is currently work-in-progress and offers muss less options as the
+  default engine, `"marginaleffects"`. It can be faster in some cases, though,
+  and works for comparing predicted random effects in mixed models.
+
+* `test_predictions()` now automatically falls back to engines `"emmeans"` or 
+  `"ggeffects"` if the _marginaleffects_ (or _emmeans_) package is not installed.
+
+* `predict_response()`, `test_predictions()` and `ggpredict()` will warn the user
+  when all focal terms are only included as random effects in the model and no
+  appropriate `type` or `margin` is specified. This is to avoid meaningless
+  results.
+
+* `plot()` gets an `n_rows` argument, to define the number of rows for the
+  panel alignment. This is useful when the number of facets is large and the
+  default alignment is not optimal.
+
+* The `ppd` argument for Bayesian models will be superseded by the `interval`
+  argument, i.e. `ppd = TRUE` is equivalent to `interval = "prediction"` (and
+  `ppd = FALSE` is equivalent to `interval = "confidence"`).
+
+* When `back_transform = FALSE`, and model has a transformed response variable,
+  the `plot()` method for `ggeffects` objects now rescales the raw data points.
+  This ensures that the raw data points are plotted on the same scale as the
+  predicted values when `show_data = TRUE`.
+
+* Minor revisions of documentation and vignettes, to improve readability and
+  clarity.
+
+* Several arguments have been deprecated and replaced by new argument names. A
+  warning is printed when deprecated arguments are used. The deprecated arguments
+  will be removed in a future release.
+
+## Bug fixes
+
+* Fixed issue in `print()` for `ggeffect()` and models with ordinal outcome,
+  where one column was too much in the output.
+
+* Fixed issue in `test_predictions()` with wrong order of term labels when
+  a focal term was a character vector.
+
+* Fixed issue in `ggpredict()` with `wbm` models from package *panelr*.
+
+* Fixed issue in `ggemmeans()` for `glmmTMB` models with zero-inflation, when
+  `terms` included variables that were specified in the conditional, but not
+  in the zero-inflation model formula.
+
+* Fixed issue in `ggpredict()` for Stan models (from packages *rstanarm* and *brms*)
+  where the `ci_level` argument was not correctly recognized.
+
+* Fixed CRAN check issues due to latest _marginaleffects_ update.
+
 # ggeffects 1.5.2
 
 ## General
