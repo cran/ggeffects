@@ -109,16 +109,16 @@ test_that("test_predictions, engine ggeffects, glm", {
   pr <- predict_response(m, c("var_binom", "groups"))
   out1 <- test_predictions(pr, engine = "ggeffects")
   out2 <- test_predictions(m, c("var_binom", "groups"), engine = "emmeans")
-  expect_equal(out1$Contrast[1:2], out2$Contrast[1:2], tolerance = 1e-3)
-  expect_equal(out1$conf.low[1:2], out2$conf.low[1:2], tolerance = 1e-2)
-  expect_equal(attributes(out1)$standard_error[1:2], attributes(out2)$standard_error[1:2], tolerance = 1e-1)
+  expect_equal(out1$Contrast, out2$Contrast, tolerance = 1e-3)
+  expect_equal(out1$conf.low, out2$conf.low, tolerance = 1e-3)
+  expect_equal(attributes(out1)$standard_error, attributes(out2)$standard_error, tolerance = 1e-3)
 
   pr <- predict_response(m, c("var_binom", "groups"))
   out1 <- test_predictions(pr, engine = "ggeffects", test = "interaction")
   out2 <- test_predictions(m, c("var_binom", "groups"), engine = "emmeans", test = "interaction")
   expect_equal(out1$Contrast, out2$Contrast, tolerance = 1e-3)
   expect_equal(out1$conf.low, out2$conf.low, tolerance = 1e-2)
-  expect_equal(attributes(out1)$standard_error, attributes(out2)$standard_error, tolerance = 1e-1)
+  expect_equal(attributes(out1)$standard_error, attributes(out2)$standard_error, tolerance = 1e-2)
 })
 
 
@@ -171,6 +171,9 @@ test_that("test_predictions, engine ggeffects, by-arg and column order", {
   expect_identical(colnames(out1)[1:3], colnames(out2)[1:3])
   expect_snapshot(print(out1))
   expect_snapshot(print(out2))
+  expect_equal(out1$Contrast, out2$Contrast, tolerance = 1e-3)
+  expect_equal(out1$conf.low, out2$conf.low, tolerance = 1e-3)
+  expect_equal(attributes(out1)$standard_error, attributes(out2)$standard_error, tolerance = 1e-3)
 })
 
 
@@ -188,14 +191,19 @@ test_that("test_predictions, engine ggeffects, Bayes", {
   )
 
   m1 <- glm(outcome ~ var_binom * groups + var_cont, data = dat, family = binomial())
-  set.seed(1234)
-  m2 <- rstanarm::stan_glm(outcome ~ var_binom * groups + var_cont, data = dat, family = binomial(), refresh = 0)
-  set.seed(1234)
-  m3 <- brms::brm(outcome ~ var_binom * groups + var_cont, data = dat, family = brms::bernoulli(), refresh = 0)
+  m2 <- insight::download_model("stanreg_bernoulli_1")
+  m3 <- insight::download_model("brms_bernoulli_1")
+
+  skip_if(is.null(m2) || is.null(m3))
 
   pr1 <- predict_response(m1, c("var_binom", "groups"))
   pr2 <- predict_response(m2, c("var_binom", "groups"))
-  pr3 <- predict_response(m3, c("var_binom", "groups"))
+  expect_warning(
+    {
+      pr3 <- predict_response(m3, c("var_binom", "groups"))
+    },
+    regex = "Some of the focal terms are of type `character`"
+  )
 
   out1 <- test_predictions(pr1, engine = "ggeffects")
   out2 <- test_predictions(pr2, engine = "ggeffects")

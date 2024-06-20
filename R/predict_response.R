@@ -81,9 +81,10 @@
 #' It is set to `"response"` by default, but usually accepts all possible options
 #' from the `type`-argument of the model's respective `predict()` method. E.g.,
 #' passing a `glm` object would allow the options `"response"`, `"link"`, and
-#' `"terms"`. Thus, the following options apply to `predict_response()` when
-#' `margin` is _not_ `"empirical"`, and are passed to `ggpredict()` or
-#' `ggemmeans()`, respectively (depending on the value of `margin`):
+#' `"terms"`. For models with zero-inflation component, the below mentioned
+#' options `"fixed"`, `"zero_inflated"` and `"zi_prob"` can also be used and will
+#' be "translated" into the corresponding `type` option of the model's respective
+#' `predict()`-method.
 #'
 #'   - `"fixed"` (or `"fe"` or `"count"`)
 #'
@@ -94,7 +95,8 @@
 #'     this would return the predicted mean from the count component (without
 #'     zero-inflation). For models with zero-inflation component, this type calls
 #'     `predict(..., type = "link")` (however, predicted values are
-#'     back-transformed to the response scale).
+#'     back-transformed to the response scale, i.e. the conditional mean of the
+#'     response).
 #'
 #'   - `"random"` (or `"re"`)
 #'
@@ -119,9 +121,9 @@
 #'   - `"zero_inflated"` (or `"fe.zi"` or `"zi"`)
 #'
 #'     Predicted values are conditioned on the fixed effects and the zero-inflation
-#'     component. For instance, for models fitted with `zeroinfl`
-#'     from **pscl**, this would return the predicted response (`mu*(1-p)`)
-#'     and for **glmmTMB**, this would return the expected value `mu*(1-p)`
+#'     component. For instance, for models fitted with `zeroinfl` from **pscl**,
+#'     this would return the predicted (or expected) response (`mu*(1-p)`),
+#'     and for **glmmTMB**, this would return the expected response `mu*(1-p)`
 #'     *without* conditioning on random effects (i.e. random effect variances
 #'     are not taken into account for the confidence intervals). For models with
 #'     zero-inflation component, this type calls `predict(..., type = "response")`.
@@ -216,7 +218,7 @@
 #'
 #' If `NULL`, standard errors (and confidence intervals) for predictions are
 #' based on the standard errors as returned by the `predict()`-function.
-#' **Note** that probably not all model objects that work with `ggpredict()`
+#' **Note** that probably not all model objects that work with `predict_response()`
 #' are also supported by the **sandwich** or **clubSandwich** packages.
 #'
 #' See details in [this vignette](https://strengejacke.github.io/ggeffects/articles/practical_robustestimation.html).
@@ -224,6 +226,8 @@
 #' robust covariance matrix estimation (see `?sandwich::vcovHC`
 #' or `?clubSandwich::vcovCR` for details). Only used when `vcov_fun` is a
 #' character string indicating one of the functions from those packages.
+#' When `vcov_fun` is a function, a possible `type` argument _must_ be provided
+#' via the `vcov_args` argument.
 #' @param vcov_args List of named vectors, used as additional arguments that
 #' are passed down to `vcov_fun`.
 #' @param weights Character vector, naming the weigthing variable in the data,
@@ -422,6 +426,12 @@
 #' indicates with which level of the response variable the predicted values are
 #' associated.
 #'
+#' @section Averaged model predictions (package **MuMIn**):
+#'
+#' For averaged model predictions, i.e. when the input model is an object of
+#' class `"averaging"` (`MuMIn::model.avg()`), predictions are made with the
+#' full averaged coefficients.
+#'
 #' @references
 #' - Brooks ME, Kristensen K, Benthem KJ van, Magnusson A, Berg CW, Nielsen A,
 #'   et al. glmmTMB Balances Speed and Flexibility Among Packages for Zero-inflated
@@ -614,22 +624,20 @@ predict_response <- function(model,
 
   ## TODO: remove deprecated later
   if (!missing(ppd) && isTRUE(ppd)) {
-    insight::format_warning("Argument `ppd` is deprecated and will be removed in the future. Please use `interval` instead.") # nolint
+    insight::format_warning("Argument `ppd` is deprecated and will be removed in the future. Please use `interval = \"prediction\"` instead.") # nolint
+    interval <- "prediction"
   }
 
   # validate type arguments
-  type_and_ppd <- .validate_type_argument(
+  type <- .validate_type_argument(
     model,
     type,
-    ppd,
     # check for aliases for "empirical" margin
     marginaleffects = margin %in% c("empirical", "counterfactual", "ame", "marginaleffects")
   )
-  type <- type_and_ppd$type
-  ppd <- type_and_ppd$ppd
 
   if (missing(interval)) {
-    if (type %in% c("re", "re.zi")) {
+    if (type %in% c("random", "zero_inflated_random")) {
       interval <- "prediction"
     } else {
       interval <- "confidence"
@@ -640,13 +648,6 @@ predict_response <- function(model,
 
   # make sure we have valid values
   interval <- match.arg(interval, c("confidence", "prediction"))
-
-  ## TODO: remove when deprecated
-
-  # update interval - if we have ppd = TRUE, we have prediction intervals
-  if (isTRUE(ppd)) {
-    interval <- "prediction"
-  }
 
   out <- switch(margin,
     mean_reference = ggpredict(
@@ -687,6 +688,9 @@ predict_response <- function(model,
       typical = "mean",
       condition = condition,
       back_transform = back_transform,
+      vcov_fun = vcov_fun,
+      vcov_type = vcov_type,
+      vcov_args = vcov_args,
       interval = interval,
       verbose = verbose,
       ...

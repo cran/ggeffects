@@ -32,6 +32,7 @@ test_that("ggpredict, lm", {
   p <- suppressWarnings(plot(pr, colors = "gs"))
 })
 
+
 test_that("plot, correct x-labels order for character vector", {
   d_char <- data.frame(
     x = c("low", "low", "high", "high"),
@@ -39,13 +40,13 @@ test_that("plot, correct x-labels order for character vector", {
     stringsAsFactors = FALSE
   )
   m_char <- lm(y ~ x, data = d_char)
-  preds <- ggpredict(m_char, terms = "x [all]")
+  preds <- ggpredict(m_char, terms = "x [all]", verbose = FALSE)
   expect_identical(
     attributes(preds)$x.axis.labels,
     c("high", "low")
   )
 
-  preds <- ggpredict(m_char, terms = "x")
+  preds <- ggpredict(m_char, terms = "x", verbose = FALSE)
   expect_identical(
     attributes(preds)$x.axis.labels,
     c("low", "high")
@@ -63,6 +64,7 @@ test_that("plot, correct x-labels order for character vector", {
     c("high", "low")
   )
 })
+
 
 skip_on_cran()
 skip_if_not_installed("vdiffr")
@@ -139,5 +141,48 @@ test_that("ggpredict, lm", {
   vdiffr::expect_doppelganger(
     "Simple plot, categorical, grey scale",
     plot(pr, colors = "gs")
+  )
+})
+
+
+test_that("plot with data points", {
+  skip_if_not_installed("betareg")
+  skip_if_not_installed("datawizard")
+  set.seed(1)
+  ex <- data.frame(
+    x = rnorm(2000),
+    group = sample(letters[1:4], size = 2000, replace = TRUE),
+    stringsAsFactors = FALSE
+  )
+  ex <- datawizard::data_modify(
+    ex,
+    group_value = datawizard::recode_into(
+      group == "a" ~ 1,
+      group == "b" ~ 2,
+      group == "c" ~ 0,
+      group == "d" ~ -1
+    ),
+    y_latent = x + rnorm(2000) + group_value,
+    y = pnorm(y_latent, sd = 3),
+    group = as.factor(group)
+  )
+
+  beta_fit <- betareg::betareg(y ~ x + group, data = ex)
+  beta_fit_preds <- ggpredict(beta_fit, terms = c("x", "group [a, b]"))
+  vdiffr::expect_doppelganger(
+    "Colored data points with special focal terms",
+    plot(beta_fit_preds, show_data = TRUE)
+  )
+})
+
+
+test_that("collapse groups works", {
+  skip_if_not_installed("lme4")
+  data(ChickWeight)
+  m <- lme4::lmer(weight ~ Diet + Time + (1 | Chick), data = ChickWeight)
+  gge <- ggpredict(m, terms = "Diet")
+  vdiffr::expect_doppelganger(
+    "Collapse random effects works again",
+    plot(gge, collapse_group = TRUE)
   )
 })

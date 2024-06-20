@@ -108,13 +108,13 @@
 #' contrasts, `"consecutive"` to calculate contrasts between consecutive levels of a
 #' predictor, or a data frame with custom contrasts (see also `test`). There is
 #' an experimental option as well, `engine = "ggeffects"`. However, this is
-#' currently work-in-progress and offers muss less options as the default engine,
+#' currently work-in-progress and offers much less options as the default engine,
 #' `"marginaleffects"`. It can be faster in some cases, though, and works for
-#' comparing predicted random effects in mixed models. If the **marginaleffects**
-#' package is not installed, the **emmeans** package is used automatically. If
-#' this package is not installed as well, `engine = "ggeffects"` is used.
+#' comparing predicted random effects in mixed models, or predicted probabilities
+#' of the zero-inflation component. If the **marginaleffects** package is not
+#' installed, the **emmeans** package is used automatically. If this package is
+#' not installed as well, `engine = "ggeffects"` is used.
 #' @param verbose Toggle messages and warnings.
-#' @param ci.lvl Deprecated, please use `ci_level`.
 #' @param ... Arguments passed down to [`data_grid()`] when creating the reference
 #' grid and to [`marginaleffects::predictions()`] resp. [`marginaleffects::slopes()`].
 #' For instance, arguments `type` or `transform` can be used to back-transform
@@ -187,7 +187,9 @@
 #'   - `NULL` calls functions from the **marginaleffects** package with
 #'     `hypothesis = NULL`.
 #'   - If all focal terms are only present as random effects in a mixed model,
-#'     functions from the **ggeffects** package are used. There is an example in
+#'     or if predicted probabilities for the zero-inflation component of a model
+#'     should be tested, functions from the **ggeffects** package are used. There
+#'     is an example for pairwise comparisons of random effects in
 #'     [this vignette](https://strengejacke.github.io/ggeffects/articles/practical_intersectionality.html).
 #'
 #' @section P-value adjustment for multiple comparisons:
@@ -350,7 +352,6 @@ test_predictions.default <- function(object,
                                      margin = "mean_reference",
                                      engine = "marginaleffects",
                                      verbose = TRUE,
-                                     ci.lvl = ci_level,
                                      ...) {
   # margin-argument -----------------------------------------------------------
   # harmonize the "margin" argument
@@ -435,11 +436,6 @@ test_predictions.default <- function(object,
     object <- object$fit
   }
 
-  # process arguments
-  if (!missing(ci.lvl)) {
-    insight::format_warning("Argument `ci.lvl` is deprecated. Please use `ci_level` instead.")
-    ci_level <- ci.lvl
-  }
   # ci-level cannot be NA, set to default value then
   if (is.na(ci_level)) {
     ci_level <- 0.95
@@ -471,11 +467,6 @@ test_predictions.default <- function(object,
   # default scale is response scale without any transformation
   dot_args$transform <- NULL
   dot_args$type <- "response"
-  # check scale
-  scale <- match.arg(
-    scale,
-    choices = c("response", "link", "probability", "probs", "exp", "log", "oddsratios", "irr")
-  )
   if (scale == "link") {
     dot_args$type <- "link"
   } else if (scale %in% c("probability", "probs")) {
@@ -487,6 +478,9 @@ test_predictions.default <- function(object,
   } else if (scale %in% c("irr", "oddsratios")) {
     dot_args$type <- "link"
     dot_args$transform <- "exp"
+  } else {
+    # unknown type - might be supported by marginal effects
+    dot_args$type <- scale
   }
 
   # make sure we have a valid type-argument...
@@ -551,6 +545,12 @@ test_predictions.default <- function(object,
   if (margin == "marginalmeans" && include_random) {
     include_random <- FALSE
     dot_args$re.form <- NA
+  }
+
+  # for zero-inflation probabiliries, we need to set "need_average_predictions"
+  # to FALSE, else no confidence intervals will be returned.
+  if (scale %in% c("zi_prob", "zero", "zprob")) {
+    need_average_predictions <- FALSE
   }
 
   # by-variables are included in terms
@@ -1088,7 +1088,7 @@ test_predictions.default <- function(object,
       out
     )
   } else if (minfo$is_ordinal || minfo$is_multinomial) {
-    resp_levels <- levels(insight::get_response(object))
+    resp_levels <- levels(insight::get_response(object, verbose = FALSE))
     if (!is.null(resp_levels) && all(rowMeans(sapply(resp_levels, grepl, .comparisons$term, fixed = TRUE)) > 0)) { # nolint
       colnames(out)[seq_along(focal)] <- paste0("Response Level by ", paste0(focal, collapse = " & "))
       if (length(focal) > 1) {
@@ -1155,6 +1155,9 @@ test_predictions.ggeffects <- function(object,
   focal <- attributes(object)$original.terms
   # retrieve ci level predictors
   ci_level <- attributes(object)$ci.lvl
+  # check prediction type - we set the default scale here. This is only
+  # required for models with zero-inflation component (see later)
+  type <- attributes(object)$type
 
   # check if all focal terms are random effects - if so, we switch to ggeffects
   # because we cannot calculate comparisons for random effects with marginaleffects
@@ -1162,6 +1165,14 @@ test_predictions.ggeffects <- function(object,
   model <- .get_model_object(name = attr(object, "model.name", exact = TRUE))
   random_pars <- insight::find_random(model, split_nested = TRUE, flatten = TRUE)
   if (!is.null(random_pars) && all(.clean_terms(focal) %in% random_pars) && !is.na(ci_level)) {
+    engine <- "ggeffects"
+  }
+
+  # check if we have a glmmTMB zero-inflated model - if comparisons for the
+  # zero-inflation probabilities are requedsted, we switch to ggeffects
+  # because we cannot calculate them with marginaleffects or emmeans
+  is_zero_inflated <- insight::model_info(model)$is_zero_inflated
+  if (is_zero_inflated && inherits(model, "glmmTMB") && !is.null(type) && type %in% c("zi_prob", "zero", "zprob")) {
     engine <- "ggeffects"
   }
 
@@ -1189,8 +1200,12 @@ test_predictions.ggeffects <- function(object,
   vcov_matrix <- attributes(object)$vcov
   # information about margin
   margin <- attributes(object)$margin
-  # retrieve relevant information and generate data grid for predictions
-  object <- .get_model_object(name = attr(object, "model.name", exact = TRUE))
+
+  # check prediction type for zero-inflated models - we can change scale here,
+  # if it's still the default
+  if (is_zero_inflated && scale == "response") {
+    scale <- .get_zi_prediction_type(model, type)
+  }
 
   dot_args <- list(...)
   # set default for marginaleffects, we pass this via dots
@@ -1199,7 +1214,7 @@ test_predictions.ggeffects <- function(object,
   }
 
   my_args <- list(
-    object,
+    object = model,
     terms = focal,
     by = by,
     test = test,
@@ -1351,6 +1366,24 @@ test_predictions.ggeffects <- function(object,
 }
 
 
+.get_zi_prediction_type <- function(model, type) {
+  if (inherits(model, "glmmTMB")) {
+    types <- c("conditional", "zprob")
+  } else {
+    types <- c("count", "zero")
+  }
+  switch(type,
+    conditional = ,
+    count = ,
+    fixed = types[1],
+    zi_prob = ,
+    zero = ,
+    zprob = types[2],
+    "response"
+  )
+}
+
+
 .scale_label <- function(minfo, scale) {
   scale_label <- NULL
   if (minfo$is_binomial || minfo$is_ordinal || minfo$is_multinomial) {
@@ -1367,6 +1400,11 @@ test_predictions.ggeffects <- function(object,
       response = "counts",
       link = "log-mean",
       irr = "incident rate ratios",
+      count = ,
+      conditional = "conditional means",
+      zero = ,
+      zprob = ,
+      zi_prob = ,
       probs = ,
       probability = "probabilities",
       NULL

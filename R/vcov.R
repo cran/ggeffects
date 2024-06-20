@@ -241,7 +241,7 @@ vcov.ggeffects <- function(object,
     add.terms <- unlist(Map(function(.x, .y) {
       f <- model_frame[[.y]]
       if (!is.factor(f)) {
-        f <- as.factor(f)
+        f <- factor(f, levels = sort(unique(f)))
       }
       if (.x %in% c("contr.sum", "contr.helmert"))
         sprintf("%s%s", .y, 1:(nlevels(f) - 1))
@@ -289,11 +289,32 @@ vcov.ggeffects <- function(object,
     mm <- mm[, keep]
   }
 
-  if (full.vcov) {
-    mm %*% vcm %*% t(mm)
-  } else {
-    colSums(t(mm %*% vcm) * t(mm))
+  # try to compute the variance-covariance matrix
+  result <- .safe(
+    if (full.vcov) {
+      mm %*% vcm %*% t(mm)
+    } else {
+      colSums(t(mm %*% vcm) * t(mm))
+    }
+  )
+
+  # sanity check for non-conformable arguments
+  if (is.null(result)) {
+    # make sure both matrices have the same number of columns
+    shared_colums <- intersect(colnames(mm), colnames(vcm))
+    mm <- mm[, shared_colums]
+    vcm <- vcm[shared_colums, shared_colums, drop = FALSE]
+    # try again
+    result <- .safe(
+      if (full.vcov) {
+        mm %*% vcm %*% t(mm)
+      } else {
+        colSums(t(mm %*% vcm) * t(mm))
+      }
+    )
   }
+
+  result
 }
 
 
@@ -319,52 +340,12 @@ vcov.ggeffects <- function(object,
       # user provided a vcov-matrix?
       vcm <- as.matrix(vcov.fun)
     } else {
-      # check for existing vcov-prefix
-      if (!startsWith(vcov.fun, "vcov")) {
-        vcov_shortcuts <- c("HC0", "HC1", "HC2", "HC3", "HC4", "HC5", "HC4m",
-                            "CR0", "CR1", "CR1p", "CR1S", "CR2", "CR3")
-        # check whether a "type" is provided in vcov.fun
-        if (is.null(vcov.type) && vcov.fun %in% vcov_shortcuts) {
-          vcov.type <- vcov.fun
-          if (startsWith(vcov.fun, "HC")) {
-            vcov.fun <- "HC"
-          } else {
-            vcov.fun <- "CR"
-          }
-        }
-        vcov.fun <- paste0("vcov", vcov.fun)
-      }
-      # set default for clubSandwich
-      if (vcov.fun == "vcovCR" && is.null(vcov.type)) {
-        vcov.type <- "CR0"
-      }
-      if (!is.null(vcov.type) && vcov.type %in% c("CR0", "CR1", "CR1p", "CR1S", "CR2", "CR3")) {
-        insight::check_if_installed("clubSandwich")
-        robust_package <- "clubSandwich"
-        vcov.fun <- "vcovCR"
-      } else {
-        insight::check_if_installed("sandwich")
-        robust_package <- "sandwich"
-      }
-      # clubSandwich does not work for pscl models
-      if (robust_package == "clubSandwich" && inherits(model, c("zeroinfl", "hurdle", "zerotrunc"))) {
-        if (verbose) {
-          insight::format_alert(paste0(
-            "Can't compute robust standard errors for models of class `",
-            class(model)[1],
-            "` when `vcov_fun=\"vcovCR\". Please use `vcov_fun=\"vcovCL\"` from the {sandwich} package instead."
-          ))
-        }
+      vcov_info <- .prepare_vcov_args(model, vcov.fun, vcov.type, vcov.args, verbose = verbose)
+      # do nothing if vcov cannot be computed
+      if (is.null(vcov_info)) {
         return(NULL)
       }
-      # compute robust standard errors based on vcov
-      if (robust_package == "sandwich") {
-        vcov.fun <- get(vcov.fun, asNamespace("sandwich"))
-        vcm <- as.matrix(do.call(vcov.fun, c(list(x = model, type = vcov.type), vcov.args)))
-      } else {
-        vcov.fun <- clubSandwich::vcovCR
-        vcm <- as.matrix(do.call(vcov.fun, c(list(obj = model, type = vcov.type), vcov.args)))
-      }
+      vcm <- as.matrix(do.call(vcov_info$vcov.fun, vcov_info$vcov.args))
     }
     # for zero-inflated models, remove zero-inflation part from vcov
     if (inherits(model, c("zeroinfl", "hurdle", "zerotrunc"))) {
@@ -375,4 +356,63 @@ vcov.ggeffects <- function(object,
     vcm <- suppressMessages(insight::get_varcov(model, component = "conditional"))
   }
   vcm
+}
+
+
+.prepare_vcov_args <- function(model,
+                               vcov.fun,
+                               vcov.type,
+                               vcov.args,
+                               include_model = TRUE,
+                               verbose = TRUE) {
+  # check for existing vcov-prefix
+  if (!startsWith(vcov.fun, "vcov")) {
+    vcov_shortcuts <- c("HC0", "HC1", "HC2", "HC3", "HC4", "HC5", "HC4m",
+                        "CR0", "CR1", "CR1p", "CR1S", "CR2", "CR3")
+    # check whether a "type" is provided in vcov.fun
+    if (is.null(vcov.type) && vcov.fun %in% vcov_shortcuts) {
+      vcov.type <- vcov.fun
+      if (startsWith(vcov.fun, "HC")) {
+        vcov.fun <- "HC"
+      } else {
+        vcov.fun <- "CR"
+      }
+    }
+    vcov.fun <- paste0("vcov", vcov.fun)
+  }
+  # set default for clubSandwich
+  if (vcov.fun == "vcovCR" && is.null(vcov.type)) {
+    vcov.type <- "CR0"
+  }
+  if (!is.null(vcov.type) && vcov.type %in% c("CR0", "CR1", "CR1p", "CR1S", "CR2", "CR3")) {
+    insight::check_if_installed("clubSandwich")
+    robust_package <- "clubSandwich"
+    vcov.fun <- "vcovCR"
+  } else {
+    insight::check_if_installed("sandwich")
+    robust_package <- "sandwich"
+  }
+  # clubSandwich does not work for pscl models
+  if (robust_package == "clubSandwich" && inherits(model, c("zeroinfl", "hurdle", "zerotrunc"))) {
+    if (verbose) {
+      insight::format_alert(paste0(
+        "Can't compute robust standard errors for models of class `",
+        class(model)[1],
+        "` when `vcov_fun=\"vcovCR\". Please use `vcov_fun=\"vcovCL\"` from the {sandwich} package instead."
+      ))
+    }
+    return(NULL)
+  }
+  # compute robust standard errors based on vcov
+  if (robust_package == "sandwich") {
+    vcov.fun <- get(vcov.fun, asNamespace("sandwich"))
+  } else {
+    vcov.fun <- clubSandwich::vcovCR
+  }
+
+  if (include_model) {
+    list(vcov.fun = vcov.fun, vcov.args = c(list(model, type = vcov.type), vcov.args))
+  } else {
+    list(vcov.fun = vcov.fun, vcov.args = c(list(type = vcov.type), vcov.args))
+  }
 }

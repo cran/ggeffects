@@ -24,9 +24,9 @@ select_prediction_method <- function(model_class,
     prediction_data <- get_predictions_svyglmnb(model, data_grid, ci.lvl, linv, model_class, value_adjustment, terms, vcov.fun, vcov.type, vcov.args, condition, interval, ...) # nolint
   } else if (model_class %in% c("stanreg", "brmsfit")) {
     prediction_data <- get_predictions_stan(model, data_grid, ci.lvl, type, model_info, interval, terms, verbose = verbose, ...) # nolint
-  } else if (model_class == "coxph" && type != "surv" && type != "cumhaz") {
+  } else if (model_class == "coxph" && type != "survival" && type != "cumulative_hazard") {
     prediction_data <- get_predictions_coxph(model, data_grid, ci.lvl, model_class, value_adjustment, terms, vcov.fun, vcov.type, vcov.args, condition, interval, ...) # nolint
-  } else if (model_class == "coxph" && type %in% c("surv", "cumhaz")) {
+  } else if (model_class == "coxph" && type %in% c("survival", "cumulative_hazard")) {
     prediction_data <- get_predictions_survival(model, data_grid, ci.lvl, type, terms, ...)
   } else if (model_class == "ols") {
     prediction_data <- get_predictions_ols(model, data_grid, ci.lvl, ...)
@@ -42,6 +42,8 @@ select_prediction_method <- function(model_class,
     prediction_data <- get_predictions_glmmTMB(model, data_grid, ci.lvl, linv, type, terms, value_adjustment, condition, interval, verbose = verbose, ...) # nolint
   } else if (model_class == "sdmTMB") {
     prediction_data <- get_predictions_sdmTMB(model, data_grid, ci.lvl, linv, type, ...)
+  } else if (model_class == "glmgee") {
+    prediction_data <- get_predictions_glmgee(model, data_grid, ci.lvl, linv, vcov = vcov.fun, ...)
   } else if (model_class == "wbm") {
     prediction_data <- get_predictions_wbm(model, data_grid, ci.lvl, linv, type, terms, condition, ...)
   } else if (model_class %in% c("lmer", "nlmer", "glmer")) {

@@ -123,8 +123,16 @@
   ysc <- .get_title_labels(fun, model_info, no.transform, type)
 
   # fix title, depending on whether we called `ggaverage()` or not
+  # for zero-inflated model, we emphasize whether we have the conditional
+  # or the expected values
   if (averaged_predictions) {
-    avg_title <- "Average predicted"
+    if (model_info$is_zero_inflated && type %in% c("zero_inflated", "response")) {
+      avg_title <- "Average expected"
+    } else {
+      avg_title <- "Average predicted"
+    }
+  } else if (model_info$is_zero_inflated && type %in% c("zero_inflated", "simulate")) {
+    avg_title <- "Expected"
   } else {
     avg_title <- "Predicted"
   }
@@ -141,9 +149,9 @@
 
 
   if (fun == "coxph") {
-    if (!is.null(type) && type == "surv") {
+    if (!is.null(type) && type == "survival") {
       t.title <- y.title <- "Probability of Survival"
-    } else if (!is.null(type) && type == "cumhaz") {
+    } else if (!is.null(type) && type == "cumulative_hazard") {
       t.title <- y.title <- "Cumulative Hazard"
     } else {
       t.title <- paste(avg_title, "risk scores")
@@ -184,26 +192,32 @@
   if (is.null(model_info)) {
     return(ysc)
   }
-  if (!is.null(type) && type == "zi.prob") {
+  if (!is.null(type) && type %in% c("zi_prob", "zprob", "zero")) {
     ysc <- "zero-inflation probabilities"
   } else if (fun == "glm") {
-    if (model_info$is_brms_trial)
+    if (model_info$is_brms_trial) {
       ysc <- "successes"
-    else if (model_info$is_binomial || model_info$is_ordinal || model_info$is_multinomial)
+    } else if (model_info$is_binomial || model_info$is_ordinal || model_info$is_multinomial) {
       ysc <- ifelse(isTRUE(no.transform), "log-odds", "probabilities")
-    else if (model_info$is_count)
-      ysc <- ifelse(isTRUE(no.transform), "log-mean", "counts")
-    else if (model_info$is_beta || model_info$is_orderedbeta)
+    } else if (model_info$is_count) {
+      if ((model_info$is_zero_inflated || model_info$is_hurdle) && !type %in% c("zero_inflated", "response", "simulate")) { # nolint
+        ysc <- ifelse(isTRUE(no.transform), "(conditional) log-mean", "(conditional) counts")
+      } else {
+        ysc <- ifelse(isTRUE(no.transform), "log-mean", "counts")
+      }
+    } else if (model_info$is_beta || model_info$is_orderedbeta) {
       ysc <- "proportions"
+    }
   } else if (model_info$is_beta || model_info$is_orderedbeta) {
     ysc <- "proportions"
   } else if (fun == "coxph") {
-    if (!is.null(type) && type == "surv")
+    if (!is.null(type) && type == "survival") {
       ysc <- "survival probabilities"
-    else if (!is.null(type) && type == "cumhaz")
+    } else if (!is.null(type) && type == "cumulative_hazard") {
       ysc <- "cumulative hazard"
-    else
+    } else {
       ysc <- "risk scores"
+    }
   }
 
   ysc

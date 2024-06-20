@@ -15,7 +15,7 @@ get_predictions_stan <- function(model,
 
   # check whether predictions should be conditioned
   # on random effects (grouping level) or not.
-  if (type != "fe") {
+  if (type != "fixed") {
     ref <- NULL
   } else {
     ref <- NA
@@ -45,7 +45,7 @@ get_predictions_stan <- function(model,
     # value. we take the value for a successful event
     if (model_info$is_binomial) {
       resp.name <- insight::find_response(model)
-      resp.value <- insight::get_response(model)
+      resp.value <- insight::get_response(model, verbose = FALSE)
       # successful events
       if (is.factor(resp.value)) {
         data_grid[[resp.name]] <- levels(resp.value)[2]

@@ -74,6 +74,17 @@
   # and all specified variables
   all_terms <- .clean_terms(terms)
 
+  # check for character variables, might not work
+  characters <- vapply(model_frame[all_terms], is.character, logical(1))
+  if (any(characters) && verbose) {
+    insight::format_warning(
+      "Some of the focal terms are of type `character`. This may lead to unexpected results. It is recommended to convert these variables to factors before fitting the model.", # nolint
+      paste0(
+        "The following variables in are of type character: ",
+        toString(paste0("`", all_terms[characters], "`"))
+      )
+    )
+  }
 
   # check if user has any predictors with log-transformation inside
   # model formula, but *not* used back-transformation "exp". Tell user
@@ -178,6 +189,7 @@
     monotonics <- grepl("mo\\((.*)\\)", model_terms)
     if (any(monotonics)) {
       mo_terms <- gsub("mo\\((.*)\\)", "\\1", model_terms[monotonics])
+      # now check if values are valid
       invalid_levels <- unlist(lapply(mo_terms, function(mt) {
         if (mt %in% names(focal_terms) && mt %in% colnames(model_frame)) {
           !all(model_frame[[mt]] %in% focal_terms[[mt]])
@@ -190,6 +202,12 @@
           sprintf("Variable(s) %s are used as monotonic effects, however, only values that are also present in the data are allowed for predictions.", toString(mo_terms)), # nolint
           "Consider converting variables used in `mo()` into (ordered) factors before fitting the model."
         )
+      }
+      # we also need to remove monotonic terms from "on-the-fly" factors,
+      # because we need the levels from the monotonic term
+      on_the_fly_factors <- setdiff(on_the_fly_factors, mo_terms)
+      if (!length(on_the_fly_factors)) {
+        on_the_fly_factors <- NULL
       }
     }
   }
@@ -287,6 +305,14 @@
         }
       })
     }
+  }
+
+  # at this point, we have the "terms" in focal terms, but possibly in different
+  # order as in "terms" (because we first have terms with [] in focal terms, then
+  # the remaining). Here we make sure we restore the correct order
+
+  if (all(all_terms %in% names(focal_terms))) {
+    focal_terms <- focal_terms[all_terms]
   }
 
 
@@ -391,7 +417,7 @@
 
   # for MixMod, we need mean value of response as well...
   if (inherits(model, c("MixMod", "MCMCglmm"))) {
-    constant_values <- c(constant_values, .typical_value(insight::get_response(model)))
+    constant_values <- c(constant_values, .typical_value(insight::get_response(model, verbose = FALSE)))
     names(constant_values)[length(constant_values)] <- insight::find_response(model, combine = FALSE)
   }
 

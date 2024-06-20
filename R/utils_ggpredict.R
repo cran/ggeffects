@@ -1,14 +1,30 @@
-.validate_type_argument <- function(model, type, ppd, marginaleffects = FALSE) {
+.validate_type_argument <- function(model, type, marginaleffects = FALSE, emmeans_call = FALSE) {
   # marginaleffects supports the predict-method types
   # we need a different approach to validation here
   if (marginaleffects) {
+    # for zero-inflation models, we need to find the correct name
+    # for the type argument...
+    is_zero_inflated <- insight::model_info(model)$is_zero_inflated
+    if (is_zero_inflated) {
+      if (inherits(model, "glmmTMB")) {
+        types <- c("conditional", "zprob")
+      } else {
+        types <- c("count", "zero")
+      }
+    }
     # first, we overwrite the "default"
     if (type == "fixed") {
-      if (class(model)[1] %in% .default_type$class) {
+      if (is_zero_inflated) {
+        type <- types[1]
+      } else if (class(model)[1] %in% .default_type$class) {
         type <- .default_type$type[.default_type$class == class(model)[1]]
       } else {
         type <- "response"
       }
+    } else if (type %in% c("zi", "zero_inflated", "fe.zi")) {
+      type <- "response"
+    } else if (type %in% c("zi.prob", "zi_prob")) {
+      type <- types[2]
     }
     # check which types are supported by the model's predict-method
     type_options <- .typedic$type[.typedic$class == class(model)[1]]
@@ -20,41 +36,40 @@
         toString(paste0("`", type_options, "`"))
       ))
     }
-    return(list(type = type, ppd = ppd))
+    return(type)
   }
 
   # if we call "predict()" or "emmeans()", we have these different options
-  type <- match.arg(type, choices = c(
-    "fe", "fixed", "count", "re", "random",
-    "fe.zi", "zero_inflated", "re.zi", "zi_random",
-    "zero_inflated_random", "zi.prob", "zi_prob",
-    "sim", "simulate", "surv", "survival", "cumhaz",
-    "cumulative_hazard", "sim_re", "simulate_random",
-    "debug", "fixed_ppd", "random_ppd"
-  ))
-  # handle Bayes exceptions for type with ppd
-  if (type %in% c("fixed_ppd", "random_ppd")) {
-    ppd <- TRUE
-    type <- gsub("_ppd", "", type, fixed = TRUE)
+  if (emmeans_call) {
+    type_choices <- c(
+      "fe", "fixed", "count", "re", "random", "fe.zi", "zero_inflated",
+      "re.zi", "zi_random", "zero_inflated_random", "zi.prob", "zi_prob"
+    )
+  } else {
+    type_choices <- c(
+      "fe", "fixed", "count", "re", "random", "fe.zi", "zero_inflated", "re.zi",
+      "zi_random", "zero_inflated_random", "zi.prob", "zi_prob", "sim",
+      "simulate", "surv", "survival", "cumhaz", "cumulative_hazard", "sim_re",
+      "simulate_random", "debug"
+    )
   }
+  type <- match.arg(type, choices = type_choices)
 
-  type <- switch(type,
-    fixed = ,
-    count = "fe",
-    random = "re",
+  switch(type,
+    fe = ,
+    count = "fixed",
+    re = "random",
     zi = ,
-    zero_inflated = "fe.zi",
-    zi_random = ,
-    zero_inflated_random = "re.zi",
-    zi_prob = "zi.prob",
-    survival = "surv",
-    cumulative_hazard = "cumhaz",
-    simulate = "sim",
-    simulate_random = "sim_re",
+    fe.zi = "zero_inflated",
+    re.zi = ,
+    zi_random = "zero_inflated_random",
+    zi.prob = "zi_prob",
+    surv = "survival",
+    cumhaz = "cumulative_hazard",
+    sim = "simulate",
+    sim_re = "simulate_random",
     type
   )
-
-  list(type = type, ppd = ppd)
 }
 
 

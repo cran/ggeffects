@@ -7,7 +7,7 @@
                                       value_adjustment,
                                       condition,
                                       nsim = 1000,
-                                      type = "fe") {
+                                      type = "fixed") {
   prdat <- exp(preds$x1$emmean) * (1 - stats::plogis(preds$x2$emmean))
 
   # compute ci, two-ways
@@ -45,7 +45,7 @@
 
   # Since the zero inflation and the conditional model are working in "opposite
   # directions", confidence intervals can not be derived directly  from the
-  # "predict()"-function. Thus, confidence intervals for type = "fe.zi" are
+  # "predict()"-function. Thus, confidence intervals for type = "zero_inflated" are
   # based on quantiles of simulated draws from a multivariate normal distribution
   # (see also _Brooks et al. 2017, pp.391-392_ for details).
 
@@ -68,7 +68,7 @@
   sims <- exp(prdat.sim$cond) * (1 - stats::plogis(prdat.sim$zi))
   prediction_data <- .join_simulations(data_grid, newdata, prdat, sims, ci, cleaned_terms)
 
-  if (type == "re.zi") {
+  if (type == "zero_inflated_random") {
     revar <- .get_residual_variance(model)
     # get link-function and back-transform fitted values
     # to original scale, so we compute proper CI

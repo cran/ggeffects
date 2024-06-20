@@ -14,12 +14,12 @@ get_predictions_wbm <- function(model, data_grid, ci.lvl, linv, type, terms, con
 
   # check whether predictions should be conditioned
   # on random effects (grouping level) or not.
-  if (type == "fe")
+  if (type == "fixed")
     ref <- NA
   else
     ref <- NULL
 
-  if (type == "sim") {
+  if (type == "simulate") {
 
     # simulate predictions
     data_grid <- .do_simulate(model, terms, ci, ...)
@@ -38,7 +38,7 @@ get_predictions_wbm <- function(model, data_grid, ci.lvl, linv, type, terms, con
       type = "link",
       re.form = ref,
       allow.new.levels = TRUE,
-      use.re.var = type == "re",
+      use.re.var = type == "random",
       se.fit = se,
       ...
     ))

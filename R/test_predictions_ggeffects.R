@@ -51,13 +51,13 @@
     ), call. = FALSE, immediate. = TRUE)
   }
 
-  ## TODO: include vcov(predictions) in calculation of standard errors?
   # vcov matrix, for adjusting se
   vcov_matrix <- .safe(stats::vcov(object, verbose = FALSE, ...))
 
   # we now need to get the model object
   object <- .get_model_object(object)
   minfo <- insight::model_info(object)
+  pred_type <- "response"
 
   # set defaults
   if (is.null(df) || is.na(df)) {
@@ -75,7 +75,18 @@
   ## TODO: For Bayesian models, we always use the returned standard errors
   # need to check whether scale is always correct
 
+  # for non-Gaussian models, we need to adjust the standard errors
   if (!minfo$is_linear && !minfo$is_bayesian && !is_latent) {
+    # zero-inflated models? If so, we need to find the correct prediction type
+    # since we allow predictions / comparisons for the different model parts
+    if (minfo$is_zero_inflated) {
+      pred_type <- .get_zi_prediction_type(object, type)
+      # for zi_prob, we need to set margin to "mean_reference",
+      # else we get wrong confidence intervals
+      if (type == "zi_prob") {
+        margin <- "mean_reference"
+      }
+    }
     se_from_predictions <- tryCatch(
       {
         data_grid <- data_grid(object, original_terms)
@@ -84,12 +95,12 @@
         my_args <- list(
           object,
           newdata = data_grid,
-          type = "response",
+          type = pred_type,
           se.fit = TRUE
         )
         # for mixed models, need to set re.form to NULL or NA
         if (insight::is_mixed_model(object)) {
-          if (identical(type, "re") && !identical(margin, "empirical")) {
+          if (identical(type, "random") && !identical(margin, "empirical")) {
             my_args$re.form <- NULL
           } else {
             my_args$re.form <- NA
@@ -119,6 +130,9 @@
       all = TRUE
     )
     predictions$std.error <- preds_with_se$se_prob
+  } else {
+    # for linear models, we don't need adjustment of standard errors
+    vcov_matrix <- NULL
   }
 
   # check for valid by-variable
@@ -185,7 +199,7 @@
   attr(out, "engine") <- "ggeffects"
   attr(out, "by_factor") <- by
   attr(out, "datagrid") <- datagrid
-  attr(out, "scale_label") <- .scale_label(minfo, "response")
+  attr(out, "scale_label") <- .scale_label(minfo, pred_type)
   attr(out, "standard_error") <- out$std.error
   attr(out, "link_inverse") <- insight::link_inverse(object)
   attr(out, "link_function") <- insight::link_function(object)
@@ -273,8 +287,23 @@
     # we then add the contrast and the standard error. for linear models, the
     # SE is sqrt(se1^2 + se2^2).
     result$Contrast <- predicted1 - predicted2
-    ## TODO: we may add "- 2 * vcov(predictions)[pos1, pos2]" inside sqrt() here?
-    result$std.error <- sqrt(predictions$std.error[pos1]^2 + predictions$std.error[pos2]^2)
+    # sum of squared standard errors
+    sum_se_squared <- predictions$std.error[pos1]^2 + predictions$std.error[pos2]^2
+    # for non-Gaussian models, we subtract the covariance of the two predictions
+    # but only if the vcov_matrix is not NULL and has the correct dimensions
+    correct_row_dims <- nrow(vcov_matrix) > 0 && all(nrow(vcov_matrix) >= which(pos1))
+    correct_col_dims <- ncol(vcov_matrix) > 0 && all(ncol(vcov_matrix) >= which(pos2))
+    if (is.null(vcov_matrix) || !correct_row_dims || !correct_col_dims) {
+      vcov_sub <- 0
+    } else {
+      vcov_sub <- vcov_matrix[which(pos1), which(pos2)]^2
+    }
+    # Avoid negative values in sqrt()
+    if (vcov_sub >= sum_se_squared) {
+      result$std.error <- sqrt(sum_se_squared)
+    } else {
+      result$std.error <- sqrt(sum_se_squared - vcov_sub)
+    }
     result
   }))
   # add CI and p-values
@@ -366,10 +395,28 @@
       # we then add the contrast and the standard error. for linear models, the
       # SE is sqrt(se1^2 + se2^2)
       result$Contrast <- predicted1 - predicted2
-      result$std.error <- sqrt(sum(
+      sum_se_squared <- sum(
         predictions$std.error[pos_1a]^2, predictions$std.error[pos_1b]^2,
         predictions$std.error[pos_2a]^2, predictions$std.error[pos_2b]^2
-      ))
+      )
+      # for non-Gaussian models, we subtract the covariance of the two predictions
+      # but only if the vcov_matrix is not NULL and has the correct dimensions
+      correct_row_dims <- nrow(vcov_matrix) > 0 && all(nrow(vcov_matrix) >= which(pos_1a)) && all(nrow(vcov_matrix) >= which(pos_2a)) # nolint
+      correct_col_dims <- ncol(vcov_matrix) > 0 && all(ncol(vcov_matrix) >= which(pos_1b)) && all(ncol(vcov_matrix) >= which(pos_2b)) # nolint
+      if (is.null(vcov_matrix) || !correct_row_dims || !correct_col_dims) {
+        vcov_sub <- 0
+      } else {
+        vcov_sub <- sum(
+          vcov_matrix[which(pos_1a), which(pos_1b)]^2,
+          vcov_matrix[which(pos_2a), which(pos_2b)]^2
+        )
+      }
+      # Avoid negative values in sqrt()
+      if (vcov_sub >= sum_se_squared) {
+        result$std.error <- sqrt(sum_se_squared)
+      } else {
+        result$std.error <- sqrt(sum_se_squared - vcov_sub)
+      }
       result
     }))
   }))

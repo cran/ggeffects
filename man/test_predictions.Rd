@@ -25,7 +25,6 @@ hypothesis_test(object, ...)
   margin = "mean_reference",
   engine = "marginaleffects",
   verbose = TRUE,
-  ci.lvl = ci_level,
   ...
 )
 
@@ -176,15 +175,14 @@ provides some additional test options: \code{"interaction"} to calculate interac
 contrasts, \code{"consecutive"} to calculate contrasts between consecutive levels of a
 predictor, or a data frame with custom contrasts (see also \code{test}). There is
 an experimental option as well, \code{engine = "ggeffects"}. However, this is
-currently work-in-progress and offers muss less options as the default engine,
+currently work-in-progress and offers much less options as the default engine,
 \code{"marginaleffects"}. It can be faster in some cases, though, and works for
-comparing predicted random effects in mixed models. If the \strong{marginaleffects}
-package is not installed, the \strong{emmeans} package is used automatically. If
-this package is not installed as well, \code{engine = "ggeffects"} is used.}
+comparing predicted random effects in mixed models, or predicted probabilities
+of the zero-inflation component. If the \strong{marginaleffects} package is not
+installed, the \strong{emmeans} package is used automatically. If this package is
+not installed as well, \code{engine = "ggeffects"} is used.}
 
 \item{verbose}{Toggle messages and warnings.}
-
-\item{ci.lvl}{Deprecated, please use \code{ci_level}.}
 }
 \value{
 A data frame containing predictions (e.g. for \code{test = NULL}),
@@ -248,7 +246,9 @@ package is used.
 \item \code{NULL} calls functions from the \strong{marginaleffects} package with
 \code{hypothesis = NULL}.
 \item If all focal terms are only present as random effects in a mixed model,
-functions from the \strong{ggeffects} package are used. There is an example in
+or if predicted probabilities for the zero-inflation component of a model
+should be tested, functions from the \strong{ggeffects} package are used. There
+is an example for pairwise comparisons of random effects in
 \href{https://strengejacke.github.io/ggeffects/articles/practical_intersectionality.html}{this vignette}.
 }
 }

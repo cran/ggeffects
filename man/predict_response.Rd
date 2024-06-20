@@ -87,9 +87,10 @@ component (see 'Details').
 It is set to \code{"response"} by default, but usually accepts all possible options
 from the \code{type}-argument of the model's respective \code{predict()} method. E.g.,
 passing a \code{glm} object would allow the options \code{"response"}, \code{"link"}, and
-\code{"terms"}. Thus, the following options apply to \code{predict_response()} when
-\code{margin} is \emph{not} \code{"empirical"}, and are passed to \code{ggpredict()} or
-\code{ggemmeans()}, respectively (depending on the value of \code{margin}):
+\code{"terms"}. For models with zero-inflation component, the below mentioned
+options \code{"fixed"}, \code{"zero_inflated"} and \code{"zi_prob"} can also be used and will
+be "translated" into the corresponding \code{type} option of the model's respective
+\code{predict()}-method.
 \itemize{
 \item \code{"fixed"} (or \code{"fe"} or \code{"count"})
 
@@ -100,7 +101,8 @@ and \emph{confidence intervals} are returned, i.e. \code{re.form = NA} when call
 this would return the predicted mean from the count component (without
 zero-inflation). For models with zero-inflation component, this type calls
 \code{predict(..., type = "link")} (however, predicted values are
-back-transformed to the response scale).
+back-transformed to the response scale, i.e. the conditional mean of the
+response).
 \item \code{"random"} (or \code{"re"})
 
 This only applies to mixed models, and \code{type = "random"} does not condition
@@ -123,9 +125,9 @@ name of the related random effect term to the \code{terms}-argument
 \item \code{"zero_inflated"} (or \code{"fe.zi"} or \code{"zi"})
 
 Predicted values are conditioned on the fixed effects and the zero-inflation
-component. For instance, for models fitted with \code{zeroinfl}
-from \strong{pscl}, this would return the predicted response (\code{mu*(1-p)})
-and for \strong{glmmTMB}, this would return the expected value \code{mu*(1-p)}
+component. For instance, for models fitted with \code{zeroinfl} from \strong{pscl},
+this would return the predicted (or expected) response (\code{mu*(1-p)}),
+and for \strong{glmmTMB}, this would return the expected response \code{mu*(1-p)}
 \emph{without} conditioning on random effects (i.e. random effect variances
 are not taken into account for the confidence intervals). For models with
 zero-inflation component, this type calls \code{predict(..., type = "response")}.
@@ -205,7 +207,7 @@ which is used to compute (cluster) robust standard errors for predictions.
 
 If \code{NULL}, standard errors (and confidence intervals) for predictions are
 based on the standard errors as returned by the \code{predict()}-function.
-\strong{Note} that probably not all model objects that work with \code{ggpredict()}
+\strong{Note} that probably not all model objects that work with \code{predict_response()}
 are also supported by the \strong{sandwich} or \strong{clubSandwich} packages.
 
 See details in \href{https://strengejacke.github.io/ggeffects/articles/practical_robustestimation.html}{this vignette}.}
@@ -213,7 +215,9 @@ See details in \href{https://strengejacke.github.io/ggeffects/articles/practical
 \item{vcov_type}{Character vector, specifying the estimation type for the
 robust covariance matrix estimation (see \code{?sandwich::vcovHC}
 or \code{?clubSandwich::vcovCR} for details). Only used when \code{vcov_fun} is a
-character string indicating one of the functions from those packages.}
+character string indicating one of the functions from those packages.
+When \code{vcov_fun} is a function, a possible \code{type} argument \emph{must} be provided
+via the \code{vcov_args} argument.}
 
 \item{vcov_args}{List of named vectors, used as additional arguments that
 are passed down to \code{vcov_fun}.}
@@ -516,6 +520,14 @@ of \code{predict()}, which will be set to its typical value (see
 multinominal outcomes, have an additional column \code{response.level}, which
 indicates with which level of the response variable the predicted values are
 associated.
+}
+
+\section{Averaged model predictions (package \strong{MuMIn})}{
+
+
+For averaged model predictions, i.e. when the input model is an object of
+class \code{"averaging"} (\code{MuMIn::model.avg()}), predictions are made with the
+full averaged coefficients.
 }
 
 \examples{

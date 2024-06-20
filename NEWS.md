@@ -1,3 +1,58 @@
+# ggeffects 1.7.0
+
+## Breaking
+
+* The deprecated argument `ci.lvl` in `test_predictions()` was removed.
+
+## General
+
+* `ggpredict()` now supports models of class `glmgee` (package *glmtoolbox*).
+
+* `ggemmeans()` gains arguments `vcov_fun`, `vcov_type` and `vcov_args` to
+  specify the variance-covariance matrix for the marginal means, similar to
+  what is already available in `ggpredict()` and `ggaverage()`.
+
+* When `test = "contrast"`, the `engine` is automatically set to `"emmeans"`
+  in `test_predictions()`.
+
+* `ggaverage()` (or `predict_response(..., margin = "empirical")`) now also
+  supports following `type` options for zero-inflated models: `"zi_prob"`,
+  `"zero_inflated"` and `"fixed"`.
+
+* Support for zero-inflated models was massively improved in `test_predictions()`,
+  which, for instance, now also supports `scale = "zprob"` to calculate contrasts
+  for the zero-inflation probability for zero-inflated models from *glmmTMB* or
+  *pscl*. Furthermore, when predictions for zero-inflation probabilities were
+  calculated using `pr <- predict_response(..., type = "zi_prob")`, corresponding
+  contrasts will be calculated with `test_predictions(pr)` automatically.
+  Additionally, other types for models with zero-inflation component
+  (`"zero_inflated"`, `"fixed"`) are supported as well.
+
+* `ggeffect()` now warns the user about arguments that are supported by
+  `ggpredict()` or `ggemmeans()`, but not by this function (e.g., `vcov_fun`).
+
+* Improved accuracy of standard errors for `test_predictions(..., engine = "ggeffects")`.
+
+* The `terms` argument now also accepts the shortcut `"percentile"` (plus numeric
+  value) to select a range of percentiles for continuous variables, e.g.
+  `terms = "x [percentile90]"` to select a range of the 90% percentile.
+
+## Bug fixes
+
+* Fixed issue with *brms* models with monotonic effects in formula (`mo()`).
+
+* Fixed issue in `vcov()` for `ggeffects` objects, which could occur in rare
+  situations when some of the predictors were character vectors.
+
+* Fixed issue with calculation of standard errors when one of the focal term
+  was a character vector.
+
+* Fixed issue in `plot()` method with `show_data = TRUE`, where in certain
+  situations the raw data points were not colored when groups were present.
+
+* Fixed issue in `plot()` with too many data points when collapsing random
+  effects groups.
+
 # ggeffects 1.6.0
 
 ## General

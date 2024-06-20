@@ -7,35 +7,20 @@ ggemmeans <- function(model,
                       typical = "mean",
                       condition = NULL,
                       back_transform = TRUE,
+                      vcov_fun = NULL,
+                      vcov_type = NULL,
+                      vcov_args = NULL,
                       interval = "confidence",
                       verbose = TRUE,
                       ci.lvl = ci_level,
                       back.transform = back_transform,
                       ...) {
   insight::check_if_installed("emmeans")
+
   # check arguments
-  type <- match.arg(
-    type,
-    choices = c("fe", "fixed", "count", "re", "random", "fe.zi", "zero_inflated",
-                "re.zi", "zi_random", "zero_inflated_random", "zi.prob", "zi_prob")
-  )
   interval <- match.arg(interval, choices = c("confidence", "prediction"))
   model_name <- deparse(substitute(model))
-
-  type <- switch(
-    type,
-    fixed = ,
-    count = "fe",
-    random = "re",
-    zi = ,
-    zero_inflated = "fe.zi",
-    zi_random = ,
-    zero_inflated_random = "re.zi",
-    zi_prob = "zi.prob",
-    survival = "surv",
-    cumulative_hazard = "cumhaz",
-    type
-  )
+  type <- .validate_type_argument(model, type, emmeans_call = TRUE)
 
   ## TODO: remove deprecated later
 
@@ -56,12 +41,33 @@ ggemmeans <- function(model,
     terms <- .reconstruct_focal_terms(terms, model)
   }
 
+  # prepare vcov arguments
+  if (is.null(vcov_fun)) {
+    vcov_info <- NULL
+  } else if (is.function(vcov_fun)) {
+    vcov_info <- list(
+      vcov.fun = vcov_fun,
+      vcov.args = vcov_args
+    )
+  } else if (is.matrix(vcov_fun)) {
+    vcov_info <- list(vcov.fun = list(vcov_fun))
+  } else {
+    vcov_info <- .prepare_vcov_args(
+      model,
+      vcov.fun = vcov_fun,
+      vcov.type = vcov_type,
+      vcov.args = vcov_args,
+      include_model = FALSE,
+      verbose = verbose
+    )
+  }
+
   # tidymodels?
   if (inherits(model, "model_fit")) {
     model <- model$fit
   }
 
-  if (inherits(model, "MixMod") && type == "zi.prob") {
+  if (inherits(model, "MixMod") && type == "zi_prob") {
     insight::format_error(sprintf(
       "This prediction-type is currently not available for models of class '%s'.", class(model)[1]
     ))
@@ -89,14 +95,14 @@ ggemmeans <- function(model,
 
   # for zero-inflated mixed models, we need some extra handling
 
-  if (!is.null(model_info) && model_info$is_zero_inflated && inherits(model, c("glmmTMB", "MixMod")) && type == "fe.zi") { # nolint
+  if (!is.null(model_info) && model_info$is_zero_inflated && inherits(model, c("glmmTMB", "MixMod")) && type == "zero_inflated") { # nolint
 
     # here we go with simulating confidence intervals. ----------
     # point estimates are not simulated                ----------
     # -----------------------------------------------------------
 
     preds <- .emmeans_mixed_zi(model, data_grid, cleaned_terms, ...)
-    additional_dot_args <- match.call(expand.dots = FALSE)[["..."]]
+    additional_dot_args <- list(...)
 
     if ("nsim" %in% names(additional_dot_args)) {
       nsim <- eval(additional_dot_args[["nsim"]])
@@ -118,7 +124,7 @@ ggemmeans <- function(model,
     )
     pmode <- "response"
 
-  } else if (!is.null(model_info) && model_info$is_zero_inflated && inherits(model, "glmmTMB") && type == "zi.prob") { # nolint
+  } else if (!is.null(model_info) && model_info$is_zero_inflated && inherits(model, "glmmTMB") && type == "zi_prob") { # nolint
 
     # here we go zero-inflation probabilities. ----------
     # ---------------------------------------------------
@@ -159,6 +165,7 @@ ggemmeans <- function(model,
       type,
       model_info,
       interval = interval,
+      vcov_info = vcov_info,
       verbose = verbose,
       ...
     )
@@ -191,7 +198,7 @@ ggemmeans <- function(model,
 
   # apply link inverse function
   linv <- insight::link_inverse(model)
-  if (!is.null(linv) && (inherits(model, c("lrm", "orm")) || pmode == "link" || (inherits(model, "MixMod") && type != "fe.zi"))) { # nolint
+  if (!is.null(linv) && (inherits(model, c("lrm", "orm")) || pmode == "link" || (inherits(model, "MixMod") && type != "zero_inflated"))) { # nolint
     result$predicted <- linv(result$predicted)
     result$conf.low <- linv(result$conf.low)
     result$conf.high <- linv(result$conf.high)
@@ -234,6 +241,7 @@ ggemmeans <- function(model,
     back.transform = back_transform,
     response.transform = response.transform,
     margin = "marginalmeans",
+    vcov.args = .get_variance_covariance_matrix(model, vcov_fun, vcov_args, vcov_type, skip_if_null = TRUE, verbose = FALSE), # nolint,
     verbose = verbose
   )
 }
@@ -254,13 +262,13 @@ ggemmeans <- function(model,
     "response"
   } else if (!is.null(model_info) && (model_info$is_ordinal || model_info$is_categorical || model_info$is_multinomial)) { # nolint
     "prob"
-  } else if (isTRUE(model_info$is_zero_inflated) && type %in% c("fe", "re") && inherits(model, "glmmTMB")) {
+  } else if (isTRUE(model_info$is_zero_inflated) && type %in% c("fixed", "random") && inherits(model, "glmmTMB")) {
     "link"
-  } else if (isTRUE(model_info$is_zero_inflated) && type %in% c("fe.zi", "re.zi")) {
+  } else if (isTRUE(model_info$is_zero_inflated) && type %in% c("zero_inflated", "re.zi")) {
     "response"
-  } else if (isTRUE(model_info$is_zero_inflated) && type %in% c("fe", "re")) {
+  } else if (isTRUE(model_info$is_zero_inflated) && type %in% c("fixed", "random")) {
     "count"
-  } else if (isTRUE(model_info$is_zero_inflated) && type == "zi.prob") {
+  } else if (isTRUE(model_info$is_zero_inflated) && type == "zi_prob") {
     "prob0"
   } else {
     "link"
