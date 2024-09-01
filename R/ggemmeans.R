@@ -89,7 +89,8 @@ ggemmeans <- function(model,
 
   data_grid <- .data_grid(
     model = model, model_frame = model_frame, terms = terms, value_adjustment = typical,
-    condition = condition, emmeans.only = TRUE, show_pretty_message = verbose
+    condition = condition, emmeans.only = TRUE, show_pretty_message = verbose,
+    verbose = verbose
   )
 
 
@@ -189,20 +190,20 @@ ggemmeans <- function(model,
     colnames(prediction_data)[1] <- "response.level"
   }
 
+  # apply link inverse function
+  linv <- insight::link_inverse(model)
+  if (!is.null(linv) && (inherits(model, c("lrm", "orm")) || pmode == "link" || (inherits(model, "MixMod") && type != "zero_inflated"))) { # nolint
+    prediction_data$predicted <- linv(prediction_data$predicted)
+    prediction_data$conf.low <- linv(prediction_data$conf.low)
+    prediction_data$conf.high <- linv(prediction_data$conf.high)
+  }
+
   result <- .post_processing_predictions(
     model = model,
     prediction_data = prediction_data,
     original_model_frame = original_model_frame,
     cleaned_terms = cleaned_terms
   )
-
-  # apply link inverse function
-  linv <- insight::link_inverse(model)
-  if (!is.null(linv) && (inherits(model, c("lrm", "orm")) || pmode == "link" || (inherits(model, "MixMod") && type != "zero_inflated"))) { # nolint
-    result$predicted <- linv(result$predicted)
-    result$conf.low <- linv(result$conf.low)
-    result$conf.high <- linv(result$conf.high)
-  }
 
   # check if outcome is log-transformed, and if so,
   # back-transform predicted values to response scale

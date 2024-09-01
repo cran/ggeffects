@@ -170,9 +170,10 @@
 #' argument via `options()`, e.g. `options(ggeffects_margin = "empirical")`,
 #' so you don't have to specify your preferred marginalization method each time
 #' you call `predict_response()`. See details in the documentation below.
-#' @param back_transform Logical, if `TRUE` (the default), predicted values
-#' for log- or log-log transformed responses will be back-transformed to
-#' original response-scale.
+#' @param back_transform Logical, if `TRUE` (the default), predicted values for
+#' log-, log-log, exp, sqrt and similar transformed responses will be
+#' back-transformed to original response-scale. See
+#' [`insight::find_transformation()`] for more details.
 #' @param ppd Logical, if `TRUE`, predictions for Stan-models are based on the
 #' posterior predictive distribution [`rstantools::posterior_predict()`]. If
 #' `FALSE` (the default), predictions are based on posterior draws of the linear
@@ -230,9 +231,16 @@
 #' via the `vcov_args` argument.
 #' @param vcov_args List of named vectors, used as additional arguments that
 #' are passed down to `vcov_fun`.
-#' @param weights Character vector, naming the weigthing variable in the data,
-#' or a vector of weights (of same length as the number of observations in the
-#' data). Only applies to `margin = "empirical"`.
+#' @param weights This argument is used in two different ways, depending on the
+#' `margin` argument.
+#' - When `margin = "empirical"`, `weights` can either be a character vector,
+#'   naming the weigthing variable in the data, or a vector of weights (of same
+#'   length as the number of observations in the data). This variable will be
+#'   used to weight adjusted predictions.
+#' - When `margin = "marginalmeans"`, `weights` must be a character vector and
+#'   is passed to [`emmeans::emmeans()`], specifying weights to use in averaging
+#'   non-focal categorical predictors. See https://rvlenth.github.io/emmeans/reference/emmeans.html
+#'   for details.
 #' @param verbose Toggle messages or warnings.
 #' @param ... If `margin` is set to `"mean_reference"` or `"mean_mode"`, arguments
 #' are passed down to `ggpredict()` (further down to `predict()`); for
@@ -278,10 +286,11 @@
 #'   character vectors. Averaging over the factor levels of non-focal terms
 #'   computes a kind of "weighted average" for the values at which these terms
 #'   are hold constant. Thus, non-focal categorical terms are conditioned on
-#'   "weighted averages" of their levels.
+#'   "weighted averages" of their levels. There are different weighting
+#'   options that can be altered using the `weights` argument.
 #'
 #'   These predictions come closer to the sample, because all possible values
-#'   and levels of the non-focal predictors are taken  into account. It would
+#'   and levels of the non-focal predictors are taken into account. It would
 #'   answer the question, "What is the predicted value of the response at
 #'   meaningful values or levels of my focal terms for an 'average' observation
 #'   in my data?". It refers to randomly picking a subject of your sample and

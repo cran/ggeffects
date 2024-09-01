@@ -106,14 +106,14 @@ test_that("test_predictions, engine ggeffects, glm", {
   )
   m <- glm(outcome ~ var_binom * groups + var_cont, data = dat, family = binomial())
 
-  pr <- predict_response(m, c("var_binom", "groups"))
+  pr <- predict_response(m, c("var_binom", "groups"), verbose = FALSE)
   out1 <- test_predictions(pr, engine = "ggeffects")
   out2 <- test_predictions(m, c("var_binom", "groups"), engine = "emmeans")
   expect_equal(out1$Contrast, out2$Contrast, tolerance = 1e-3)
   expect_equal(out1$conf.low, out2$conf.low, tolerance = 1e-3)
   expect_equal(attributes(out1)$standard_error, attributes(out2)$standard_error, tolerance = 1e-3)
 
-  pr <- predict_response(m, c("var_binom", "groups"))
+  pr <- predict_response(m, c("var_binom", "groups"), verbose = FALSE)
   out1 <- test_predictions(pr, engine = "ggeffects", test = "interaction")
   out2 <- test_predictions(m, c("var_binom", "groups"), engine = "emmeans", test = "interaction")
   expect_equal(out1$Contrast, out2$Contrast, tolerance = 1e-3)
@@ -192,12 +192,13 @@ test_that("test_predictions, engine ggeffects, Bayes", {
 
   m1 <- glm(outcome ~ var_binom * groups + var_cont, data = dat, family = binomial())
   m2 <- insight::download_model("stanreg_bernoulli_1")
-  m3 <- insight::download_model("brms_bernoulli_1")
+  # silence warning "namespace 'cmdstanr' is not available and has been replaced"
+  m3 <- suppressWarnings(insight::download_model("brms_bernoulli_1"))
 
   skip_if(is.null(m2) || is.null(m3))
 
-  pr1 <- predict_response(m1, c("var_binom", "groups"))
-  pr2 <- predict_response(m2, c("var_binom", "groups"))
+  pr1 <- predict_response(m1, c("var_binom", "groups"), verbose = FALSE)
+  pr2 <- suppressWarnings(predict_response(m2, c("var_binom", "groups")))
   expect_warning(
     {
       pr3 <- predict_response(m3, c("var_binom", "groups"))

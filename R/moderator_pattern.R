@@ -33,8 +33,7 @@
 #'   - an option to compute a range of percentiles is also possible, using
 #'     `"percentile"`, followed by the percentage of the range. For example,
 #'     `"percentile95"` will calculate the 95% range of the variable.
-#'   - `"all"`: uses all values of the moderator variable. Note that this option
-#'     only applies to `type = "eff"`, for numeric moderator values.
+#'   - `"all"`: uses all values of the moderator variable.
 #'
 #' @return A numeric vector of length two or three, representing the required
 #'   values from `x`, like minimum/maximum value or mean and +/- 1 SD. If
@@ -134,7 +133,7 @@ check_rv <- function(values, x) {
     mvc <- length(unique(as.vector(stats::quantile(x, na.rm = TRUE))))
     if (mvc < 3) {
       # tell user that quart won't work
-      insight::format_alert("Could not compute percentiles or quartiles, too small range of variable. Defaulting `values` to \"minmax\".") # nolint
+      insight::format_alert("Could not compute percentiles or quartiles, the variable has a too small range or not enough unique values. Defaulting `values` to \"minmax\".") # nolint
       values <- "minmax"
     }
     if (startsWith(values, "percentile")) {

@@ -26,7 +26,7 @@ get_predictions_merMod <- function(model,
   # on random effects (grouping level) or not.
   if (type == "fixed") {
     ref <- NA
-    se_fit <- TRUE
+    se_fit <- !identical(interval, "prediction")
   } else {
     # se.fit = TRUE currently doesn't work when re.form = NULL
     ref <- NULL
