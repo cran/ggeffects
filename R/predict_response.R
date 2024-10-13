@@ -86,7 +86,7 @@
 #' be "translated" into the corresponding `type` option of the model's respective
 #' `predict()`-method.
 #'
-#'   - `"fixed"` (or `"fe"` or `"count"`)
+#'   - `"fixed"` (or `"count"`)
 #'
 #'     Predicted values are conditioned on the fixed effects or conditional
 #'     model only (for mixed models: predicted values are on the population-level
@@ -98,7 +98,7 @@
 #'     back-transformed to the response scale, i.e. the conditional mean of the
 #'     response).
 #'
-#'   - `"random"` (or `"re"`)
+#'   - `"random"`
 #'
 #'     This only applies to mixed models, and `type = "random"` does not condition
 #'     on the zero-inflation component of the model. `type = "random"` still
@@ -118,7 +118,7 @@
 #'     (for more details, see
 #'     [this vignette](https://strengejacke.github.io/ggeffects/articles/introduction_effectsatvalues.html)).
 #'
-#'   - `"zero_inflated"` (or `"fe.zi"` or `"zi"`)
+#'   - `"zero_inflated"` (or `"zi"`)
 #'
 #'     Predicted values are conditioned on the fixed effects and the zero-inflation
 #'     component. For instance, for models fitted with `zeroinfl` from **pscl**,
@@ -129,7 +129,7 @@
 #'     zero-inflation component, this type calls `predict(..., type = "response")`.
 #'     See 'Details'.
 #'
-#'   - `"zi_random"` (or `"re.zi"` or `"zero_inflated_random"`)
+#'   - `"zi_random"` (or `"zero_inflated_random"`)
 #'
 #'     Predicted values are conditioned on the zero-inflation component and
 #'     take the random effects uncertainty into account. For models fitted with
@@ -138,14 +138,14 @@
 #'     also consider the uncertainty in the random effects variances. This
 #'     type calls `predict(..., type = "response")`. See 'Details'.
 #'
-#'   - `"zi_prob"` (or `"zi.prob"`)
+#'   - `"zi_prob"`
 #'
 #'     Predicted zero-inflation probability. For **glmmTMB** models with
 #'     zero-inflation component, this type calls `predict(..., type = "zlink")`;
 #'     models from **pscl** call `predict(..., type = "zero")` and for
 #'     **GLMMadaptive**, `predict(..., type = "zero_part")` is called.
 #'
-#'   - `"simulate"` (or `"sim"`)
+#'   - `"simulate"`
 #'
 #'     Predicted values and confidence resp. prediction intervals are
 #'     based on simulations, i.e. calls to `simulate()`. This type
@@ -154,7 +154,7 @@
 #'     class `lm`, `glm`, `glmmTMB`, `wbm`, `MixMod` and `merMod`.
 #'     See `...` for details on number of simulations.
 #'
-#'   - `"survival"` and `"cumulative_hazard"` (or `"surv"` and `"cumhaz"`)
+#'   - `"survival"` and `"cumulative_hazard"`
 #'
 #'     Applies only to `coxph`-objects from the **survial**-package and
 #'     calculates the survival probability or the cumulative hazard of an event.
@@ -174,15 +174,18 @@
 #' log-, log-log, exp, sqrt and similar transformed responses will be
 #' back-transformed to original response-scale. See
 #' [`insight::find_transformation()`] for more details.
-#' @param ppd Logical, if `TRUE`, predictions for Stan-models are based on the
-#' posterior predictive distribution [`rstantools::posterior_predict()`]. If
-#' `FALSE` (the default), predictions are based on posterior draws of the linear
-#' predictor [`rstantools::posterior_epred()`]. This is roughly comparable to
-#' the distinction between *confidence* and *prediction* intervals. `ppd = TRUE`
-#' incorporates the residual variance and hence returned intervals are similar to
-#' prediction intervals. Consequently, if `interval = "prediction"`, `ppd` is
-#' automatically set to `TRUE`. The `ppd` argument will be deprecated in a
-#' future version. Please use `interval = "prediction"` instead.
+#' @param bias_correction Logical, if `TRUE`, adjusts for bias-correction when
+#' back-transforming the predicted values (to the response scale) for
+#' non-Gaussian _mixed models_. Back-transforming the the population-level
+#' predictions ignores the effect of the variation around the population mean,
+#' so the result on the original data scale is biased due to _Jensen's
+#' inequality_. To apply bias-correction, a valid value of sigma is required,
+#' which is extracted by default using [`insight::get_variance_residual()`].
+#' Optionally, to provide own estimates of uncertainty, use the `sigma`
+#' argument. Note that `bias_correction` currently only applies to mixed models,
+#' where there are additive random components involved and where that
+#' bias-adjustment can be appropriate. If `ggemmeans()` is called,
+#' bias-correction can also be applied to GEE-models.
 #' @param condition Named character vector, which indicates covariates that
 #' should be held constant at specific values. Unlike `typical`, which
 #' applies a function to the covariates to determine the value that is used
@@ -274,12 +277,12 @@
 #'   variables) or mode (factors, or "most common" value in case of character
 #'   vectors).
 #'
-#'   These predictons represent a rather "theoretical" view on your data,
-#'   which does not necessarily exactly reflect the characteristics of your
-#'   sample. It helps answer the question, "What is the predicted value of the
-#'   response at meaningful values or levels of my focal terms for a 'typical'
-#'   observation in my data?", where 'typical' refers to certain characteristics
-#'   of the remaining predictors.
+#'   These predictons represent a rather "theoretical" view on your data, which
+#'   does not necessarily exactly reflect the characteristics of your sample. It
+#'   helps answer the question, "What is the predicted (or: expected) value of
+#'   the response at meaningful values or levels of my focal terms for a
+#'   'typical' observation in my data?", where 'typical' refers to certain
+#'   characteristics of the remaining predictors.
 #'
 #' - `"marginalmeans"`: non-focal predictors are set to their mean (numeric
 #'   variables) or averaged over the levels or "values" for factors and
@@ -291,10 +294,10 @@
 #'
 #'   These predictions come closer to the sample, because all possible values
 #'   and levels of the non-focal predictors are taken into account. It would
-#'   answer the question, "What is the predicted value of the response at
-#'   meaningful values or levels of my focal terms for an 'average' observation
-#'   in my data?". It refers to randomly picking a subject of your sample and
-#'   the result you get on average.
+#'   answer the question, "What is the predicted (or: expected) value of the
+#'   response at meaningful values or levels of my focal terms for an 'average'
+#'   observation in my data?". It refers to randomly picking a subject of your
+#'   sample and the result you get on average.
 #'
 #' - `"empirical"` (or `"counterfactual"`): non-focal predictors are averaged
 #'   over the observations in the sample. The response is predicted for each
@@ -304,13 +307,13 @@
 #'   There is a more detailed description in
 #'   [this vignette](https://strengejacke.github.io/ggeffects/articles/technical_differencepredictemmeans.html).
 #'
-#'   Counterfactual predictions are useful, insofar as the results can also
-#'   be transferred to other contexts. It answers the question, "What is the
-#'   predicted value of the response at meaningful values or levels of my focal
-#'   terms for the 'average' observation in the population?". It does not only
-#'   refer to the actual data in your sample, but also "what would be if" we had
-#'   more data, or if we had data from a different population. This is where
-#'   "counterfactual" refers to.
+#'   Counterfactual predictions are useful, insofar as the results can also be
+#'   transferred to other contexts. It answers the question, "What is the
+#'   predicted (or: expected) value of the response at meaningful values or
+#'   levels of my focal terms for the 'average' observation in the population?".
+#'   It does not only refer to the actual data in your sample, but also "what
+#'   would be if" we had more data, or if we had data from a different
+#'   population. This is where "counterfactual" refers to.
 #'
 #' You can set a default-option for the `margin` argument via `options()`, e.g.
 #' `options(ggeffects_margin = "empirical")`, so you don't have to specify your
@@ -553,16 +556,18 @@
 #' data(efc)
 #' efc$c172code <- sjlabelled::as_label(efc$c172code)
 #' fit <- lm(barthtot ~ c12hour + neg_c_7 + c161sex + c172code, data = efc)
-#' predict_response(fit, terms = c("c12hour",
+#' predict_response(fit, terms = c(
+#'   "c12hour",
 #'   "c172code [low level of education, high level of education]",
-#'   "c161sex [1]"))
+#'   "c161sex [1]"
+#' ))
 #'
 #' # when "terms" is a named list
 #' predict_response(fit, terms = list(
 #'   c12hour = seq(0, 170, 30),
 #'   c172code = c("low level of education", "high level of education"),
-#'   c161sex = 1)
-#' )
+#'   c161sex = 1
+#' ))
 #'
 #' # use categorical value on x-axis, use axis-labels, add error bars
 #' dat <- predict_response(fit, terms = c("c172code", "c161sex"))
@@ -611,12 +616,12 @@ predict_response <- function(model,
                              type = "fixed",
                              condition = NULL,
                              back_transform = TRUE,
-                             ppd = FALSE,
                              vcov_fun = NULL,
                              vcov_type = NULL,
                              vcov_args = NULL,
                              weights = NULL,
                              interval,
+                             bias_correction = FALSE,
                              verbose = TRUE,
                              ...) {
   # default for "margin" argument?
@@ -624,18 +629,14 @@ predict_response <- function(model,
   # validate "margin" argument
   margin <- match.arg(
     margin,
-    c("mean_reference", "mean_mode", "marginalmeans", "empirical",
-      "counterfactual", "full_data", "ame", "marginaleffects")
+    c(
+      "mean_reference", "mean_mode", "marginalmeans", "empirical",
+      "counterfactual", "full_data", "ame", "marginaleffects"
+    )
   )
 
   # save name, so it can later be retrieved from environment
   model_name <- insight::safe_deparse(substitute(model))
-
-  ## TODO: remove deprecated later
-  if (!missing(ppd) && isTRUE(ppd)) {
-    insight::format_warning("Argument `ppd` is deprecated and will be removed in the future. Please use `interval = \"prediction\"` instead.") # nolint
-    interval <- "prediction"
-  }
 
   # validate type arguments
   type <- .validate_type_argument(
@@ -671,6 +672,7 @@ predict_response <- function(model,
       vcov_type = vcov_type,
       vcov_args = vcov_args,
       interval = interval,
+      bias_correction = bias_correction,
       verbose = verbose,
       ...
     ),
@@ -686,6 +688,7 @@ predict_response <- function(model,
       vcov_type = vcov_type,
       vcov_args = vcov_args,
       interval = interval,
+      bias_correction = bias_correction,
       verbose = verbose,
       ...
     ),
@@ -701,6 +704,7 @@ predict_response <- function(model,
       vcov_type = vcov_type,
       vcov_args = vcov_args,
       interval = interval,
+      bias_correction = bias_correction,
       verbose = verbose,
       ...
     ),

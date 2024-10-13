@@ -1,3 +1,23 @@
+# ggeffects 1.7.2
+
+## Breaking changes
+
+* The deprecated argument `ppd` was removed.
+
+* Some of the deprecated arguments in `plot()` were removed.
+
+* Pooling functions now use the model's degrees of freedom to calculate the
+  critical values for the confidence intervals.
+
+## Changes
+
+* `test = "slope"` (or `test = "trend"`) are aliases in `test_predictions()` for
+  `test = NULL` with numeric predictors.
+
+* `predict_response()` (and `ggpredict()`, `ggemmeans()` and `ggeffect()`) get
+  an argument `bias_correction`, to correct for bias when back-transforming
+  predictions for non-Gaussian mixed models.
+
 # ggeffects 1.7.1
 
 ## General

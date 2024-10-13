@@ -65,7 +65,6 @@ ggpredict <- function(model,
                       typical = "mean",
                       condition = NULL,
                       back_transform = TRUE,
-                      ppd = FALSE,
                       vcov_fun = NULL,
                       vcov_type = NULL,
                       vcov_args = NULL,
@@ -76,13 +75,8 @@ ggpredict <- function(model,
                       vcov.fun = vcov_fun,
                       vcov.type = vcov_type,
                       vcov.args = vcov_args,
+                      bias_correction = FALSE,
                       ...) {
-  ## TODO: remove deprecated later
-  if (!missing(ppd) && isTRUE(ppd)) {
-    insight::format_warning("Argument `ppd` is deprecated and will be removed in the future. Please use `interval` instead.") # nolint
-    interval <- "prediction"
-  }
-
   # check arguments
   type <- .validate_type_argument(model, type)
 
@@ -159,6 +153,7 @@ ggpredict <- function(model,
     vcov.type = vcov_type,
     vcov.args = vcov_args,
     interval = interval,
+    bias_correction = bias_correction,
     verbose = verbose
   )
 
@@ -209,9 +204,9 @@ ggpredict_helper <- function(model,
                              vcov.type,
                              vcov.args,
                              interval,
+                             bias_correction = FALSE,
                              verbose = TRUE,
                              ...) {
-
   # check class of fitted model, to make sure we have just one class-attribute
   # (while "inherits()" may return multiple attributes)
   model_class <- get_predict_function(model)
@@ -236,6 +231,14 @@ ggpredict_helper <- function(model,
   # better to `margin = "empirical"`
   if (!type %in% c("random", "zero_inflated_random")) {
     .check_focal_for_random(model, terms, verbose)
+  }
+
+  # sanity check - bias correction only for mixed models for now
+  if (isTRUE(bias_correction) && !insight::is_mixed_model(model) && !inherits(model, c("gee", "geeglm"))) {
+    bias_correction <- FALSE
+    if (verbose) {
+      insight::format_alert("Bias-correction is currently only supported for mixed or gee models. No bias-correction is applied.") # nolint
+    }
   }
 
   # get model frame
@@ -269,6 +272,7 @@ ggpredict_helper <- function(model,
     vcov.args = vcov.args,
     condition = condition,
     interval = interval,
+    bias_correction = bias_correction,
     verbose = verbose,
     ...
   )
@@ -344,6 +348,7 @@ ggpredict_helper <- function(model,
     response.transform = response.transform,
     vcov.args = .get_variance_covariance_matrix(model, vcov.fun, vcov.args, vcov.type, skip_if_null = TRUE, verbose = FALSE), # nolint
     margin = "mean_reference",
+    bias_correction = bias_correction,
     verbose = verbose
   )
 }
