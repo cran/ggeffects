@@ -1,20 +1,22 @@
 .ggemmeans_zi_predictions <- function(model,
                                       model_frame,
                                       preds,
-                                      ci.lvl,
+                                      ci_level,
+                                      interval,
                                       terms,
                                       cleaned_terms,
-                                      value_adjustment,
+                                      typical,
                                       condition,
                                       nsim = 1000,
                                       type = "fixed") {
   prdat <- exp(preds$x1$emmean) * (1 - stats::plogis(preds$x2$emmean))
 
   # compute ci, two-ways
-  if (!is.null(ci.lvl) && !is.na(ci.lvl))
-    ci <- (1 + ci.lvl) / 2
-  else
+  if (!is.null(ci_level) && !is.na(ci_level)) {
+    ci <- (1 + ci_level) / 2
+  } else {
     ci <- 0.975
+  }
 
   # degrees of freedom
   dof <- .get_df(model)
@@ -25,7 +27,7 @@
     model = model,
     model_frame = model_frame,
     terms = terms,
-    value_adjustment = value_adjustment,
+    typical = typical,
     factor_adjustment = FALSE,
     show_pretty_message = FALSE,
     condition = condition
@@ -36,10 +38,10 @@
     model = model,
     model_frame = model_frame,
     terms = terms,
-    value_adjustment = value_adjustment,
+    typical = typical,
     show_pretty_message = FALSE,
     condition = condition,
-    emmeans.only = FALSE,
+    emmeans_only = FALSE,
     verbose = FALSE
   )
 
@@ -49,7 +51,7 @@
   # based on quantiles of simulated draws from a multivariate normal distribution
   # (see also _Brooks et al. 2017, pp.391-392_ for details).
 
-  prdat.sim <- .simulate_zi_predictions(model, newdata, nsim, terms, value_adjustment, condition)
+  prdat.sim <- .simulate_zi_predictions(model, newdata, nsim, terms, typical, condition)
 
   if (is.null(prdat.sim)) {
     insight::format_error(
@@ -68,7 +70,7 @@
   sims <- exp(prdat.sim$cond) * (1 - stats::plogis(prdat.sim$zi))
   prediction_data <- .join_simulations(data_grid, newdata, prdat, sims, ci, cleaned_terms)
 
-  if (type == "zero_inflated_random") {
+  if (identical(interval, "prediction")) {
     revar <- .get_residual_variance(model)
     # get link-function and back-transform fitted values
     # to original scale, so we compute proper CI

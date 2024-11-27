@@ -1,12 +1,28 @@
-get_predictions_glmrob_base <- function(model, data_grid, ci.lvl, linv, ...) {
+#' @export
+get_predictions.glmrob <- function(model,
+                                   data_grid = NULL,
+                                   terms = NULL,
+                                   ci_level = 0.95,
+                                   type = NULL,
+                                   typical = NULL,
+                                   vcov = NULL,
+                                   vcov_args = NULL,
+                                   condition = NULL,
+                                   interval = "confidence",
+                                   bias_correction = FALSE,
+                                   link_inverse = insight::link_inverse(model),
+                                   model_info = NULL,
+                                   verbose = TRUE,
+                                   ...) {
   # does user want standard errors?
-  se <- !is.null(ci.lvl) && !is.na(ci.lvl)
+  se <- !is.null(ci_level) && !is.na(ci_level)
 
   # compute ci, two-ways
-  if (!is.null(ci.lvl) && !is.na(ci.lvl))
-    ci <- (1 + ci.lvl) / 2
-  else
+  if (!is.null(ci_level) && !is.na(ci_level)) {
+    ci <- (1 + ci_level) / 2
+  } else {
     ci <- 0.975
+  }
 
   # degrees of freedom
   dof <- .get_df(model)
@@ -23,11 +39,11 @@ get_predictions_glmrob_base <- function(model, data_grid, ci.lvl, linv, ...) {
   )
 
   # get predicted values, on link-scale
-  data_grid$predicted <- linv(prdat$fit)
+  data_grid$predicted <- link_inverse(prdat$fit)
 
   if (se) {
-    data_grid$conf.low <- linv(prdat$fit - tcrit * prdat$se.fit)
-    data_grid$conf.high <- linv(prdat$fit + tcrit * prdat$se.fit)
+    data_grid$conf.low <- link_inverse(prdat$fit - tcrit * prdat$se.fit)
+    data_grid$conf.high <- link_inverse(prdat$fit + tcrit * prdat$se.fit)
     # copy standard errors
     attr(data_grid, "std.error") <- prdat$se.fit
   } else {

@@ -1,17 +1,18 @@
 # "factor_adjustment" indicates if factors should be held constant or not
 # need to be false for computing std.error for merMod objects
 
-# value_adjustment is the function to calculate at which value non-focal
+# typical is the function to calculate at which value non-focal
 # terms are held constant (mean, median, ...)
 
 .data_grid <- function(model,
                        model_frame,
                        terms,
-                       value_adjustment,
+                       typical,
                        factor_adjustment = TRUE,
                        show_pretty_message = TRUE,
                        condition = NULL,
-                       emmeans.only = FALSE,
+                       emmeans_only = FALSE,
+                       include_random = FALSE,
                        verbose = TRUE) {
   # special handling for coxph
   if (inherits(model, c("coxph", "coxme"))) {
@@ -77,7 +78,7 @@
   # check for character variables, might not work
   characters <- vapply(model_frame[all_terms], is.character, logical(1))
   if (any(characters) && verbose) {
-    insight::format_warning(
+    insight::format_alert(
       "Some of the focal terms are of type `character`. This may lead to unexpected results. It is recommended to convert these variables to factors before fitting the model.", # nolint
       paste0(
         "The following variables are of type character: ",
@@ -97,7 +98,13 @@
         any_offset_log_term <- .get_offset_log_terms(model)
         # check if we have offset() in formula, with transformed variable
         if (any(any_offset_log_term)) {
-          clean.term <- insight::find_predictors(model, effects = "all", component = "all", flatten = FALSE)
+          clean.term <- insight::find_predictors(
+            model,
+            effects = "all",
+            component = "all",
+            flatten = FALSE,
+            verbose = FALSE
+          )
           clean.term <- unlist(clean.term[c("conditional", "random", "instruments")])[any_offset_log_term]
 
           # try to back-transform
@@ -185,7 +192,7 @@
   # in the data grid that actually appear in the data
 
   if (inherits(model, "brmsfit")) {
-    model_terms <- insight::find_terms(model, flatten = TRUE)
+    model_terms <- insight::find_terms(model, flatten = TRUE, verbose = FALSE)
     monotonics <- grepl("mo\\((.*)\\)", model_terms)
     if (any(monotonics)) {
       mo_terms <- gsub("mo\\((.*)\\)", "\\1", model_terms[monotonics])
@@ -217,7 +224,13 @@
 
   offset_term <- .offset_term(model, condition, show_pretty_message)
   model_predictors <- c(
-    insight::find_predictors(model, effects = "all", component = "all", flatten = TRUE),
+    insight::find_predictors(
+      model,
+      effects = "all",
+      component = "all",
+      flatten = TRUE,
+      verbose = FALSE
+    ),
     offset_term
   )
   if (inherits(model, "wbm")) {
@@ -280,10 +293,10 @@
   # as function for the typical values
 
   if (!.is_empty(w) && length(w) == nrow(model_frame)) {
-    if (identical(value_adjustment, "mean")) {
-      value_adjustment <- "weighted.mean"
-    } else if (is.list(value_adjustment)) {
-      value_adjustment <- lapply(value_adjustment, function(x) {
+    if (identical(typical, "mean")) {
+      typical <- "weighted.mean"
+    } else if (is.list(typical)) {
+      typical <- lapply(typical, function(x) {
         if (identical(x, "mean")) {
           "weighted.mean"
         } else {
@@ -294,10 +307,10 @@
   }
 
   if (.is_empty(w)) {
-    if (identical(value_adjustment, "weighted.mean")) {
-      value_adjustment <- "mean"
-    } else if (is.list(value_adjustment)) {
-      value_adjustment <- lapply(value_adjustment, function(x) {
+    if (identical(typical, "weighted.mean")) {
+      typical <- "mean"
+    } else if (is.list(typical)) {
+      typical <- lapply(typical, function(x) {
         if (identical(x, "weighted.mean")) {
           "mean"
         } else {
@@ -329,7 +342,7 @@
   # reference level for factors and most common element for character vectors
 
   # special handling for emmeans
-  if (isTRUE(emmeans.only)) {
+  if (isTRUE(emmeans_only)) {
     # check for log-terms, and if in focal terms, remove "0" from values
     log_terms <- .which_log_terms(model)
     if (!is.null(log_terms) && any(log_terms %in% names(focal_terms))) {
@@ -345,7 +358,7 @@
       if (!is.factor(pred) && !is.character(pred) && !x %in% random_effect_terms) {
         .typical_value(
           pred,
-          fun = value_adjustment,
+          fun = typical,
           weights = w,
           predictor = x,
           log_terms = .which_log_terms(model)
@@ -364,7 +377,7 @@
       }
       .typical_value(
         pred,
-        fun = value_adjustment,
+        fun = typical,
         weights = w,
         predictor = x,
         log_terms = .which_log_terms(model)
@@ -387,7 +400,7 @@
         levels(droplevels(x))
       } else {
         if (is.factor(x)) x <- droplevels(x)
-        .typical_value(x, fun = value_adjustment, weights = w)
+        .typical_value(x, fun = typical, weights = w)
       }
     })
     names(constant_values) <- model_predictors
@@ -427,7 +440,7 @@
 
   # stop here for emmeans-objects
 
-  if (isTRUE(emmeans.only)) {
+  if (isTRUE(emmeans_only)) {
 
     # remove grouping factor of RE from constant values
     # only applicable for MixMod objects
@@ -506,6 +519,12 @@
     dat[[x]]
   })
 
+  # if we want to average across random effects, we set include_random to TRUE
+  # in this case, we create a data grid for all levels of the random effects
+  # and average across groups later...
+  if (include_random) {
+    focal_terms <- c(focal_terms, random_effect_terms)
+  }
 
   # get list names. we need to remove patterns like "log()" etc.
   names(datlist) <- names(focal_terms)
@@ -526,11 +545,14 @@
   # which will return predictions on a population level.
   # See ?glmmTMB::predict
 
-  if (inherits(model, c("glmmTMB", "merMod", "rlmerMod", "MixMod", "brmsfit", "lme"))) {
+  if (!include_random && inherits(model, c("glmmTMB", "merMod", "rlmerMod", "MixMod", "brmsfit", "lme"))) {
     cleaned_terms <- .clean_terms(terms)
 
     # check if we have fixed effects as grouping factor in random effects as well...
-    cleaned_terms <- unique(c(cleaned_terms, insight::find_predictors(model, effects = "fixed", flatten = TRUE)))
+    cleaned_terms <- unique(c(
+      cleaned_terms,
+      insight::find_predictors(model, effects = "fixed", flatten = TRUE, verbose = FALSE)
+    ))
     # if so, remove from random-effects here
     random_effect_terms <- random_effect_terms[!(random_effect_terms %in% cleaned_terms)]
 

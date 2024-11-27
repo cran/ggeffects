@@ -14,13 +14,13 @@
                                       n.trials = NULL,
                                       prediction.interval = NULL,
                                       condition = NULL,
-                                      ci.lvl = 0.95,
+                                      ci_level = 0.95,
                                       type = NULL,
-                                      untransformed.predictions = NULL,
-                                      back.transform = FALSE,
-                                      response.transform = NULL,
+                                      untransformed_predictions = NULL,
+                                      back_transform = FALSE,
+                                      response_transform = NULL,
                                       original_model_frame = NULL,
-                                      vcov.args = NULL,
+                                      vcov_args = NULL,
                                       margin = NULL,
                                       latent = FALSE,
                                       latent_thresholds = NULL,
@@ -50,14 +50,14 @@
   attr(data, "at.list") <- at_list
   attr(data, "prediction.interval") <- prediction.interval
   attr(data, "condition") <- condition
-  attr(data, "ci.lvl") <- ci.lvl
+  attr(data, "ci_level") <- ci_level
   attr(data, "type") <- type
   attr(data, "response.name") <- insight::find_response(model)
-  attr(data, "back.transform") <- back.transform
-  attr(data, "response.transform") <- response.transform
-  attr(data, "untransformed.predictions") <- untransformed.predictions
+  attr(data, "back_transform") <- back_transform
+  attr(data, "response_transform") <- response_transform
+  attr(data, "untransformed_predictions") <- untransformed_predictions
   attr(data, "standard_error") <- data$std.error
-  attr(data, "vcov") <- vcov.args
+  attr(data, "vcov") <- vcov_args
   attr(data, "margin") <- margin
   attr(data, "df") <- .get_df(model)
 

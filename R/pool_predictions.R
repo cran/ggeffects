@@ -52,11 +52,11 @@ pool_predictions <- function(x, ...) {
   # preparation ----
 
   len <- length(x)
-  ci <- attributes(x[[1]])$ci.lvl
+  ci <- attributes(x[[1]])$ci_level
   dof <- attributes(x[[1]])$df
   link_inv <- attributes(x[[1]])$link_inverse
   link_fun <- attributes(x[[1]])$link_function
-  back_transform <- isTRUE(attributes(x[[1]])$back.transform)
+  back_transform <- isTRUE(attributes(x[[1]])$back_transform)
 
   if (is.null(link_inv)) {
     link_inv <- function(x) x
@@ -77,7 +77,7 @@ pool_predictions <- function(x, ...) {
     # pooled estimate
     pooled_pred <- unlist(lapply(original_x, function(j) {
       if (back_transform) {
-        untransformed_predictions <- attributes(j)$untransformed.predictions
+        untransformed_predictions <- attributes(j)$untransformed_predictions
         if (!is.null(untransformed_predictions)) {
           link_fun(untransformed_predictions[i])
         } else {
@@ -120,8 +120,8 @@ pool_predictions <- function(x, ...) {
     pooled_predictions <- .back_transform_response(
       model = NULL,
       pooled_predictions,
-      back.transform = TRUE,
-      response.name = attributes(original_x[[1]])$response.transform
+      back_transform = TRUE,
+      response.name = attributes(original_x[[1]])$response_transform
     )
   }
 

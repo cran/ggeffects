@@ -1,12 +1,28 @@
-get_predictions_lm <- function(model, data_grid, ci.lvl, model_class, value_adjustment, terms, vcov.fun, vcov.type, vcov.args, condition, interval, type, ...) {
+#' @export
+get_predictions.lm <- function(model,
+                               data_grid = NULL,
+                               terms = NULL,
+                               ci_level = 0.95,
+                               type = NULL,
+                               typical = NULL,
+                               vcov = NULL,
+                               vcov_args = NULL,
+                               condition = NULL,
+                               interval = "confidence",
+                               bias_correction = FALSE,
+                               link_inverse = NULL,
+                               model_info = NULL,
+                               verbose = TRUE,
+                               ...) {
   # does user want standard errors?
-  se <- !is.null(ci.lvl) && !is.na(ci.lvl) && is.null(vcov.fun)
+  se <- !is.null(ci_level) && !is.na(ci_level) && is.null(vcov)
 
   # compute ci, two-ways
-  if (!is.null(ci.lvl) && !is.na(ci.lvl))
-    ci <- (1 + ci.lvl) / 2
-  else
+  if (!is.null(ci_level) && !is.na(ci_level)) {
+    ci <- (1 + ci_level) / 2
+  } else {
     ci <- 0.975
+  }
 
   # degrees of freedom
   dof <- .get_df(model)
@@ -21,12 +37,9 @@ get_predictions_lm <- function(model, data_grid, ci.lvl, model_class, value_adju
   )
 
   if (type == "simulate") {
-
     # simulate predictions
-    data_grid <- .do_simulate(model, terms, ci, ...)
-
-  } else if (!is.null(vcov.fun) || (!is.null(interval) && interval == "prediction")) {
-
+    data_grid <- .do_simulate(model, terms, ci, interval = interval, ...)
+  } else if (!is.null(vcov) || (!is.null(interval) && interval == "prediction")) {
     # did user request standard errors? if yes, compute CI
 
     # copy predictions
@@ -39,12 +52,10 @@ get_predictions_lm <- function(model, data_grid, ci.lvl, model_class, value_adju
     se.pred <- .standard_error_predictions(
       model = model,
       prediction_data = data_grid,
-      value_adjustment = value_adjustment,
+      typical = typical,
       terms = terms,
-      model_class = model_class,
-      vcov.fun = vcov.fun,
-      vcov.type = vcov.type,
-      vcov.args = vcov.args,
+      vcov = vcov,
+      vcov_args = vcov_args,
       condition = condition,
       interval = interval
     )
@@ -75,7 +86,6 @@ get_predictions_lm <- function(model, data_grid, ci.lvl, model_class, value_adju
 
     # copy standard errors
     attr(data_grid, "std.error") <- prdat$se.fit
-
   } else {
     # check if we have a multivariate response model
     pdim <- dim(prdat)
@@ -101,3 +111,15 @@ get_predictions_lm <- function(model, data_grid, ci.lvl, model_class, value_adju
 
   data_grid
 }
+
+#' @export
+get_predictions.lmRob <- get_predictions.lm
+
+#' @export
+get_predictions.lm_robust <- get_predictions.lm
+
+#' @export
+get_predictions.biglm <- get_predictions.lm
+
+#' @export
+get_predictions.speedlm <- get_predictions.lm

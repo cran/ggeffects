@@ -43,9 +43,6 @@
 #' weights are available, the function falls back to `"mean"`. **Note** that this
 #' argument is ignored for `predict_response()`, because the `margin` argument
 #' takes care of this.
-#' @param ci.lvl,vcov.fun,vcov.type,vcov.args,back.transform Deprecated arguments.
-#' Please use `ci_level`, `vcov_fun`, `vcov_type`, `vcov_args` and `back_transform`
-#' instead.
 #' @param ... Arguments are passed down to `ggpredict()` (further down to `predict()`)
 #' or `ggemmeans()` (and thereby to `emmeans::emmeans()`), If `type = "simulate"`,
 #' `...` may also be used to set the number of simulation, e.g. `nsim = 500`.
@@ -64,60 +61,34 @@ ggpredict <- function(model,
                       type = "fixed",
                       typical = "mean",
                       condition = NULL,
+                      interval = "confidence",
                       back_transform = TRUE,
-                      vcov_fun = NULL,
-                      vcov_type = NULL,
+                      vcov = NULL,
                       vcov_args = NULL,
-                      interval,
-                      verbose = TRUE,
-                      ci.lvl = ci_level,
-                      back.transform = back_transform,
-                      vcov.fun = vcov_fun,
-                      vcov.type = vcov_type,
-                      vcov.args = vcov_args,
                       bias_correction = FALSE,
+                      verbose = TRUE,
                       ...) {
   # check arguments
   type <- .validate_type_argument(model, type)
 
-  if (missing(interval)) {
-    if (type %in% c("random", "zero_inflated_random")) {
-      interval <- "prediction"
-    } else {
-      interval <- "confidence"
-    }
-  } else if (is.null(interval)) {
-    interval <- "confidence"
-  }
+  ## TODO: remove deprecated later
+  vcov <- .prepare_vcov_args(vcov, ...)
+
+  # check formula
+  insight::formula_ok(model, verbose = verbose)
 
   # make sure we have valid values
-  interval <- match.arg(interval, c("confidence", "prediction"))
-
-  ## TODO: remove deprecated later
-
-  # handle deprectated arguments
-  if (!missing(ci.lvl)) {
-    ci_level <- ci.lvl
-    insight::format_warning("Argument `ci.lvl` is deprecated and will be removed in the future. Please use `ci_level` instead.") # nolint
-  }
-  if (!missing(back.transform)) {
-    back_transform <- back.transform
-    insight::format_warning("Argument `back.transform` is deprecated and will be removed in the future. Please use `back_transform` instead.") # nolint
-  }
-  if (!missing(vcov.fun)) {
-    vcov_fun <- vcov.fun
-    insight::format_warning("Argument `vcov.fun` is deprecated and will be removed in the future. Please use `vcov_fun` instead.") # nolint
-  }
-  if (!missing(vcov.type)) {
-    vcov_type <- vcov.type
-    insight::format_warning("Argument `vcov.type` is deprecated and will be removed in the future. Please use `vcov_type` instead.") # nolint
-  }
-  if (!missing(vcov.args)) {
-    vcov_args <- vcov.args
-    insight::format_warning("Argument `vcov.args` is deprecated and will be removed in the future. Please use `vcov_args` instead.") # nolint
-  }
+  interval <- insight::validate_argument(interval, c("confidence", "prediction"))
 
   model.name <- deparse(substitute(model))
+
+  # check if bias-correction is appropriate
+  bias_correction <- .check_bias_correction(
+    model,
+    type = type,
+    bias_correction = bias_correction,
+    verbose = verbose
+  )
 
   # process "terms", so we have the default character format. Furthermore,
   # check terms argument, to make sure that terms were not misspelled and are
@@ -126,32 +97,18 @@ ggpredict <- function(model,
     terms <- .reconstruct_focal_terms(terms, model = NULL)
   }
 
-  # tidymodels?
-  if (inherits(model, "model_fit")) {
-    model <- model$fit
-  }
-
-  # for gamm/gamm4 objects, we have a list with two items, mer and gam
-  # extract just the gam-part then
-  if (is.gamm(model) || is.gamm4(model)) {
-    model <- model$gam
-  }
-
-  # for sdmTMB objects, delta/hurdle models have family lists
-  if (.is_delta_sdmTMB(model)) {
-    insight::format_error("`ggpredict()` does not yet work with `sdmTMB` delta models.")
-  }
+  # check model object, e.g. for gam's or class model_fit
+  model <- .check_model_object(model)
 
   # prepare common arguments, for do.cal()
   fun_args <- list(
-    ci.lvl = ci_level,
+    ci_level = ci_level,
     type = type,
     typical = typical,
     condition = condition,
-    back.transform = back_transform,
-    vcov.fun = vcov_fun,
-    vcov.type = vcov_type,
-    vcov.args = vcov_args,
+    back_transform = back_transform,
+    vcov = vcov,
+    vcov_args = vcov_args,
     interval = interval,
     bias_correction = bias_correction,
     verbose = verbose
@@ -166,7 +123,13 @@ ggpredict <- function(model,
     class(result) <- c("ggalleffects", class(result))
   } else if (missing(terms) || is.null(terms)) {
     # if no terms are specified, we try to find all predictors ---------------
-    predictors <- insight::find_predictors(model, effects = "fixed", component = "conditional", flatten = TRUE)
+    predictors <- insight::find_predictors(
+      model,
+      effects = "fixed",
+      component = "conditional",
+      flatten = TRUE,
+      verbose = FALSE
+    )
     result <- lapply(
       predictors,
       function(focal_term) {
@@ -195,22 +158,17 @@ ggpredict <- function(model,
 # and creates the tidy data frames
 ggpredict_helper <- function(model,
                              terms,
-                             ci.lvl,
+                             ci_level,
                              type,
                              typical,
                              condition,
-                             back.transform,
-                             vcov.fun,
-                             vcov.type,
-                             vcov.args,
+                             back_transform,
+                             vcov,
+                             vcov_args,
                              interval,
                              bias_correction = FALSE,
                              verbose = TRUE,
                              ...) {
-  # check class of fitted model, to make sure we have just one class-attribute
-  # (while "inherits()" may return multiple attributes)
-  model_class <- get_predict_function(model)
-
   # sanity check, if terms really exist in data
   terms <- .check_vars(terms, model)
 
@@ -221,7 +179,7 @@ ggpredict_helper <- function(model,
   model_info <- .get_model_info(model)
 
   # survival models are binomial
-  if (model_class == "coxph" && type == "survival") {
+  if (inherits(model, "coxph") && type == "survival") {
     model_info$is_binomial <- TRUE
   }
 
@@ -229,24 +187,14 @@ ggpredict_helper <- function(model,
   # done for random effects only (i.e. all focal terms are specified as random
   # effects in the model). If so, we need to tell the user that they should
   # better to `margin = "empirical"`
-  if (!type %in% c("random", "zero_inflated_random")) {
-    .check_focal_for_random(model, terms, verbose)
-  }
-
-  # sanity check - bias correction only for mixed models for now
-  if (isTRUE(bias_correction) && !insight::is_mixed_model(model) && !inherits(model, c("gee", "geeglm"))) {
-    bias_correction <- FALSE
-    if (verbose) {
-      insight::format_alert("Bias-correction is currently only supported for mixed or gee models. No bias-correction is applied.") # nolint
-    }
-  }
+  .check_focal_for_random(model, terms, type, verbose)
 
   # get model frame
   model_frame <- .get_model_data(model)
 
   # expand model frame to data grid of unique combinations
   data_grid <- .data_grid(
-    model = model, model_frame = model_frame, terms = terms, value_adjustment = typical,
+    model = model, model_frame = model_frame, terms = terms, typical = typical,
     condition = condition, show_pretty_message = verbose, verbose = verbose
   )
 
@@ -257,22 +205,24 @@ ggpredict_helper <- function(model,
   # clear argument from brackets
   terms <- cleaned_terms
 
+  linv <- .link_inverse(model, bias_correction = bias_correction, ...)
+  if (is.null(linv)) linv <- function(x) x
+
   # compute predictions here -----
-  prediction_data <- select_prediction_method(
-    model_class = model_class,
-    model = model,
+  prediction_data <- get_predictions(
+    model,
     data_grid = data_grid,
-    ci.lvl = ci.lvl,
-    type = type,
-    model_info = model_info,
     terms = original_terms,
-    value_adjustment = typical,
-    vcov.fun = vcov.fun,
-    vcov.type = vcov.type,
-    vcov.args = vcov.args,
+    ci_level = ci_level,
+    type = type,
+    typical = typical,
+    vcov = vcov,
+    vcov_args = vcov_args,
     condition = condition,
     interval = interval,
     bias_correction = bias_correction,
+    link_inverse = linv,
+    model_info = model_info,
     verbose = verbose,
     ...
   )
@@ -287,12 +237,12 @@ ggpredict_helper <- function(model,
 
   # for survival probabilities or cumulative hazards, we need
   # the "time" variable
-  if (model_class == "coxph" && type %in% c("survival", "cumulative_hazard")) {
+  if (inherits(model, "coxph") && type %in% c("survival", "cumulative_hazard")) {
     terms <- c("time", terms)
     cleaned_terms <- c("time", cleaned_terms)
   }
   # special handling for rqs
-  if (model_class == "rqs" && !"tau" %in% cleaned_terms) {
+  if (inherits(model, "rqs") && !"tau" %in% cleaned_terms) {
     cleaned_terms <- c(cleaned_terms, "tau")
   }
 
@@ -303,30 +253,12 @@ ggpredict_helper <- function(model,
     cleaned_terms = cleaned_terms
   )
 
-  # check if outcome is log-transformed, and if so,
-  # back-transform predicted values to response scale
-  # but first, save original predicted values, to save as attribute
-  if (back.transform) {
-    untransformed.predictions <- result$predicted
-    response.transform <- insight::find_terms(model)[["response"]]
-  } else {
-    untransformed.predictions <- response.transform <- NULL
-  }
-  result <- .back_transform_response(model, result, back.transform, verbose = verbose)
-
-  # add raw data as well
-  attr(result, "rawdata") <- .back_transform_data(
-    model,
-    mydf = .get_raw_data(model, original_model_frame, terms),
-    back.transform = back.transform
-  )
-
   # no adjustment for type = "simulate"
   if (type == "simulate") {
     attributes(data_grid)$constant.values <- NULL
   }
 
-  .post_processing_labels(
+  .post_processing_labels_and_data(
     model = model,
     result = result,
     original_model_frame = original_model_frame,
@@ -338,25 +270,31 @@ ggpredict_helper <- function(model,
     prediction.interval = attr(prediction_data, "prediction.interval", exact = TRUE),
     at_list = .data_grid(
       model = model, model_frame = original_model_frame, terms = original_terms,
-      value_adjustment = typical, condition = condition, show_pretty_message = FALSE,
-      emmeans.only = TRUE, verbose = FALSE
+      typical = typical, condition = condition, show_pretty_message = FALSE,
+      emmeans_only = TRUE, verbose = FALSE
     ),
     condition = condition,
-    ci.lvl = ci.lvl,
-    untransformed.predictions = untransformed.predictions,
-    back.transform = back.transform,
-    response.transform = response.transform,
-    vcov.args = .get_variance_covariance_matrix(model, vcov.fun, vcov.args, vcov.type, skip_if_null = TRUE, verbose = FALSE), # nolint
+    ci_level = ci_level,
+    back_transform = back_transform,
+    vcov_args = .get_variance_covariance_matrix(model, vcov, vcov_args, skip_if_null = TRUE, verbose = FALSE), # nolint
     margin = "mean_reference",
+    model_name = NULL,
     bias_correction = bias_correction,
     verbose = verbose
   )
 }
 
 
-.check_focal_for_random <- function(model, terms, verbose) {
+.check_focal_for_random <- function(model, terms, type, verbose) {
   random_pars <- insight::find_random(model, split_nested = TRUE, flatten = TRUE)
-  if (!is.null(random_pars) && all(.clean_terms(terms) %in% random_pars) && verbose) {
-    insight::format_warning("All focal terms are included as random effects in the model. To calculate predictions for random effects, either use `margin = \"empirical\"` or set `type = \"random\"` (possibly together with `interval = \"confidence\"`) to get meaningful results.") # nolint
+  # check if focal terms are *only* random effects, but `type` is not `"random"`.
+  # in this case, population level predictions is probably not what user wants
+  if (verbose && !type %in% c("random", "zero_inflated_random") && !is.null(random_pars) && all(.clean_terms(terms) %in% random_pars)) {
+    insight::format_alert("All focal terms are included as random effects in the model. To calculate predictions for random effects, either use `margin = \"empirical\"` or set `type = \"random\"` to get meaningful results.") # nolint
+  }
+  # check if *no* focal term is a random effect, but `type` *is* `"random"`.
+  # in this case, user probably wants unit-level predictions
+  if (verbose && type %in% c("random", "zero_inflated_random") && !is.null(random_pars) && !any(.clean_terms(terms) %in% random_pars)) {
+    insight::format_alert("It seems that unit-level predictions are requested (`type = \"random\"`), but no random effects terms (grouping variables) are defined in the `terms` argument. Either add a random effects term to the `terms` argument, or set `type = \"fixed\"` to get meaningful results (in this case, population-level predictions).") # nolint
   }
 }

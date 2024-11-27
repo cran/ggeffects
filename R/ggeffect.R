@@ -1,8 +1,11 @@
 #' @rdname ggpredict
 #' @export
-ggeffect <- function(model, terms, ci_level = 0.95, bias_correction = FALSE, verbose = TRUE, ci.lvl = ci_level, ...) {
+ggeffect <- function(model, terms, ci_level = 0.95, bias_correction = FALSE, verbose = TRUE, ...) {
   insight::check_if_installed("effects")
   model_name <- deparse(substitute(model))
+
+  # check formula
+  insight::formula_ok(model, verbose = verbose)
 
   # process "terms", so we have the default character format. Furthermore,
   # check terms argument, to make sure that terms were not misspelled and are
@@ -11,32 +14,25 @@ ggeffect <- function(model, terms, ci_level = 0.95, bias_correction = FALSE, ver
     terms <- .reconstruct_focal_terms(terms, model)
   }
 
-  ## TODO: remove deprecated later
-
-  # handle deprectated arguments
-  if (!missing(ci.lvl)) {
-    ci_level <- ci.lvl
-    insight::format_warning("Argument `ci.lvl` is deprecated and will be removed in the future. Please use `ci_level` instead.") # nolint
-  }
-
   # tidymodels?
   if (inherits(model, "model_fit")) {
     model <- model$fit
   }
 
   if (inherits(model, "list") && !inherits(model, c("bamlss", "maxLik"))) {
-    res <- lapply(model, .ggeffect_helper, terms, ci.lvl = ci_level, bias_correction = bias_correction, verbose, ...)
+    res <- lapply(model, .ggeffect_helper, terms, ci_level = ci_level, bias_correction = bias_correction, verbose, ...)
   } else if (missing(terms) || is.null(terms)) {
     predictors <- insight::find_predictors(
       model,
       effects = "fixed",
       component = "conditional",
-      flatten = TRUE
+      flatten = TRUE,
+      verbose = FALSE
     )
     res <- lapply(
       predictors,
       function(.x) {
-        tmp <- .ggeffect_helper(model, terms = .x, ci.lvl = ci_level, bias_correction = bias_correction, verbose, ...)
+        tmp <- .ggeffect_helper(model, terms = .x, ci_level = ci_level, bias_correction = bias_correction, verbose, ...)
         if (!is.null(tmp)) {
           tmp$group <- .x
         }
@@ -52,7 +48,7 @@ ggeffect <- function(model, terms, ci_level = 0.95, bias_correction = FALSE, ver
       res <- NULL
     }
   } else {
-    res <- .ggeffect_helper(model, terms, ci.lvl = ci_level, bias_correction = bias_correction, verbose, ...)
+    res <- .ggeffect_helper(model, terms, ci_level = ci_level, bias_correction = bias_correction, verbose, ...)
   }
 
   if (!is.null(res)) {
@@ -62,7 +58,12 @@ ggeffect <- function(model, terms, ci_level = 0.95, bias_correction = FALSE, ver
 }
 
 
-.ggeffect_helper <- function(model, terms, ci.lvl, bias_correction = FALSE, verbose = TRUE, ...) {
+.ggeffect_helper <- function(model,
+                             terms,
+                             ci_level,
+                             bias_correction = FALSE,
+                             verbose = TRUE,
+                             ...) {
   # check terms argument
   original_terms <- terms
 
@@ -82,19 +83,19 @@ ggeffect <- function(model, terms, ci_level = 0.95, bias_correction = FALSE, ver
   .validate_dot_arguments(
     additional_dot_args,
     not_allowed = c(
-      "type", "typical", "condition", "back_transform", "vcov_fun",
-      "vcov_type", "vcov_args", "weights"
+      "type", "typical", "condition", "back_transform", "vcov",
+      "vcov_args", "weights"
     ),
     fun = "ggeffect()"
   )
 
-  # sanity check - bias correction only for mixed models for now
-  if (isTRUE(bias_correction) && !insight::is_mixed_model(model) && !inherits(model, c("gee", "geeglm"))) {
-    bias_correction <- FALSE
-    if (verbose) {
-      insight::format_alert("Bias-correction is currently only supported for mixed or gee models. No bias-correction is applied.") # nolint
-    }
-  }
+  # check if bias-correction is appropriate
+  bias_correction <- .check_bias_correction(
+    model,
+    type = "fixed",
+    bias_correction = bias_correction,
+    verbose = verbose
+  )
 
   # check whether we have an argument "transformation" for effects()-function
   # in this case, we need another default title, since we have non-transformed effects
@@ -136,7 +137,7 @@ ggeffect <- function(model, terms, ci_level = 0.95, bias_correction = FALSE, ver
         focal.predictors = terms,
         mod = model,
         xlevels = at_values,
-        confidence.level = ci.lvl,
+        confidence.level = ci_level,
         ...
       )
     )),
@@ -163,12 +164,12 @@ ggeffect <- function(model, terms, ci_level = 0.95, bias_correction = FALSE, ver
   if (inherits(model, c("polr", "clm", "clm2", "clmm", "clmm2", "multinom", "nestedLogit"))) {
     # if predictions on the latent scale are requested, different handling here
     if (isTRUE(additional_dot_args$latent)) {
-      tmp <- .effect_latent_predictions(eff, model, terms, ci.lvl, dof)
+      tmp <- .effect_latent_predictions(eff, model, terms, ci_level, dof)
       no.transform <- TRUE
     } else {
       # for categorical outcomes, we need to gather the data
       # from effects to get a single data frame, unless we have latent = TRUE
-      tmp <- .effect_prob_predictions(eff, model, terms, ci.lvl, dof)
+      tmp <- .effect_prob_predictions(eff, model, terms, ci_level, dof)
     }
     fx.term <- eff$term
   } else {
@@ -319,7 +320,7 @@ ggeffect <- function(model, terms, ci_level = 0.95, bias_correction = FALSE, ver
     terms = cleaned_terms,
     at_list = at_values,
     original_terms = original_terms,
-    ci.lvl = ci.lvl,
+    ci_level = ci_level,
     margin = "marginalmeans",
     latent = isTRUE(additional_dot_args$latent),
     latent_thresholds = eff$thresholds
@@ -365,7 +366,7 @@ ggeffect <- function(model, terms, ci_level = 0.95, bias_correction = FALSE, ver
 }
 
 
-.effect_prob_predictions <- function(eff, model, terms, ci.lvl, dof) {
+.effect_prob_predictions <- function(eff, model, terms, ci_level, dof) {
   eff.logits <- as.data.frame(eff$logit, stringsAsFactors = FALSE)
   tmp <- cbind(eff$x, eff.logits)
   ft <- (ncol(tmp) - ncol(eff.logits) + 1):ncol(tmp)
@@ -380,8 +381,8 @@ ggeffect <- function(model, terms, ci_level = 0.95, bias_correction = FALSE, ver
   if (length(terms) > 1) colnames(tmp)[2] <- "group"
   if (length(terms) > 2) colnames(tmp)[3] <- "facet"
 
-  if (!is.null(ci.lvl) && !is.na(ci.lvl)) {
-    ci <- 1 - ((1 - ci.lvl) / 2)
+  if (!is.null(ci_level) && !is.na(ci_level)) {
+    ci <- 1 - ((1 - ci_level) / 2)
   } else {
     ci <- 0.975
   }
@@ -419,7 +420,7 @@ ggeffect <- function(model, terms, ci_level = 0.95, bias_correction = FALSE, ver
 }
 
 
-.effect_latent_predictions <- function(eff, model, terms, ci.lvl, dof) {
+.effect_latent_predictions <- function(eff, model, terms, ci_level, dof) {
   tmp <- as.data.frame(eff)
   # rename columns
   colnames(tmp)[colnames(tmp) == "fit"] <- "predicted"
@@ -430,8 +431,8 @@ ggeffect <- function(model, terms, ci_level = 0.95, bias_correction = FALSE, ver
   # remove CI
   tmp$lower <- tmp$upper <- NULL
 
-  if (!is.null(ci.lvl) && !is.na(ci.lvl)) {
-    ci <- 1 - ((1 - ci.lvl) / 2)
+  if (!is.null(ci_level) && !is.na(ci_level)) {
+    ci <- 1 - ((1 - ci_level) / 2)
   } else {
     ci <- 0.975
   }

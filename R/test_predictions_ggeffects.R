@@ -9,8 +9,6 @@
                                         collapse_levels = FALSE,
                                         verbose = TRUE,
                                         ...) {
-  insight::check_if_installed("datawizard")
-
   # sanity check for certain arguments that are not (yet) supported
   if (!is.null(equivalence)) {
     insight::format_error("Equivalence testing is currently not supported for `engine = \"ggeffects\"`.")
@@ -23,7 +21,7 @@
   if (is.null(test) || test %in% c("trend", "slope")) {
     test <- "contrast"
   }
-  test <- match.arg(test, c("contrast", "pairwise", "interaction"))
+  test <- insight::validate_argument(test, c("contrast", "pairwise", "interaction"))
 
   # we convert the ggeffects object to a data frame, using the original
   # names of the focal terms as column names
@@ -37,6 +35,7 @@
   margin <- attributes(object)$margin
   std_erros <- attributes(object)$standard_error
   dof <- attributes(object)$df
+  condition <- attributes(object)$condition
   is_latent <- !is.null(attributes(object)$latent_thresholds)
 
   # warn for very long at-list
@@ -76,7 +75,7 @@
   # need to check whether scale is always correct
 
   # for non-Gaussian models, we need to adjust the standard errors
-  if (!minfo$is_linear && !minfo$is_bayesian && !is_latent) {
+  if (!minfo$is_linear && !minfo$is_bayesian && !is_latent && type != "simulate") {
     # zero-inflated models? If so, we need to find the correct prediction type
     # since we allow predictions / comparisons for the different model parts
     if (minfo$is_zero_inflated) {
@@ -89,12 +88,12 @@
     }
     se_from_predictions <- tryCatch(
       {
-        data_grid <- data_grid(object, original_terms)
+        .datagrid <- data_grid(object, terms = original_terms, condition = condition)
         # arguments for predict(), to get SE on response scale
         # for non-Gaussian models
         my_args <- list(
           object,
-          newdata = data_grid,
+          newdata = .datagrid,
           type = pred_type,
           se.fit = TRUE
         )
@@ -125,7 +124,7 @@
     }
     preds_with_se <- merge(
       predictions,
-      cbind(data_grid, se_prob = se_from_predictions$se.fit),
+      cbind(.datagrid, se_prob = se_from_predictions$se.fit),
       sort = FALSE,
       all = TRUE
     )
@@ -204,7 +203,6 @@
   attr(out, "link_function") <- insight::link_function(object)
   attr(out, "linear_model") <- minfo$is_linear
   attr(out, "estimate_name") <- "Contrast"
-  attr(out, "msg_intervals") <- FALSE
 
   # remove unused variables
   out$std.error <- NULL

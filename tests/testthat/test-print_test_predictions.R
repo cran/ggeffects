@@ -179,7 +179,7 @@ test_that("print hypothesis_test comma and dash levels", {
   m <- lme4::lmer(Sepal.Length ~ Sepal.Width + f1 + f2 + (1 | Species), data = d)
   ht <- hypothesis_test(m, c("f1", "f2"))
   expect_identical(nrow(ht), 15L)
-  expect_snapshot(print(ht))
+  expect_snapshot(print(ht, table_width = Inf))
 
   d <- iris
   set.seed(1234)
@@ -231,16 +231,6 @@ test_that("print hypothesis_test collapse levels", {
   expect_snapshot(print(out))
 })
 
-test_that("print hypothesis_test collapse CI", {
-  data(efc, package = "ggeffects")
-  efc$e42dep <- as.factor(efc$e42dep)
-  fit <- lm(barthtot ~ e42dep + c160age, data = efc)
-  pr <- ggpredict(fit, "e42dep")
-  out <- hypothesis_test(pr)
-  expect_snapshot(print(out))
-  expect_snapshot(print(out, collapse_ci = TRUE))
-})
-
 
 test_that("hypothesis_test, ci-level", {
   data(iris)
@@ -262,6 +252,21 @@ test_that("glmmTMB, orderedbeta", {
     data = mtcars,
     family = glmmTMB::ordbeta()
   )
-  out2 <- predict_response(m, "gear", margin = "ame")
+  out2 <- predict_response(m, "gear", margin = "average")
   expect_snapshot(print(test_predictions(out2)))
 })
+
+
+skip_if_not_installed("withr")
+withr::with_environment(
+  new.env(),
+  test_that("print hypothesis_test collapse CI", {
+    data(efc, package = "ggeffects")
+    efc$e42dep <- as.factor(efc$e42dep)
+    fit <- lm(barthtot ~ e42dep + c160age, data = efc)
+    pr <- ggpredict(fit, "e42dep")
+    out <- hypothesis_test(pr)
+    expect_snapshot(print(out))
+    expect_snapshot(print(out, collapse_ci = TRUE))
+  })
+)

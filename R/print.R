@@ -18,8 +18,8 @@
 #' them are also passed down further to [`insight::format_table()`] or
 #' [`insight::format_value()`].
 #'
-#' @return `format()` return a formatted data frame, `print()` prints a formatted
-#' data frame printed to the console. `print_html()` returns a `tinytable`
+#' @return `format()` return a formatted data frame, `print()` prints a
+#' formatted data frame to the console. `print_html()` returns a `tinytable`
 #' object by default (unless changed with `engine = "gt"`), which is printed as
 #' HTML, markdown or LaTeX table (depending on the context from which
 #' `print_html()` is called, see [`tinytable::tt()`] for details).
@@ -177,7 +177,7 @@ print.ggeffects <- function(x, group_name = TRUE, digits = 2, verbose = TRUE, ..
 .print_footnote <- function(x, format = "text") {
   msg <- NULL
   consv <- attr(x, "constant.values")
-  ci.lvl <- attr(x, "ci.lvl")
+  ci_level <- attr(x, "ci_level")
 
   cv <- lapply(consv, function(.x) {
     if (is.numeric(.x)) {
@@ -322,7 +322,7 @@ print_html.ggeffects <- function(x,
   insight::export_table(
     out,
     format = "html",
-    group_by = "groups",
+    by = "groups",
     footer = footer,
     caption = caption
   )
@@ -378,7 +378,6 @@ print.ggcomparisons <- function(x, collapse_tables = FALSE, ...) {
   estimate_name <- attributes(x)$estimate_name
   by_factor <- attributes(x)$by_factor
   rope_range <- attributes(x)$rope_range
-  msg_intervals <- isTRUE(attributes(x)$msg_intervals)
   verbose <- isTRUE(attributes(x)$verbose)
   scale_outcome <- attributes(x)$scale
   scale_label <- attributes(x)$scale_label
@@ -491,15 +490,6 @@ print.ggcomparisons <- function(x, collapse_tables = FALSE, ...) {
     }
     insight::format_alert(msg)
   }
-
-  # tell user about possible discrepancies between prediction intervals of
-  # predictions and confidence intervals of contrasts/comparisons
-  if (msg_intervals && verbose) {
-    insight::format_alert(paste(
-      "\nIntervals used for contrasts and comparisons are regular confidence intervals, not prediction intervals.",
-      "To obtain the same type of intervals for your predictions, use `predict_response(..., interval = \"confidence\")`." # nolint
-    ))
-  }
 }
 
 
@@ -552,7 +542,6 @@ print_md.ggcomparisons <- function(x, collapse_ci = FALSE, collapse_p = FALSE, t
   test_custom <- identical(attributes(x)$test, "custom")
   estimate_name <- attributes(x)$estimate_name
   rope_range <- attributes(x)$rope_range
-  msg_intervals <- isTRUE(attributes(x)$msg_intervals)
   verbose <- isTRUE(attributes(x)$verbose)
   by_factor <- attributes(x)$by_factor
   scale_outcome <- attributes(x)$scale
@@ -652,7 +641,6 @@ print_md.ggcomparisons <- function(x, collapse_ci = FALSE, collapse_p = FALSE, t
     if (split_by) { # nolint
       # if we have more than one group variable, we unite them into one
       if (length(by_factor) > 1) {
-        insight::check_if_installed("datawizard")
         group_by <- datawizard::data_unite(x, "group_by", by_factor, separator = ", ")$group_by
       } else {
         group_by <- x[[by_factor]]
@@ -711,7 +699,7 @@ print_md.ggcomparisons <- function(x, collapse_ci = FALSE, collapse_p = FALSE, t
     insight::export_table(
       x,
       format = "html",
-      group_by = "groups",
+      by = "groups",
       footer = footer,
       caption = caption
     )

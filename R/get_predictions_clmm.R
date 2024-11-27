@@ -1,19 +1,34 @@
-get_predictions_clmm <- function(model, terms, value_adjustment, condition, ci.lvl, linv, ...) {
+#' @export
+get_predictions.clmm <- function(model,
+                                 data_grid = NULL,
+                                 terms = NULL,
+                                 ci_level = 0.95,
+                                 type = NULL,
+                                 typical = NULL,
+                                 vcov = NULL,
+                                 vcov_args = NULL,
+                                 condition = NULL,
+                                 interval = "confidence",
+                                 bias_correction = FALSE,
+                                 link_inverse = insight::link_inverse(model),
+                                 model_info = NULL,
+                                 verbose = TRUE,
+                                 ...) {
   insight::check_if_installed("emmeans", "to compute estimated marginal means for clmm-models")
 
   values.at <- .data_grid(
     model = model,
     model_frame = insight::get_data(model, source = "frame", verbose = FALSE),
     terms = terms,
-    value_adjustment = value_adjustment,
+    typical = typical,
     condition = condition,
     show_pretty_message = FALSE,
-    emmeans.only = TRUE
+    emmeans_only = TRUE
   )
 
   # no predicted values at random terms allowed
   re.terms <- insight::find_random(model, split_nested = TRUE, flatten = TRUE)
-  fe.terms <- insight::find_predictors(model, flatten = TRUE)
+  fe.terms <- insight::find_predictors(model, flatten = TRUE, verbose = FALSE)
 
   if (any(re.terms %in% names(values.at)) && !any(re.terms %in% fe.terms)) {
     insight::format_alert(
@@ -32,7 +47,7 @@ get_predictions_clmm <- function(model, terms, value_adjustment, condition, ci.l
     at = values.at,
     mode = "prob"
   )
-  data_grid <- as.data.frame(stats::confint(emmpred, level = ci.lvl))
+  data_grid <- as.data.frame(stats::confint(emmpred, level = ci_level))
   data_grid <- .var_rename(
     data_grid,
     prob = "predicted",

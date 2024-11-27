@@ -2,7 +2,7 @@
                                       terms = NULL,
                                       by = NULL,
                                       test = "pairwise",
-                                      equivalence = NULL,
+                                      test_args = NULL,
                                       scale = "response",
                                       p_adjust = NULL,
                                       df = NULL,
@@ -35,7 +35,7 @@
     custom_contrasts <- test
     test <- "custom"
   }
-  test <- match.arg(
+  test <- insight::validate_argument(
     test,
     c("contrast", "pairwise", "interaction", "custom", "exclude", "consecutive", "polynomial")
   )
@@ -64,8 +64,8 @@
     object,
     model_frame = model_data,
     terms = terms,
-    value_adjustment = "mean",
-    emmeans.only = TRUE,
+    typical = "mean",
+    emmeans_only = TRUE,
     verbose = FALSE
   )
 
@@ -96,7 +96,6 @@
 
   # if *first* focal predictor is numeric, compute average slopes
   if (isTRUE(focal_numeric[1])) {
-
     # just the "trend" (slope) of one focal predictor
     if (length(focal) == 1) {
       # contrasts of slopes ---------------------------------------------------
@@ -158,7 +157,6 @@
     out <- .clean_levels(out, focal)
     # rename columns
     out <- .rename_emmeans_columns(out)
-
   } else {
     # testing groups (factors) ------------------------------------------------
     # Here comes the code for pairwise comparisons of categorical focal terms
@@ -173,17 +171,23 @@
     ))
 
     emm <- do.call(emmeans::emmeans, my_args)
+    # set default option when test is not "interaction"
+    if (is.null(test_args) && test != "interaction") {
+      test_args <- emmeans::get_emm_option("contrast")
+    }
     .comparisons <- switch(test,
-      custom = emmeans::contrast(emm, method = custom_contrasts, adjust = p_adjust),
-      consecutive = emmeans::contrast(emm, method = "consec", adjust = p_adjust),
-      contrast = emmeans::contrast(emm, method = "eff", adjust = p_adjust),
-      exclude = emmeans::contrast(emm, method = "del.eff", adjust = p_adjust),
-      polynomial = emmeans::contrast(emm, method = "poly", adjust = p_adjust),
-      pairwise = emmeans::contrast(emm, method = "pairwise", adjust = p_adjust),
+      custom = emmeans::contrast(emm, method = custom_contrasts, adjust = p_adjust, option = test_args),
+      consecutive = emmeans::contrast(emm, method = "consec", adjust = p_adjust, option = test_args),
+      contrast = emmeans::contrast(emm, method = "eff", adjust = p_adjust, option = test_args),
+      exclude = emmeans::contrast(emm, method = "del.eff", adjust = p_adjust, option = test_args),
+      polynomial = emmeans::contrast(emm, method = "poly", adjust = p_adjust, option = test_args),
+      pairwise = emmeans::contrast(emm, method = "pairwise", adjust = p_adjust, option = test_args),
       interaction = {
-        arg <- as.list(rep("pairwise", times = length(focal)))
-        names(arg) <- focal
-        emmeans::contrast(emm, interaction = arg, adjust = p_adjust)
+        if (is.null(test_args)) {
+          test_args <- as.list(rep("pairwise", times = length(focal)))
+          names(test_args) <- focal
+        }
+        emmeans::contrast(emm, interaction = test_args, adjust = p_adjust)
       }
     )
     estimate_name <- "Contrast"

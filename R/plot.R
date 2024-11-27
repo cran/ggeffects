@@ -1,7 +1,8 @@
 #' @title Plot ggeffects-objects
 #' @name plot
 #'
-#' @description A generic plot-method for `ggeffects`-objects.
+#' @description `plot` is a generic plot-method for `ggeffects`-objects.
+#' `ggeffects_palette()` returns `show_palettes()`
 #'
 #' @param x An object of class `ggeffects`, as returned by the functions
 #'   from this package.
@@ -41,7 +42,7 @@
 #'   details.
 #' @param colors Character vector with color values in hex-format, valid
 #'   color value names (see `demo("colors")`) or a name of a
-#'   ggeffects-color-palette.
+#'   ggeffects-color-palette (see `ggeffects_palette()`).
 #'
 #'   Following options are valid for `colors`:
 #'
@@ -50,12 +51,14 @@
 #'   - If `"bw"`, the plot is black/white and uses different line types to
 #'     distinguish groups.
 #'   - There are some pre-defined color-palettes in this package that can be used,
-#'     e.g. `colors = "metro"`. See [`show_pals()`] to show all available palettes.
+#'     e.g. `colors = "metro"`. See [`show_palettes()`] to show all available palettes.
 #'   - Else specify own color values or names as vector (e.g.
 #'     `colors = c("#f00000", "#00ff00")`).
 #' @param alpha Alpha value for the confidence bands.
 #' @param line_size Numeric, size of the line geoms.
 #' @param dot_size Numeric, size of the point geoms.
+#' @param dot_alpha Alpha value for data points, when `show_data = TRUE`.
+#' @param dot_shape Shape of data points, when `show_data = TRUE`.
 #' @param dodge Value for offsetting or shifting error bars, to avoid overlapping.
 #'   Only applies, if a factor is plotted at the x-axis (in such cases, the
 #'   confidence bands are replaced by error bars automatically), or if
@@ -63,7 +66,6 @@
 #' @param use_theme Logical, if `TRUE`, a slightly tweaked version of ggplot's
 #'   minimal-theme, `theme_ggeffects()`, is applied to the plot. If `FALSE`, no
 #'   theme-modifications are applied.
-#' @param dot_alpha Alpha value for data points, when `show_data = TRUE`.
 #' @param jitter Numeric, between 0 and 1. If not `NULL` and `show_data = TRUE`,
 #'   adds a small amount of random variation to the location of data points dots,
 #'   to avoid overplotting. Hence the points don't reflect exact values in the
@@ -85,13 +87,12 @@
 #' @param base_size Base font size.
 #' @param base_family Base font family.
 #' @param verbose Logical, toggle warnings and messages.
+#' @param palette Name of a pre-defined color-palette as string. See
+#'   `show_palettes()` to show all available palettes. Use `NULL` to return
+#'   a list with names and color-codes of all avaibale palettes.
+#' @param n Number of color-codes from the palette that should be returned.
 #' @param ... Further arguments passed down to `ggplot::scale_y*()`, to
 #'    control the appearance of the y-axis.
-#' @param ci,add.data,rawdata,collapse.group,dot.alpha,dot.size,line.size,connect.lines,show.title,show.x.title,show.y.title,use.theme,one.plot,ci.style,show.legend,log.y
-#'   Deprecated arguments. Use `show_ci`, `show_data`, `collapse_group`,
-#'   `dot_alpha`, `dot_size`, `line_size`, `connect_lines`, `show_title`,
-#'   `show_x_title`, `show_y_title`, `use_theme`, `ci_style`, `show_legend`,
-#'   `log_y` and `one_plot` instead.
 #'
 #' @inheritParams get_title
 #'
@@ -104,8 +105,9 @@
 #' plot-modifiers, e.g. from **sjPlot**, like `legend_style()` or `font_size()`
 #' without losing the theme-modifications.
 #'
-#' There are pre-defined colour palettes in this package. Use [`show_pals()`]
-#' to show all available colour palettes.
+#' There are pre-defined colour palettes in this package. Use `show_palettes()`
+#' to show all available colour palettes as plot, or
+#' `ggeffects_palette(palette = NULL)` to show the color codes.
 #'
 #' @details For proportional odds logistic regression (see `?MASS::polr`)
 #' or cumulative link models in general, plots are automatically facetted
@@ -139,8 +141,11 @@
 #' plot(dat)
 #' }
 #'
+#' # show color codes of specific palette
+#' ggeffects_palette("okabe-ito")
+#'
 #' # show all color palettes
-#' show_pals()
+#' show_palettes()
 #' @export
 plot.ggeffects <- function(x,
                            # uncertainty
@@ -162,11 +167,12 @@ plot.ggeffects <- function(x,
                            # appearance colors and geoms
                            colors = NULL,
                            alpha = 0.15,
+                           dot_size = NULL,
                            dot_alpha = 0.35,
+                           dot_shape = NULL,
+                           line_size = NULL,
                            jitter = NULL,
                            dodge = 0.25,
-                           dot_size = NULL,
-                           line_size = NULL,
                            # appearance theme and axis
                            use_theme = TRUE,
                            log_y = FALSE,
@@ -176,93 +182,8 @@ plot.ggeffects <- function(x,
                            one_plot = TRUE,
                            n_rows = NULL,
                            verbose = TRUE,
-                           # deprecated arguments
-                           ci = show_ci,
-                           ci.style = ci_style,
-                           rawdata = show_data,
-                           add.data = show_data,
-                           collapse.group = collapse_group,
-                           dot.alpha = dot_alpha,
-                           dot.size = dot_size,
-                           line.size = line_size,
-                           connect.lines = connect_lines,
-                           show.title = show_title,
-                           show.x.title = show_x_title,
-                           show.y.title = show_y_title,
-                           use.theme = use_theme,
-                           show.legend = show_legend,
-                           one.plot = one_plot,
-                           log.y = log_y,
                            ...) {
   insight::check_if_installed("ggplot2", reason = "to produce plots of adjusted predictions")
-
-  ## TODO: handle deprecated arguments
-
-  # check alias
-  if (!missing(rawdata)) {
-    show_data <- rawdata
-    .deprecated_warning(old = "rawdata", new = "show_data")
-  }
-  if (!missing(add.data)) {
-    show_data <- add.data
-    .deprecated_warning(old = "add.data", new = "show_data")
-  }
-  if (!missing(ci)) {
-    show_ci <- ci
-    .deprecated_warning(old = "ci", new = "show_ci")
-  }
-  if (!missing(ci.style)) {
-    ci_style <- ci.style
-    .deprecated_warning(old = "ci.style", new = "ci_style")
-  }
-  if (!missing(collapse.group)) {
-    collapse_group <- collapse.group
-    .deprecated_warning(old = "collapse.group", new = "collapse_group")
-  }
-  if (!missing(dot.alpha)) {
-    dot_alpha <- dot.alpha
-    .deprecated_warning(old = "dot.alpha", new = "dot_alpha")
-  }
-  if (!missing(dot.size)) {
-    dot_size <- dot.size
-    .deprecated_warning(old = "dot.size", new = "dot_size")
-  }
-  if (!missing(one.plot)) {
-    one_plot <- one.plot
-    .deprecated_warning(old = "one.plot", new = "one_plot")
-  }
-  if (!missing(line.size)) {
-    line_size <- line.size
-    .deprecated_warning(old = "line.size", new = "line_size")
-  }
-  if (!missing(connect.lines)) {
-    connect_lines <- connect.lines
-    .deprecated_warning(old = "connect.lines", new = "connect_lines")
-  }
-  if (!missing(show.title)) {
-    show_title <- show.title
-    .deprecated_warning(old = "show.title", new = "show_title")
-  }
-  if (!missing(show.x.title)) {
-    show_x_title <- show.x.title
-    .deprecated_warning(old = "show.x.title", new = "show_x_title")
-  }
-  if (!missing(show.y.title)) {
-    show_y_title <- show.y.title
-    .deprecated_warning(old = "show.y.title", new = "show_y_title")
-  }
-  if (!missing(use.theme)) {
-    use_theme <- use.theme
-    .deprecated_warning(old = "use.theme", new = "use_theme")
-  }
-  if (!missing(show.legend)) {
-    show_legend <- show.legend
-    .deprecated_warning(old = "show.legend", new = "show_legend")
-  }
-  if (!missing(log.y)) {
-    log_y <- log.y
-    .deprecated_warning(old = "log.y", new = "log_y")
-  }
 
   # set some defaults for jittering
   jitter.miss <- missing(jitter)
@@ -285,8 +206,9 @@ plot.ggeffects <- function(x,
   xif <- attr(x, "x.is.factor", exact = TRUE)
   x_is_factor <- !is.null(xif) && xif == "1"
 
-  # set default size for geoms
+  # set default size and shape for geoms
   if (is.null(dot_size)) dot_size <- 2
+  if (is.null(dot_shape)) dot_shape <- 16
   if (is.null(line_size)) line_size <- 0.7
 
   if (!missing(grid)) facets <- grid
@@ -325,44 +247,8 @@ plot.ggeffects <- function(x,
 
   # if we add data points, limit to range
   if (isTRUE(limit_range)) {
-    raw_data <- attr(x, "rawdata", exact = TRUE)
-    if (!is.null(raw_data)) {
-      if (has_groups && has_facets) {
-        ranges <- lapply(
-          split(raw_data, list(raw_data$group, raw_data$facet)),
-          function(i) range(i$x, na.rm = TRUE)
-        )
-        for (i in unique(raw_data$group)) {
-          for (j in unique(raw_data$facet)) {
-            if (any(is.infinite(ranges[[paste0(i, ".", j)]]))) {
-              remove_indices <- x$group == i & x$facet == j
-              x$x[remove_indices] <- NA
-            } else {
-              remove_indices <- x$group == i & x$facet == j & x$x < ranges[[paste0(i, ".", j)]][1]
-              x$x[remove_indices] <- NA
-              remove_indices <- x$group == i & x$facet == j & x$x > ranges[[paste0(i, ".", j)]][2]
-              x$x[remove_indices] <- NA
-            }
-          }
-        }
-      } else if (has_groups) {
-        ranges <- lapply(
-          split(raw_data, raw_data$group),
-          function(i) range(i$x, na.rm = TRUE)
-        )
-        for (i in names(ranges)) {
-          remove_indices <- x$group == i & x$x < ranges[[i]][1]
-          x$x[remove_indices] <- NA
-          remove_indices <- x$group == i & x$x > ranges[[i]][2]
-          x$x[remove_indices] <- NA
-        }
-      } else {
-        remove_indices <- x$x < min(raw_data$x, na.rm = TRUE) | x$x > max(raw_data$x, na.rm = TRUE)
-        x$x[remove_indices] <- NA
-      }
-    }
+    x <- .limit_x_range(x, has_groups, has_facets)
   }
-
 
   # partial residuals?
   if (show_residuals) {
@@ -463,6 +349,41 @@ plot.ggeffects <- function(x,
     one_plot <- FALSE
   }
 
+  # prepare arguments for single and multiple plot
+  plot_args <- list(
+    colors = colors,
+    has_groups = has_groups,
+    facets_grp = facets_grp,
+    facets = facets,
+    facet_polr = facet_polr,
+    is_black_white = is_black_white,
+    x_is_factor = x_is_factor,
+    alpha = alpha,
+    dot_alpha = dot_alpha,
+    dodge = dodge,
+    show_ci = show_ci,
+    ci_style = ci_style,
+    dot_size = dot_size,
+    dot_shape = dot_shape,
+    line_size = line_size,
+    connect_lines = connect_lines,
+    case = case,
+    jitter = jitter,
+    jitter.miss = jitter.miss,
+    show_data = show_data,
+    label.data = data_labels,
+    residuals = show_residuals,
+    residuals.line = show_residuals_line,
+    show_title = show_title,
+    show_x_title = show_x_title,
+    show_y_title = show_y_title,
+    log_y = log_y,
+    y.breaks = y.breaks,
+    y.limits = y.limits,
+    use_theme = use_theme,
+    latent_thresholds = latent_thresholds,
+    verbose = verbose
+  )
 
   if (has_panel) {
     panels <- unique(x$panel)
@@ -476,48 +397,16 @@ plot.ggeffects <- function(x,
       )
 
       if (one_plot && .i < length(panels)) {
-        show_l <- FALSE
+        show_temp_legend <- FALSE
       } else {
-        show_l <- show_legend
+        show_temp_legend <- show_legend
       }
 
-      pl <- plot_panel(
-        x = x[x$panel == .p, , drop = FALSE],
-        colors = colors,
-        has_groups = has_groups,
-        facets_grp = facets_grp,
-        facets = facets,
-        facet_polr = facet_polr,
-        is_black_white = is_black_white,
-        x_is_factor = x_is_factor,
-        alpha = alpha,
-        dot.alpha = dot_alpha,
-        dodge = dodge,
-        show.ci = show_ci,
-        ci.style = ci_style,
-        dot.size = dot_size,
-        line.size = line_size,
-        connect.lines = connect_lines,
-        case = case,
-        jitter = jitter,
-        jitter.miss = jitter.miss,
-        show_data = show_data,
-        label.data = data_labels,
-        residuals = show_residuals,
-        residuals.line = show_residuals_line,
-        show.title = show_title,
-        show.x.title = show_x_title,
-        show.y.title = show_y_title,
-        show.legend = show_l,
-        log.y = log_y,
-        y.breaks = y.breaks,
-        y.limits = y.limits,
-        use.theme = use_theme,
-        n_rows = NULL,
-        latent_thresholds = latent_thresholds,
-        verbose = verbose,
-        ...
-      )
+      plot_args$x <- x[x$panel == .p, , drop = FALSE]
+      plot_args$show_legend <- show_temp_legend
+      plot_args$n_rows <- NULL
+
+      pl <- do.call(plot_panel, c(plot_args, list(...)))
 
       if (one_plot) {
         if (.i < length(panels)) {
@@ -531,43 +420,11 @@ plot.ggeffects <- function(x,
       pl
     })
   } else {
-    p <- plot_panel(
-      x = x,
-      colors = colors,
-      has_groups = has_groups,
-      facets_grp = facets_grp,
-      facets = facets,
-      facet_polr = facet_polr,
-      is_black_white = is_black_white,
-      x_is_factor = x_is_factor,
-      alpha = alpha,
-      dot.alpha = dot_alpha,
-      dodge = dodge,
-      show.ci = show_ci,
-      ci.style = ci_style,
-      dot.size = dot_size,
-      line.size = line_size,
-      connect.lines = connect_lines,
-      case = case,
-      jitter = jitter,
-      jitter.miss = jitter.miss,
-      show_data = show_data,
-      label.data = data_labels,
-      residuals = show_residuals,
-      residuals.line = show_residuals_line,
-      show.title = show_title,
-      show.x.title = show_x_title,
-      show.y.title = show_y_title,
-      show.legend = show_legend,
-      log.y = log_y,
-      y.breaks = y.breaks,
-      y.limits = y.limits,
-      use.theme = use_theme,
-      n_rows = n_rows,
-      latent_thresholds = latent_thresholds,
-      verbose = verbose,
-      ...
-    )
+    plot_args$x <- x
+    plot_args$show_legend <- show_legend
+    plot_args$n_rows <- n_rows
+
+    p <- do.call(plot_panel, c(plot_args, list(...)))
   }
 
 
@@ -579,44 +436,14 @@ plot.ggeffects <- function(x,
 }
 
 
-plot_panel <- function(x,
-                       colors,
-                       has_groups,
-                       facets_grp,
-                       facets,
-                       facet_polr,
-                       is_black_white,
-                       x_is_factor,
-                       alpha,
-                       dot.alpha,
-                       dodge,
-                       show.ci,
-                       ci.style,
-                       dot.size,
-                       line.size,
-                       connect.lines,
-                       case,
-                       jitter,
-                       jitter.miss,
-                       show_data,
-                       label.data,
-                       residuals,
-                       residuals.line,
-                       show.title,
-                       show.x.title,
-                       show.y.title,
-                       show.legend,
-                       log.y,
-                       y.breaks,
-                       y.limits,
-                       use.theme,
-                       n_rows,
-                       latent_thresholds,
-                       verbose = TRUE,
-                       ...) {
-  # fake init
-  .data <- NULL
-
+plot_panel <- function(x, colors, has_groups, facets_grp, facets, facet_polr,
+                       is_black_white, x_is_factor, alpha, dot_alpha, dodge,
+                       show_ci, ci_style, dot_size, dot_shape = NULL, line_size,
+                       connect_lines, case, jitter, jitter.miss, show_data,
+                       label.data, residuals, residuals.line, show_title,
+                       show_x_title, show_y_title, show_legend, log_y, y.breaks,
+                       y.limits, use_theme, n_rows = NULL, latent_thresholds,
+                       verbose = TRUE, ...) {
   # for plotting, we need to convert groups/facets into factors
   if (.obj_has_name(x, "group") && is.character(x$group)) {
     x$group <- factor(x$group, levels = unique(x$group))
@@ -641,71 +468,45 @@ plot_panel <- function(x,
   plot_data <- x[!is.na(x$x), ]
   single_color <- FALSE
 
+  aes_args <- list(
+    x = str2lang("x"),
+    y = str2lang("predicted"),
+    colour = str2lang("group_col"),
+    fill = str2lang("group_col")
+  )
+
   if (has_groups && !facets_grp && is_black_white && x_is_factor) {
     # - we have more than one level/category for the x-axis
     # - x-axis has a categorical predictor
     # - black/white plot is requested, so we use different point shapes
-    p <- ggplot2::ggplot(
-      plot_data,
-      ggplot2::aes(
-        x = .data[["x"]],
-        y = .data[["predicted"]],
-        colour = .data[["group_col"]],
-        fill = .data[["group_col"]],
-        shape = .data[["group"]]
-      )
-    )
+    aes_args$shape <- str2lang("group")
   } else if (has_groups && !facets_grp && is_black_white && !x_is_factor) {
     # - we have more than one level/category (legend)
     # - x-axis is a numeric / continuous predictor
     # - black/white plot is requested, so we use different line types
-    p <- ggplot2::ggplot(
-      plot_data,
-      ggplot2::aes(
-        x = .data[["x"]],
-        y = .data[["predicted"]],
-        colour = .data[["group_col"]],
-        fill = .data[["group_col"]],
-        linetype = .data[["group"]]
-      )
-    )
+    aes_args$linetype <- str2lang("group")
   } else if (has_groups && !facets_grp && !is.null(colors) && colors[1] == "gs" && x_is_factor) {
     # - we have more than one level/category (legend)
     # - x-axis is a numeric / continuous predictor
     # - grey scale plot is requested, so we use different shapes
-    p <- ggplot2::ggplot(
-      plot_data,
-      ggplot2::aes(
-        x = .data[["x"]],
-        y = .data[["predicted"]],
-        colour = .data[["group_col"]],
-        fill = .data[["group_col"]],
-        shape = .data[["group"]]
-      )
-    )
+    aes_args$shape <- str2lang("group")
   } else if (has_groups && (is.null(colors) || colors[1] != "bw")) {
     # - we have more than one level/category (legend)
     # - x-axis is either numeric or factor
     # - default color palette is used, so we don't need to map line types or shapes
-    p <- ggplot2::ggplot(
-      plot_data,
-      ggplot2::aes(
-        x = .data[["x"]],
-        y = .data[["predicted"]],
-        colour = .data[["group_col"]],
-        fill = .data[["group_col"]]
-      )
-    )
   } else {
     # - no groups, so we have a single color plot w/o legend
     # - colors are hardcoded inside geom
-    p <- ggplot2::ggplot(
-      plot_data,
-      ggplot2::aes(x = .data[["x"]], y = .data[["predicted"]])
+    aes_args <- list(
+      x = str2lang("x"),
+      y = str2lang("predicted")
     )
     # we just have one color, so we set different colors inside geom, not as aes
     single_color <- TRUE
   }
+
+  ggplot_aes <- do.call(ggplot2::aes, args = aes_args)
+  p <- ggplot2::ggplot(plot_data, mapping = ggplot_aes)
 
 
   # get color values -----
@@ -726,8 +527,8 @@ plot_panel <- function(x,
   rawdat <- attr(x, "rawdata", exact = TRUE)
   if (show_data) {
     p <- .add_raw_data_to_plot(
-      p, x, rawdat, label.data, ci.style, dot.alpha, dot.size, dodge, jitter,
-      jitter.miss, colors, verbose = verbose
+      p, x, rawdat, label.data, ci_style, dot_alpha, dot_size, dot_shape,
+      dodge, jitter, jitter.miss, colors, verbose = verbose
     )
   }
 
@@ -738,8 +539,8 @@ plot_panel <- function(x,
   residual_data <- attr(x, "residual_data", exact = TRUE)
   if (isTRUE(residuals)) {
     p <- .add_residuals_to_plot(
-      p, x, residual_data, residuals.line, ci.style, line.size, dot.alpha,
-      dot.size, dodge, jitter, colors, x_is_factor, verbose = verbose
+      p, x, residual_data, residuals.line, ci_style, line_size, dot_alpha,
+      dot_size, dot_shape, dodge, jitter, colors, x_is_factor, verbose = verbose
     )
   }
 
@@ -750,8 +551,8 @@ plot_panel <- function(x,
   random_effects_data <- attr(x, "random_effects_data", exact = TRUE)
   if (!is.null(random_effects_data)) {
     p <- .add_re_data_to_plot(
-      p, x, random_effects_data, dot.alpha, dot.size, dodge, jitter,
-      verbose = verbose
+      p, x, random_effects_data, dot_alpha, dot_size, dot_shape, dodge,
+      jitter, verbose = verbose
     )
   }
 
@@ -763,204 +564,159 @@ plot_panel <- function(x,
 
   # for x as factor
   if (x_is_factor) {
+    plot_geom <- list(
+      geom = "point",
+      position = ggplot2::position_dodge(width = dodge),
+      params = list(size = dot_size)
+    )
     # when user provides a single color, we do not use the color-aes.
     # Thus, we need to specify the color directly as argument
     if (single_color) {
-      p <- p + ggplot2::geom_point(
-        position = ggplot2::position_dodge(width = dodge),
-        size = dot.size,
-        colour = colors
-      )
-    } else {
-      p <- p + ggplot2::geom_point(
-        position = ggplot2::position_dodge(width = dodge),
-        size = dot.size
-      )
+      plot_geom$params$colour <- colors
     }
     # classical line
-  } else if (single_color) {
-    # when user provides a single color, we do not use the color-aes.
-    # Thus, we need to specify the color directly as argument
-    p <- p + ggplot2::geom_line(
-      linewidth = line.size,
-      ggplot2::aes(group = .data[["group"]]),
-      colour = colors
-    )
   } else {
-    p <- p + ggplot2::geom_line(
-      linewidth = line.size,
-      ggplot2::aes(group = .data[["group"]])
+    plot_geom <- list(
+      geom = "line",
+      mapping = do.call(ggplot2::aes, list(group = str2lang("group"))),
+      params = list(linewidth = line_size),
+      position = "identity"
     )
-  }
-
-  # connect dots with lines...
-  if (x_is_factor && connect.lines) {
     # when user provides a single color, we do not use the color-aes.
     # Thus, we need to specify the color directly as argument
     if (single_color) {
-      p <- p + ggplot2::geom_line(
-        linewidth = line.size,
-        position = ggplot2::position_dodge(width = dodge),
-        colour = colors
-      )
-    } else {
-      p <- p + ggplot2::geom_line(
-        linewidth = line.size,
-        position = ggplot2::position_dodge(width = dodge)
-      )
+      plot_geom$params$colour <- colors
     }
+  }
+  # add layer
+  plot_geom$stat <- "identity"
+  p <- p + do.call(ggplot2::layer, plot_geom)
+
+
+  # connect dots with lines...
+  if (x_is_factor && connect_lines) {
+    plot_geom <- list(
+      geom = "line",
+      stat = "identity",
+      params = list(linewidth = line_size),
+      position = ggplot2::position_dodge(width = dodge)
+    )
+    # when user provides a single color, we do not use the color-aes.
+    # Thus, we need to specify the color directly as argument
+    if (single_color) {
+      plot_geom$params$colour <- colors
+    }
+    # add layer
+    p <- p + do.call(ggplot2::layer, plot_geom)
   }
 
 
   # CI ----
 
-  if (show.ci) {
+  if (show_ci) {
+    # we need to layers here
+    plot_geom2 <- NULL
 
-    # for a factor on x-axis, use error bars
-
+    # for a factor on x-axis, always use error bars
     if (x_is_factor) {
-
-      if (ci.style == "errorbar") {
-        # when user provides a single color, we do not use the color-aes.
-        # Thus, we need to specify the color directly as argument
-        if (single_color) {
-          p <- p + ggplot2::geom_errorbar(
-            ggplot2::aes(ymin = .data[["conf.low"]], ymax = .data[["conf.high"]]),
-            position = ggplot2::position_dodge(width = dodge),
-            width = 0,
-            linewidth = line.size,
-            colour = colors
-          )
-        } else {
-          p <- p + ggplot2::geom_errorbar(
-            ggplot2::aes(ymin = .data[["conf.low"]], ymax = .data[["conf.high"]]),
-            position = ggplot2::position_dodge(width = dodge),
-            width = 0,
-            linewidth = line.size
-          )
-        }
-      } else {
-        lt <- switch(
-          ci.style,
-          dash = 2,
-          dot = 3,
-          2
-        )
-
-        # when user provides a single color, we do not use the color-aes.
-        # Thus, we need to specify the color directly as argument
-        if (single_color) {
-          p <- p + ggplot2::geom_errorbar(
-            ggplot2::aes(ymin = .data[["conf.low"]], ymax = .data[["conf.high"]], linetype = NULL),
-            position = ggplot2::position_dodge(width = dodge),
-            width = 0,
-            linetype = lt,
-            linewidth = line.size,
-            colour = colors
-          )
-        } else {
-          p <- p + ggplot2::geom_errorbar(
-            ggplot2::aes(ymin = .data[["conf.low"]], ymax = .data[["conf.high"]], linetype = NULL),
-            position = ggplot2::position_dodge(width = dodge),
-            width = 0,
-            linetype = lt,
-            linewidth = line.size
-          )
-        }
+      plot_geom <- list(
+        geom = "errorbar",
+        stat = "identity",
+        mapping = do.call(
+          ggplot2::aes,
+          list(ymin = str2lang("conf.low"), ymax = str2lang("conf.high"))
+        ),
+        params = list(width = 0, linewidth = line_size),
+        position = ggplot2::position_dodge(width = dodge)
+      )
+      # when user provides a single color, we do not use the color-aes.
+      # Thus, we need to specify the color directly as argument
+      if (single_color) {
+        plot_geom$params$colour <- colors
+      }
+      if (ci_style != "errorbar") {
+        lt <- switch(ci_style, dash = 2, dot = 3, 2)
+        plot_geom$params$linetype <- lt
       }
 
       # for continuous x, use ribbons by default
-    } else if (ci.style == "ribbon") {
-      # when user provides a single color, we do not use the color-aes.
-      # Thus, we need to specify the color directly as argument
-      if (single_color) {
-        p <- p + ggplot2::geom_ribbon(
-          ggplot2::aes(
-            ymin = .data[["conf.low"]],
-            ymax = .data[["conf.high"]],
-            colour = NULL,
-            linetype = NULL,
-            shape = NULL,
-            group = .data[["group"]]
-          ),
-          alpha = alpha,
-          fill = colors
-        )
-      } else {
-        p <- p + ggplot2::geom_ribbon(
-          ggplot2::aes(
-            ymin = .data[["conf.low"]],
-            ymax = .data[["conf.high"]],
-            colour = NULL,
-            linetype = NULL,
-            shape = NULL,
-            group = .data[["group"]]
-          ),
-          alpha = alpha
-        )
-      }
-    } else if (ci.style == "errorbar") {
-      # when user provides a single color, we do not use the color-aes.
-      # Thus, we need to specify the color directly as argument
-      if (single_color) {
-        p <- p + ggplot2::geom_point(
-          position = ggplot2::position_dodge(width = dodge),
-          size = dot.size,
-          colour = colors
-        ) +
-          ggplot2::geom_errorbar(
-            ggplot2::aes(ymin = .data[["conf.low"]], ymax = .data[["conf.high"]], shape = NULL),
-            position = ggplot2::position_dodge(width = dodge),
-            linewidth = line.size,
-            width = 0,
-            colour = colors
+    } else if (ci_style == "ribbon") {
+      plot_geom <- list(
+        geom = "ribbon",
+        stat = "identity",
+        position = "identity",
+        mapping = do.call(
+          ggplot2::aes,
+          list(
+            ymin = str2lang("conf.low"), ymax = str2lang("conf.high"),
+            colour = NULL, linetype = NULL, shape = NULL, group = str2lang("group")
           )
-      } else {
-        p <- p + ggplot2::geom_point(
-          position = ggplot2::position_dodge(width = dodge),
-          size = dot.size
-        ) +
-          ggplot2::geom_errorbar(
-            ggplot2::aes(ymin = .data[["conf.low"]], ymax = .data[["conf.high"]], shape = NULL),
-            position = ggplot2::position_dodge(width = dodge),
-            linewidth = line.size,
-            width = 0
-          )
-      }
-    } else {
-
-      lt <- switch(
-        ci.style,
-        dash = 2,
-        dot = 3,
-        2
+        ),
+        params = list(alpha = alpha)
       )
-
       # when user provides a single color, we do not use the color-aes.
       # Thus, we need to specify the color directly as argument
       if (single_color) {
-        p <- p +
-          ggplot2::geom_line(
-            ggplot2::aes(y = .data[["conf.low"]], linetype = NULL),
-            linetype = lt,
-            colour = colors
-          ) +
-          ggplot2::geom_line(
-            ggplot2::aes(y = .data[["conf.high"]], linetype = NULL),
-            linetype = lt,
-            colour = colors
-          )
-      } else {
-        p <- p +
-          ggplot2::geom_line(
-            ggplot2::aes(y = .data[["conf.low"]], linetype = NULL),
-            linetype = lt
-          ) +
-          ggplot2::geom_line(
-            ggplot2::aes(y = .data[["conf.high"]], linetype = NULL),
-            linetype = lt
-          )
+        plot_geom$params$fill <- colors
       }
+
+    } else if (ci_style == "errorbar") {
+      plot_geom <- list(
+        geom = "point",
+        stat = "identity",
+        params = list(size = dot_size),
+        position = ggplot2::position_dodge(width = dodge)
+      )
+      plot_geom2 <- list(
+        geom = "errorbar",
+        stat = "identity",
+        mapping = do.call(
+          ggplot2::aes,
+          list(ymin = str2lang("conf.low"), ymax = str2lang("conf.high"), shape = NULL)
+        ),
+        params = list(linewidth = line_size, width = 0),
+        position = ggplot2::position_dodge(width = dodge)
+      )
+      # when user provides a single color, we do not use the color-aes.
+      # Thus, we need to specify the color directly as argument
+      if (single_color) {
+        plot_geom$params$colour <- colors
+        plot_geom2$params$colour <- colors
+      }
+
+    } else {
+      lt <- switch(ci_style, dash = 2, dot = 3, 2)
+      plot_geom <- list(
+        geom = "line",
+        stat = "identity",
+        position = "identity",
+        mapping = do.call(
+          ggplot2::aes,
+          list(y = str2lang("conf.low"), linetype = NULL)
+        ),
+        params = list(linetype = lt)
+      )
+      plot_geom2 <- list(
+        geom = "line",
+        stat = "identity",
+        position = "identity",
+        mapping = do.call(
+          ggplot2::aes,
+          list(y = str2lang("conf.high"), linetype = NULL)
+        ),
+        params = list(linetype = lt)
+      )
+      # when user provides a single color, we do not use the color-aes.
+      # Thus, we need to specify the color directly as argument
+      if (single_color) {
+        plot_geom$params$colour <- colors
+        plot_geom2$params$colour <- colors
+      }
+    }
+    # add layer(s)
+    p <- p + do.call(ggplot2::layer, plot_geom)
+    if (!is.null(plot_geom2)) {
+      p <- p + do.call(ggplot2::layer, plot_geom2)
     }
   }
 
@@ -1024,10 +780,10 @@ plot_panel <- function(x,
 
   # show/hide titles ----
 
-  if (!show.title) attr(x, "title") <- NULL
-  if (!show.title) attr(x, "n.trials") <- NULL
-  if (!show.x.title) attr(x, "x.title") <- NULL
-  if (!show.y.title) attr(x, "y.title") <- NULL
+  if (!show_title) attr(x, "title") <- NULL
+  if (!show_title) attr(x, "n.trials") <- NULL
+  if (!show_x_title) attr(x, "x.title") <- NULL
+  if (!show_y_title) attr(x, "y.title") <- NULL
 
 
   # set axis titles ----
@@ -1040,7 +796,7 @@ plot_panel <- function(x,
     subtitle = get_sub_title(x)
   )
 
-  if (has_groups && show.legend)
+  if (has_groups && show_legend)
     p <- p + ggplot2::labs(
       colour = get_legend_title(x, case),
       linetype = get_legend_title(x, case),
@@ -1063,7 +819,7 @@ plot_panel <- function(x,
 
   # show or hide legend -----
 
-  if (!show.legend) {
+  if (!show_legend) {
     p <- p + ggplot2::labs(
       colour = NULL,
       linetype = NULL,
@@ -1076,7 +832,7 @@ plot_panel <- function(x,
   # for binomial family, fix coord ----
 
   if (attr(x, "logistic", exact = TRUE) == "1" && attr(x, "is.trial", exact = TRUE) == "0") {
-    if (log.y) {
+    if (log_y) {
       if (is.null(y.breaks)) {
         p <- p + ggplot2::scale_y_log10(labels = .percents, ...)
       } else {
@@ -1085,7 +841,7 @@ plot_panel <- function(x,
     } else {
       p <- p + ggplot2::scale_y_continuous(labels = .percents, ...)
     }
-  } else if (log.y) {
+  } else if (log_y) {
     if (is.null(y.breaks)) {
       p <- p + ggplot2::scale_y_log10(...)
     } else {
@@ -1096,8 +852,9 @@ plot_panel <- function(x,
   }
 
   # tweak theme
-  if (use.theme)
+  if (use_theme) {
     p <- p + theme_ggeffects()
+  }
 
   suppressWarnings(p)
 }
@@ -1216,8 +973,6 @@ plot.see_equivalence_test_ggeffects <- function(x,
                                                 n_columns = 1,
                                                 ...) {
   insight::check_if_installed("ggplot2")
-  .data <- NULL
-
   .rope <- c(x$ROPE_low[1], x$ROPE_high[1])
 
   # check for user defined arguments
@@ -1250,12 +1005,15 @@ plot.see_equivalence_test_ggeffects <- function(x,
 
   p <- ggplot2::ggplot(
     x,
-    ggplot2::aes(
-      y = .data[["Parameter"]],
-      x = .data[["Estimate"]],
-      xmin = .data[["CI_low"]],
-      xmax = .data[["CI_high"]],
-      colour = .data[["ROPE_Equivalence"]]
+    mapping = do.call(
+      ggplot2::aes,
+      list(
+        y = str2lang("Parameter"),
+        x = str2lang("Estimate"),
+        xmin = str2lang("CI_low"),
+        xmax = str2lang("CI_high"),
+        colour = str2lang("ROPE_Equivalence")
+      )
     )
   ) +
     ggplot2::annotate(
@@ -1298,21 +1056,52 @@ plot.see_equivalence_test_ggeffects <- function(x,
 }
 
 
+.limit_x_range <- function(x, has_groups, has_facets) {
+  raw_data <- attr(x, "rawdata", exact = TRUE)
+  if (!is.null(raw_data)) {
+    if (has_groups && has_facets) {
+      ranges <- lapply(
+        split(raw_data, list(raw_data$group, raw_data$facet)),
+        function(i) range(i$x, na.rm = TRUE)
+      )
+      for (i in unique(raw_data$group)) {
+        for (j in unique(raw_data$facet)) {
+          if (any(is.infinite(ranges[[paste0(i, ".", j)]]))) {
+            remove_indices <- x$group == i & x$facet == j
+            x$x[remove_indices] <- NA
+          } else {
+            remove_indices <- x$group == i & x$facet == j & x$x < ranges[[paste0(i, ".", j)]][1]
+            x$x[remove_indices] <- NA
+            remove_indices <- x$group == i & x$facet == j & x$x > ranges[[paste0(i, ".", j)]][2]
+            x$x[remove_indices] <- NA
+          }
+        }
+      }
+    } else if (has_groups) {
+      ranges <- lapply(
+        split(raw_data, raw_data$group),
+        function(i) range(i$x, na.rm = TRUE)
+      )
+      for (i in names(ranges)) {
+        remove_indices <- x$group == i & x$x < ranges[[i]][1]
+        x$x[remove_indices] <- NA
+        remove_indices <- x$group == i & x$x > ranges[[i]][2]
+        x$x[remove_indices] <- NA
+      }
+    } else {
+      remove_indices <- x$x < min(raw_data$x, na.rm = TRUE) | x$x > max(raw_data$x, na.rm = TRUE)
+      x$x[remove_indices] <- NA
+    }
+  }
+  x
+}
+
+
 #' @keywords internal
-.add_raw_data_to_plot <- function(p,
-                                  x,
-                                  rawdat,
-                                  label.data,
-                                  ci.style,
-                                  dot.alpha,
-                                  dot.size,
-                                  dodge,
-                                  jitter,
-                                  jitter.miss,
-                                  colors,
-                                  verbose = TRUE) {
+.add_raw_data_to_plot <- function(p, x, rawdat, label.data, ci_style, dot_alpha,
+                                  dot_size, dot_shape, dodge, jitter, jitter.miss,
+                                  colors, verbose = TRUE) {
   insight::check_if_installed("ggplot2", reason = "to produce plots of adjusted predictions")
-  .data <- NULL
 
   # we need an own aes for this
   # we plot rawdata first, so it doesn't overlay the
@@ -1361,112 +1150,84 @@ plot.see_equivalence_test_ggeffects <- function(x,
       rawdat <- rawdat[which(rawdat$group %in% x$group), , drop = FALSE]
     }
 
+    aes_args <- list(
+      x = str2lang("x"),
+      y = str2lang("response")
+    )
     # if we have groups, add colour aes, to map raw data to grouping variable
     if (grps) {
-      mp <- ggplot2::aes(
-        x = .data[["x"]],
-        y = .data[["response"]],
-        colour = .data[["group_col"]]
-      )
-    } else {
-      mp <- ggplot2::aes(
-        x = .data[["x"]],
-        y = .data[["response"]]
-      )
+      aes_args$colour <- str2lang("group_col")
+    } else if (ci_style == "errorbar") {
+      aes_args$fill <- str2lang("group_col")
     }
+    mp <- do.call(ggplot2::aes, aes_args)
 
     # no jitter? Tell user about overlap
     if ((is.null(jitter) || isTRUE(all(jitter == 0))) && verbose) {
       insight::format_alert("Data points may overlap. Use the `jitter` argument to add some amount of random variation to the location of data points and avoid overplotting.") # nolint
     }
 
-    # for binary response, no jittering by default
-    if ((attr(x, "logistic", exact = TRUE) == "1" && jitter.miss) || is.null(jitter)) {
-      p <- p + ggplot2::geom_point(
-        data = rawdat,
-        mapping = mp,
-        alpha = dot.alpha,
-        size = dot.size,
-        show.legend = FALSE,
-        inherit.aes = FALSE,
-        shape = 16
+    # base geom
+    plot_geom <- list(
+      geom = "point",
+      stat = "identity",
+      position = "identity",
+      data = rawdat,
+      mapping = mp,
+      show.legend = FALSE,
+      inherit.aes = FALSE,
+      params = list(
+        alpha = dot_alpha,
+        size = dot_size,
+        shape = dot_shape
       )
-    } else {
+    )
 
-      # no jitter
+    # for binary response, no jittering by default
+    if (attr(x, "logistic", exact = TRUE) != "1" || !jitter.miss || !is.null(jitter)) {
+      # no jitter desired?
       if (is.null(jitter) || isTRUE(all(jitter == 0))) {
         jitter <- c(0, 0)
       }
-
-      # if we have error bars, these are dodged, so we need to dodge the
-      # data points as well
-      if (ci.style == "errorbar") {
-        if (grps) {
-          p <- p + ggplot2::geom_point(
-            data = rawdat,
-            mapping = ggplot2::aes(x = .data[["x"]], y = .data[["response"]], colour = .data[["group_col"]]),
-            alpha = dot.alpha,
-            size = dot.size,
-            position = ggplot2::position_jitterdodge(
-              jitter.width = jitter[1],
-              jitter.height = jitter[2],
-              dodge.width = dodge
-            ),
-            show.legend = FALSE,
-            inherit.aes = FALSE,
-            shape = 16
-          )
-        } else {
-          p <- p + ggplot2::geom_point(
-            data = rawdat,
-            mapping = ggplot2::aes(x = .data[["x"]], y = .data[["response"]], fill = .data[["group_col"]]),
-            alpha = dot.alpha,
-            size = dot.size,
-            position = ggplot2::position_jitterdodge(
-              jitter.width = jitter[1],
-              jitter.height = jitter[2],
-              dodge.width = dodge
-            ),
-            show.legend = FALSE,
-            inherit.aes = FALSE,
-            shape = 16,
-            color = colors[1]
-          )
+      if (ci_style == "errorbar") {
+        # if we have error bars, these are dodged, so we need to dodge the
+        # data points as well
+        plot_geom$position <- ggplot2::position_jitterdodge(
+          jitter.width = jitter[1],
+          jitter.height = jitter[2],
+          dodge.width = dodge
+        )
+        if (!grps) {
+          plot_geom$params$colour <- colors[1]
         }
       } else {
-        p <- p + ggplot2::geom_jitter(
-          data = rawdat,
-          mapping = mp,
-          alpha = dot.alpha,
-          size = dot.size,
+        # for ribbons, we have no dodged position, so just add
+        # some jitter to the data points
+        plot_geom$position <- ggplot2::position_jitter(
           width = jitter[1],
-          height = jitter[2],
-          show.legend = FALSE,
-          inherit.aes = FALSE,
-          shape = 16
+          height = jitter[2]
         )
       }
     }
+    # add layer(s)
+    p <- p + do.call(ggplot2::layer, plot_geom)
+
     if (label.data) {
+      aes_args <- list(
+        x = str2lang("x"),
+        y = str2lang("response"),
+        label = str2lang("rowname")
+      )
       if (grps) {
-        mp2 <- ggplot2::aes(
-          x = .data[["x"]],
-          y = .data[["response"]],
-          label = .data[["rowname"]],
-          colour = .data[["group_col"]]
-        )
-      } else {
-        mp2 <- ggplot2::aes(
-          x = .data[["x"]],
-          y = .data[["response"]],
-          label = .data[["rowname"]]
-        )
+        aes_args$colour <- str2lang("group_col")
       }
+      mp2 <- do.call(ggplot2::aes, aes_args)
+
       if (insight::check_if_installed("ggrepel", quietly = TRUE)) {
         p <- p + ggrepel::geom_text_repel(
           data = rawdat,
           mapping = mp2,
-          alpha = dot.alpha,
+          alpha = dot_alpha,
           show.legend = FALSE,
           inherit.aes = FALSE
         )
@@ -1474,7 +1235,7 @@ plot.see_equivalence_test_ggeffects <- function(x,
         p <- p + ggplot2::geom_text(
           data = rawdat,
           mapping = mp2,
-          alpha = dot.alpha,
+          alpha = dot_alpha,
           show.legend = FALSE,
           inherit.aes = FALSE
         )
@@ -1489,28 +1250,16 @@ plot.see_equivalence_test_ggeffects <- function(x,
 
 
 #' @keywords internal
-.add_residuals_to_plot <- function(p,
-                                   x,
-                                   residuals,
-                                   residuals.line,
-                                   ci.style,
-                                   line.size,
-                                   dot.alpha,
-                                   dot.size,
-                                   dodge,
-                                   jitter,
-                                   colors,
-                                   x_is_factor,
+.add_residuals_to_plot <- function(p, x, residuals, residuals.line, ci_style,
+                                   line_size, dot_alpha, dot_size, dot_shape,
+                                   dodge, jitter, colors, x_is_factor,
                                    verbose = TRUE) {
   insight::check_if_installed("ggplot2", reason = "to produce plots of adjusted predictions")
-  .data <- NULL
 
   if (!is.null(residuals)) {
-
     # if we have a categorical x, we may need to reorder values, e.g. if we
     # have a reference level that results in non-alphabetical order of levels, see #288
     if (x_is_factor) {
-      insight::check_if_installed("datawizard")
       xlab <- attributes(x)$x.axis.labels
       # check if labels of original data is also present for residuals, and if
       # labels are not sorted - then resort x-values of residuals
@@ -1529,7 +1278,6 @@ plot.see_equivalence_test_ggeffects <- function(x,
 
     residuals$facet <- NULL
     residuals$panel <- NULL
-
 
     # check if we have a group-variable with at least two groups
     if (.obj_has_name(residuals, "group")) {
@@ -1552,53 +1300,39 @@ plot.see_equivalence_test_ggeffects <- function(x,
       residuals <- residuals[which(residuals$group %in% x$group), , drop = FALSE]
     }
 
-
-    # if we have groups, add colour aes, to map raw data to
-    # grouping variable
+    # if we have groups, add colour aes, to map raw data to grouping variable
+    aes_args <- list(x = str2lang("x"), y = str2lang("predicted"))
     if (grps) {
-      mp <- ggplot2::aes(x = .data[["x"]], y = .data[["predicted"]], colour = .data[["group_col"]])
-    } else {
-      mp <- ggplot2::aes(x = .data[["x"]], y = .data[["predicted"]])
+      aes_args$colour <- str2lang("group_col")
+    }
+    mp <- do.call(ggplot2::aes, aes_args)
+
+    # base geom
+    plot_geom <- list(
+      geom = "point",
+      position = "identity",
+      stat = "identity",
+      mapping = mp,
+      data = residuals,
+      show.legend = FALSE,
+      inherit.aes = FALSE,
+      params = list(size = dot_size, alpha = dot_alpha, shape = dot_shape)
+    )
+
+    if (is.null(jitter) && verbose) {
+      insight::format_alert("Data points may overlap. Use the `jitter` argument to add some amount of random variation to the location of data points and avoid overplotting.")
     }
 
-    # if ("group" %in% colnames(residuals)) {
-    #   if (isTRUE(attr(x, "continuous.group"))) {
-    #     residuals$group_col <- as.numeric(as.character(residuals$group))
-    #   } else {
-    #     residuals$group_col <- residuals$group
-    #   }
-    #   residuals$group <- as.factor(residuals$group)
-    #   mp <- ggplot2::aes(x = .data[["x, y = .data[["predicted, colour = .data[["group_col)
-    # } else {
-    #   mp <- ggplot2::aes(x = .data[["x, y = .data[["predicted)
-    # }
-
-    if (is.null(jitter)) {
-      p <- p + ggplot2::geom_point(
-        data = residuals,
-        mapping = mp,
-        alpha = dot.alpha,
-        size = dot.size,
-        show.legend = FALSE,
-        inherit.aes = FALSE,
-        shape = 16
-      )
-      if (verbose) {
-        insight::format_alert("Data points may overlap. Use the `jitter` argument to add some amount of random variation to the location of data points and avoid overplotting.")
-      }
-    } else {
-      p <- p + ggplot2::geom_jitter(
-        data = residuals,
-        mapping = mp,
-        alpha = dot.alpha,
-        size = dot.size,
+    # add jitter, if requested
+    if (!is.null(jitter)) {
+      plot_geom$position <- ggplot2::position_jitter(
         width = jitter[1],
-        height = jitter[2],
-        show.legend = FALSE,
-        inherit.aes = FALSE,
-        shape = 16
+        height = jitter[2]
       )
     }
+
+    # add layer
+    p <- p + do.call(ggplot2::layer, plot_geom)
 
     if (isTRUE(residuals.line)) {
       p <- p + ggplot2::geom_smooth(
@@ -1606,7 +1340,7 @@ plot.see_equivalence_test_ggeffects <- function(x,
         mapping = mp,
         method = "loess",
         inherit.aes = FALSE,
-        size = line.size,
+        linewidth = line_size,
         se = FALSE
       )
     }
@@ -1620,16 +1354,9 @@ plot.see_equivalence_test_ggeffects <- function(x,
 
 
 #' @keywords internal
-.add_re_data_to_plot <- function(p,
-                                 x,
-                                 random_effects_data,
-                                 dot.alpha,
-                                 dot.size,
-                                 dodge,
-                                 jitter,
-                                 verbose = TRUE) {
+.add_re_data_to_plot <- function(p, x, random_effects_data, dot_alpha, dot_size,
+                                 dot_shape, dodge, jitter, verbose = TRUE) {
   insight::check_if_installed("ggplot2", reason = "to produce plots of adjusted predictions")
-  .data <- NULL
 
   # make sure x on x-axis is on same scale
   if (is.numeric(x$x) && !is.numeric(random_effects_data$x)) {
@@ -1641,44 +1368,42 @@ plot.see_equivalence_test_ggeffects <- function(x,
     random_effects_data$group_col <- as.factor(random_effects_data$group_col)
   }
 
+  # if we have groups, add colour aes, to map raw data to grouping variable
+  aes_args <- list(x = str2lang("x"), colour = str2lang("group_col"))
   if ("response" %in% names(random_effects_data)) {
-    mp <- ggplot2::aes(x = .data[["x"]], y = .data[["response"]], colour = .data[["group_col"]])
+    aes_args$y <- str2lang("response")
   } else {
-    mp <- ggplot2::aes(x = .data[["x"]], y = .data[["predicted"]], colour = .data[["group_col"]])
+    aes_args$y <- str2lang("predicted")
+  }
+  mp <- do.call(ggplot2::aes, aes_args)
+
+  # base geom
+  plot_geom <- list(
+    geom = "point",
+    stat = "identity",
+    mapping = mp,
+    data = random_effects_data,
+    show.legend = FALSE,
+    inherit.aes = FALSE,
+    params = list(size = dot_size, alpha = dot_alpha, shape = dot_shape)
+  )
+
+  if (is.null(jitter) && verbose) {
+    insight::format_alert("Data points may overlap. Use the `jitter` argument to add some amount of random variation to the location of data points and avoid overplotting.") # nolint
   }
 
+  # add jitter, if requested
   if (is.null(jitter)) {
-    p <- p + ggplot2::geom_point(
-      data = random_effects_data,
-      mapping = mp,
-      alpha = dot.alpha,
-      size = dot.size,
-      position = ggplot2::position_dodge(width = dodge),
-      show.legend = FALSE,
-      inherit.aes = FALSE,
-      shape = 16
-    )
-    if (verbose) {
-      insight::format_alert("Data points may overlap. Use the `jitter` argument to add some amount of random variation to the location of data points and avoid overplotting.") # nolint
-    }
+    plot_geom$position <- ggplot2::position_dodge(width = dodge)
   } else {
-    p <- p + ggplot2::geom_point(
-      data = random_effects_data,
-      mapping = mp,
-      alpha = dot.alpha,
-      size = dot.size,
-      position = ggplot2::position_jitterdodge(
-        jitter.width = jitter[1],
-        jitter.height = jitter[2],
-        dodge.width = dodge
-      ),
-      show.legend = FALSE,
-      inherit.aes = FALSE,
-      shape = 16
+    plot_geom$position <- ggplot2::position_jitter(
+      width = jitter[1],
+      height = jitter[2]
     )
   }
 
-  p
+  # add layer
+  p + do.call(ggplot2::layer, plot_geom)
 }
 
 

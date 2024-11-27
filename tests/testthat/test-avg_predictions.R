@@ -26,8 +26,8 @@ test_that("ggpredict, condition", {
   # valid type arguments
   expect_error(ggaverage(model, focal, type = "random"), regex = "`type = \"random\"` is not supported")
   expect_error(ggaverage(model, focal, type = "link"), regex = "`type = \"link\"` is not supported")
-  expect_error(predict_response(model, focal, margin = "ame", type = "random"), regex = "`type = \"random\"` is not supported")
-  expect_error(predict_response(model, focal, margin = "ame", type = "link"), regex = "`type = \"link\"` is not supported")
+  expect_error(predict_response(model, focal, margin = "average", type = "random"), regex = "`type = \"random\"` is not supported")
+  expect_error(predict_response(model, focal, margin = "average", type = "link"), regex = "`type = \"link\"` is not supported")
 
   model <- lm(neg_c_7 ~ c12hour + e42dep + c161sex + c172code, data = efc)
   out1 <- ggaverage(model, focal)
@@ -41,7 +41,7 @@ test_that("ggpredict, condition", {
 
   # vcov
   skip_if_not_installed("sandwich")
-  out3 <- ggaverage(model, focal, vcov_fun = "HC0")
+  out3 <- ggaverage(model, focal, vcov = "HC0")
   expect_equal(
     out3$conf.low,
     c(10.9112, 11.2802, 11.5731, 11.0061, 11.3741, 11.6526, 11.0946, 11.4556, 11.7258),
@@ -78,8 +78,8 @@ withr::with_environment(
 
     expect_snapshot(print(out1))
     expect_silent(ggaverage(model, focal, type = "link"))
-    expect_silent(predict_response(model, focal, margin = "ame", type = "link"))
-    expect_silent(predict_response(model, focal, margin = "ame", type = "fixed"))
-    expect_error(predict_response(model, focal, margin = "ame", type = "probs"))
+    expect_silent(predict_response(model, focal, margin = "average", type = "link"))
+    expect_silent(predict_response(model, focal, margin = "average", type = "fixed"))
+    expect_error(predict_response(model, focal, margin = "average", type = "probs"))
   })
 )

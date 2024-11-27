@@ -1,6 +1,21 @@
-get_predictions_cgam <- function(model, data_grid, ci.lvl, linv, value_adjustment, model_class, terms, condition, ...) {
+#' @export
+get_predictions.cgam <- function(model,
+                                 data_grid = NULL,
+                                 terms = NULL,
+                                 ci_level = 0.95,
+                                 type = NULL,
+                                 typical = NULL,
+                                 vcov = NULL,
+                                 vcov_args = NULL,
+                                 condition = NULL,
+                                 interval = "confidence",
+                                 bias_correction = FALSE,
+                                 link_inverse = NULL,
+                                 model_info = NULL,
+                                 verbose = TRUE,
+                                 ...) {
   # does user want standard errors?
-  se <- !is.null(ci.lvl) && !is.na(ci.lvl)
+  se <- !is.null(ci_level) && !is.na(ci_level)
 
   # does user want standard errors?
   if (se) {
@@ -10,8 +25,8 @@ get_predictions_cgam <- function(model, data_grid, ci.lvl, linv, value_adjustmen
   }
 
   # compute ci, two-ways
-  if (!is.null(ci.lvl) && !is.na(ci.lvl)) {
-    ci <- (1 + ci.lvl) / 2
+  if (!is.null(ci_level) && !is.na(ci_level)) {
+    ci <- (1 + ci_level) / 2
   } else {
     ci <- 0.975
   }
@@ -44,12 +59,10 @@ get_predictions_cgam <- function(model, data_grid, ci.lvl, linv, value_adjustmen
     se.pred <- .standard_error_predictions(
       model = model,
       prediction_data = data_grid,
-      value_adjustment = value_adjustment,
+      typical = typical,
       terms = terms,
-      model_class = model_class,
-      vcov.fun = NULL,
-      vcov.type = NULL,
-      vcov.args = NULL,
+      vcov = NULL,
+      vcov_args = NULL,
       condition = condition,
       interval = interval
     )
@@ -67,8 +80,8 @@ get_predictions_cgam <- function(model, data_grid, ci.lvl, linv, value_adjustmen
   }
 
   if (se) {
-    data_grid$conf.low <- linv(data_grid$predicted - tcrit * se.fit)
-    data_grid$conf.high <- linv(data_grid$predicted + tcrit * se.fit)
+    data_grid$conf.low <- link_inverse(data_grid$predicted - tcrit * se.fit)
+    data_grid$conf.high <- link_inverse(data_grid$predicted + tcrit * se.fit)
     # copy standard errors
     attr(data_grid, "std.error") <- se.fit
     if (!is.null(se.pred) && length(se.pred) > 0) {
@@ -81,7 +94,7 @@ get_predictions_cgam <- function(model, data_grid, ci.lvl, linv, value_adjustmen
   }
 
   # transform predicted values
-  data_grid$predicted <- linv(data_grid$predicted)
+  data_grid$predicted <- link_inverse(data_grid$predicted)
 
   data_grid
 }

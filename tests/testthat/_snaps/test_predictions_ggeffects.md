@@ -161,6 +161,19 @@
       1. Generation-Gen. 3. |    -0.43 | -1.33, 0.47 | 0.347
       2nd Gen-Gen. 3.       |    -0.42 | -1.36, 0.52 | 0.375
 
+---
+
+    Code
+      print(out)
+    Output
+      # Pairwise comparisons
+      
+      x2  |            x1 | Contrast |      95% CI |     p
+      ----------------------------------------------------
+      1-2 | 1. Generation |     0.81 | -1.64, 3.26 | 0.514
+      1-2 |       2nd Gen |     0.46 | -1.99, 2.92 | 0.708
+      1-2 |       Gen. 3. |     0.20 | -2.27, 2.67 | 0.875
+
 # test_predictions, engine ggeffects, by-arg and column order
 
     Code

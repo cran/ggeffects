@@ -7,17 +7,22 @@ ggaverage <- function(model,
                       typical = "mean",
                       condition = NULL,
                       back_transform = TRUE,
-                      vcov_fun = NULL,
-                      vcov_type = NULL,
+                      vcov = NULL,
                       vcov_args = NULL,
                       weights = NULL,
                       verbose = TRUE,
                       ...) {
   insight::check_if_installed("marginaleffects")
 
+  ## TODO: remove deprecated later
+  vcov <- .prepare_vcov_args(vcov, ...)
+
   # check arguments
   type <- .validate_type_argument(model, type, marginaleffects = TRUE)
   dot_args <- list(...)
+
+  # check formula
+  insight::formula_ok(model, verbose = verbose)
 
   # process "terms", so we have the default character format. Furthermore,
   # check terms argument, to make sure that terms were not misspelled and are
@@ -25,10 +30,6 @@ ggaverage <- function(model,
   if (!missing(terms)) {
     terms <- .reconstruct_focal_terms(terms, model)
   }
-
-  # check class of fitted model, to make sure we have just one class-attribute
-  # (while "inherits()" may return multiple attributes)
-  model_class <- get_predict_function(model)
 
   # clean "terms" from possible brackets
   cleaned_terms <- .clean_terms(terms)
@@ -44,7 +45,7 @@ ggaverage <- function(model,
 
   # expand model frame to data grid of unique combinations
   data_grid <- .data_grid(
-    model = model, model_frame = model_frame, terms = terms, value_adjustment = typical,
+    model = model, model_frame = model_frame, terms = terms, typical = typical,
     condition = condition, show_pretty_message = verbose, verbose = verbose
   )
 
@@ -55,10 +56,10 @@ ggaverage <- function(model,
   # clear argument from brackets
   terms <- cleaned_terms
 
-  # if we have "vcov_fun" arguments, and `margin` is "empirical", we
+  # if we have "vcov" arguments, and `margin` is "empirical", we
   # need to prepare the `vcov` argument for "marginaleffects".
-  if (!is.null(vcov_fun)) {
-    vcov_arg <- .get_variance_covariance_matrix(model, vcov_fun, vcov_args, vcov_type, skip_if_null = TRUE)
+  if (!is.null(vcov)) {
+    vcov_arg <- .get_variance_covariance_matrix(model, vcov, vcov_args, skip_if_null = TRUE)
   } else {
     vcov_arg <- TRUE
   }
@@ -75,11 +76,19 @@ ggaverage <- function(model,
     vcov_arg <- TRUE
   }
 
+  # variables used in at-list
+  at_list_vars <- terms
+  if (!is.null(condition)) {
+    # if we condition on certain values, we need to include these
+    # in the "variables" argument as well.
+    at_list_vars <- unique(c(at_list_vars, names(condition)))
+  }
+
   # calculate average predictions
   at_list <- lapply(data_grid, unique)
   me_args <- list(
     model,
-    variables = at_list[terms],
+    variables = at_list[at_list_vars],
     conf_level = ci_level,
     type = type,
     df = .get_df(model),
@@ -140,27 +149,7 @@ ggaverage <- function(model,
     averaged_predictions = TRUE
   )
 
-  # check if outcome is log-transformed, and if so,
-  # back-transform predicted values to response scale
-  # but first, save original predicted values, to save as attribute
-  if (back_transform) {
-    untransformed.predictions <- result$predicted
-    response.transform <- insight::find_terms(model)[["response"]]
-  } else {
-    untransformed.predictions <- response.transform <- NULL
-  }
-  result <- .back_transform_response(model, result, back_transform, verbose = verbose)
-
-  # add raw data as well
-  attr(result, "rawdata") <- .back_transform_data(
-    model,
-    mydf = .get_raw_data(model, original_model_frame, terms),
-    back.transform = back_transform
-  )
-
-  attr(result, "model.name") <- model_name
-
-  .post_processing_labels(
+  .post_processing_labels_and_data(
     model = model,
     result = result,
     original_model_frame = original_model_frame,
@@ -172,12 +161,11 @@ ggaverage <- function(model,
     prediction.interval = FALSE,
     at_list = at_list,
     condition = condition,
-    ci.lvl = ci_level,
-    untransformed.predictions = untransformed.predictions,
-    back.transform = back_transform,
-    response.transform = response.transform,
-    vcov.args = if (isTRUE(vcov_arg)) NULL else vcov_arg,
+    ci_level = ci_level,
+    back_transform = back_transform,
+    vcov_args = if (isTRUE(vcov_arg)) NULL else vcov_arg,
     margin = "empirical",
+    model_name = model_name,
     verbose = verbose
   )
 }

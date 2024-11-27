@@ -1,10 +1,25 @@
-get_predictions_wbm <- function(model, data_grid, ci.lvl, linv, type, terms, condition, ...) {
+#' @export
+get_predictions.wbm <- function(model,
+                                data_grid = NULL,
+                                terms = NULL,
+                                ci_level = 0.95,
+                                type = NULL,
+                                typical = NULL,
+                                vcov = NULL,
+                                vcov_args = NULL,
+                                condition = NULL,
+                                interval = "confidence",
+                                bias_correction = FALSE,
+                                link_inverse = insight::link_inverse(model),
+                                model_info = NULL,
+                                verbose = TRUE,
+                                ...) {
   # does user want standard errors?
-  se <- !is.null(ci.lvl) && !is.na(ci.lvl)
+  se <- !is.null(ci_level) && !is.na(ci_level)
 
   # compute ci, two-ways
-  if (!is.null(ci.lvl) && !is.na(ci.lvl))
-    ci <- (1 + ci.lvl) / 2
+  if (!is.null(ci_level) && !is.na(ci_level))
+    ci <- (1 + ci_level) / 2
   else
     ci <- 0.975
 
@@ -14,10 +29,11 @@ get_predictions_wbm <- function(model, data_grid, ci.lvl, linv, type, terms, con
 
   # check whether predictions should be conditioned
   # on random effects (grouping level) or not.
-  if (type == "fixed")
+  if (type == "fixed") {
     ref <- NA
-  else
+  } else {
     ref <- NULL
+  }
 
   if (type == "simulate") {
 
@@ -44,13 +60,13 @@ get_predictions_wbm <- function(model, data_grid, ci.lvl, linv, type, terms, con
     ))
 
     if (se) {
-      data_grid$predicted <- linv(pred$fit)
-      data_grid$conf.low <- linv(pred$fit - tcrit * pred$se.fit)
-      data_grid$conf.high <- linv(pred$fit + tcrit * pred$se.fit)
+      data_grid$predicted <- link_inverse(pred$fit)
+      data_grid$conf.low <- link_inverse(pred$fit - tcrit * pred$se.fit)
+      data_grid$conf.high <- link_inverse(pred$fit + tcrit * pred$se.fit)
       # copy standard errors
       attr(data_grid, "std.error") <- pred$se.fit
     } else {
-      data_grid$predicted <- linv(as.vector(pred))
+      data_grid$predicted <- link_inverse(as.vector(pred))
       data_grid$conf.low <- NA
       data_grid$conf.high <- NA
     }
@@ -58,3 +74,6 @@ get_predictions_wbm <- function(model, data_grid, ci.lvl, linv, type, terms, con
 
   data_grid
 }
+
+#' @export
+get_predictions.wblm <- get_predictions.wbm

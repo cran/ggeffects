@@ -156,6 +156,18 @@ test_that("test_predictions, engine ggeffects, by-arg and printing levels with d
 
   out1 <- test_predictions(pr, engine = "ggeffects", by = c("x2", "x3"))
   expect_snapshot(print(out1))
+
+  # type = "simulate" works with test-predictions
+  m <- lm(outcome ~ x1 * x2, data = dat)
+  set.seed(123)
+  pr <- ggpredict(m, c("x1", "x2"), type = "simulate")
+  out <- test_predictions(pr, by = "x1")
+  expect_identical(attributes(out)$engine, "ggeffects")
+  expect_snapshot(print(out))
+  expect_error(
+    test_predictions(pr, by = "x1", test = "consecutive"),
+    regex = "Invalid option for argument `test`"
+  )
 })
 
 
@@ -199,7 +211,7 @@ test_that("test_predictions, engine ggeffects, Bayes", {
 
   pr1 <- predict_response(m1, c("var_binom", "groups"), verbose = FALSE)
   pr2 <- suppressWarnings(predict_response(m2, c("var_binom", "groups")))
-  expect_warning(
+  expect_message(
     {
       pr3 <- predict_response(m3, c("var_binom", "groups"))
     },

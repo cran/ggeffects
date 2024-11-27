@@ -11,7 +11,7 @@ test_that("ggpredict prediction interval, glm", {
   expect_equal(out$conf.high, c(66.62681, 66.72464, 70.35304), tolerance = 1e-3)
   set.seed(123)
   out <- ggpredict(m_pr0, "c172code", type = "simulate")
-  expect_equal(out$predicted, c(63.00651, 64.68146, 66.43229), tolerance = 1e-3)
+  expect_equal(out$predicted, c(63.01721, 64.71984, 66.49318), tolerance = 1e-3)
   expect_equal(out$conf.high, c(120.8162, 122.3524, 124.02301), tolerance = 1e-3)
   out <- ggpredict(m_pr0, "c172code", interval = "prediction")
   expect_equal(out$predicted, c(62.91021, 64.69758, 66.48495), tolerance = 1e-3)
@@ -45,4 +45,8 @@ test_that("ggpredict prediction interval, glm", {
   out <- ggpredict(m_pr2, "c161sex", interval = "prediction")
   expect_equal(out$predicted, c(0.34906, 0.47423), tolerance = 1e-3)
   expect_equal(out$conf.high, c(0.79527, 0.8656), tolerance = 1e-3)
+  expect_error(
+    ggpredict(m_pr2, "c161sex", type = "simulate"),
+    regex = "Can't simulate"
+  )
 })

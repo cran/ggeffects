@@ -1,3 +1,56 @@
+# ggeffects 2.0.0
+
+## Breaking changes
+
+* The way how `type = "random"` works has been revised. `type = "random"` no
+  longer returns predictions intervals. Instead, use `interval = "prediction"`.
+  `type = "random"` is now mainly responsible for *unit-level* predictions in
+  mixed models, as opposed to `type = "fixed"`, which should be used for
+  *population-level* predictions. The separation from `type = "random"` and
+  the `interval` argument makes the handling for mixed models easier, more
+  intuitive and consistent. Accordingly, the vignette regarding the introduction
+  into mixed models with *ggeffects*  has been largely revised.
+
+* The `vcov_fun` and `vcov_type` argument were removed and are now replaced
+  by the single `vcov` argument, to be in line with the handling of
+  heteroscedasticity-consistent standard errors in other packages (mainly:
+  *easystats* eco-system).
+
+* The deprecated arguments for `ggpredict()`, `vcov()`, `ggeffect()` and
+  `ggemmeans()` have been removed.
+
+* The deprecated arguments for the `plot()` method have been removed.
+
+* Options `type = "random"` and `type = "zi_random"` are not longer available
+  for `ggemmeans()`. These were only responsible to set _prediction_ intervals,
+  which can be done with `interval = "prediction"` now.
+
+## Changes
+
+* Added a `get_preditions()` method, which can be used to implement own S3-classes
+  to add support for new models to **ggeffects**. There is a corresponding
+  vignette, too.
+
+* The `plot()` method gets a `dot_shape` argument, to change the shape of data
+  points when `show_data = TRUE`.
+
+* `test_predictions` gains a `test_args` argument, to optionally pass further
+  options to `test` for *emmeans* engine/options.
+
+* `vcov()` returns a more informative warning, when the variance-covariance
+  matrix could not be extracted due to problems in creating the model matrix
+  (which prevents confidence intervals from being calculated).
+
+* Added Okabe-Ito color scale to the available color ggeffects-palettes.
+
+* For models of class `survreg`, argument `type` can also be `"quantile"`.
+
+## Bug fixes
+
+* Fixed issue with argument `condition` for `ggaverage()`.
+
+* Fixed issues with missing confidence intervals for objects of class `averaging`.
+
 # ggeffects 1.7.2
 
 ## Breaking changes

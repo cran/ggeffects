@@ -3,7 +3,7 @@ Type: Package
 Encoding: UTF-8
 Title: Create Tidy Data Frames of Marginal Effects for 'ggplot' from
         Model Outputs
-Version: 1.7.2
+Version: 2.0.0
 Authors@R: c(
       person("Daniel", "Lüdecke", role = c("aut", "cre"), email = "d.luedecke@uke.de", comment = c(ORCID = "0000-0002-8895-3206")),
       person("Frederik", "Aust", role = "ctb", comment = c(ORCID = "0000-0003-4900-788X")),
@@ -20,19 +20,20 @@ Description: Compute marginal effects and adjusted predictions from statistical
     ggemmeans() and ggeffect(). There is a generic plot()-method to plot the
     results using 'ggplot2'.
 Depends: R (>= 3.6)
-Imports: graphics, insight (>= 0.19.8), stats, utils
-Suggests: AER, aod, bayestestR, betareg, brglm2, brms, broom, car,
-        carData, clubSandwich, datawizard (>= 0.9.0), effects (>=
-        4.2-2), emmeans (>= 1.8.9), fixest, gam, gamlss, gamm4, gee,
-        geepack, ggplot2, ggrepel, GLMMadaptive, glmmTMB (>= 1.1.7),
-        gridExtra, gt, haven, htmltools, httr, jsonlite, knitr, lme4
-        (>= 1.1-35), logistf, marginaleffects (>= 0.19.0), MASS,
-        Matrix, mice, MCMCglmm, mgcv, nestedLogit (>= 0.3.0), nlme,
-        nnet, ordinal, parameters, parsnip, patchwork, pscl, quantreg,
-        rmarkdown, rms, robustbase, rstanarm, rstantools, sandwich,
-        sdmTMB (>= 0.4.0), see, sjlabelled (>= 1.1.2), sjstats, survey,
-        survival, testthat, tibble, tinytable (>= 0.1.0), vdiffr,
-        withr, VGAM
+Imports: graphics, insight (>= 1.0.0), datawizard (>= 0.13.0), stats,
+        utils
+Suggests: AER, afex, aod, bayestestR, betareg, brglm, brglm2, brms,
+        broom, car, carData, clubSandwich, dfidx, effects (>= 4.2-2),
+        emmeans (>= 1.8.9), fixest, gam, gamlss, gamm4, gee, geepack,
+        ggplot2, ggrepel, GLMMadaptive, glmmTMB (>= 1.1.7), gridExtra,
+        gt, haven, htmltools, httr2, jsonlite, knitr, lme4 (>= 1.1-35),
+        logistf, marginaleffects (>= 0.24.0), MASS, Matrix, mice,
+        MCMCglmm, MuMIn, mgcv, mclogit, mlogit, nestedLogit (>= 0.3.0),
+        nlme, nnet, ordinal, parameters, parsnip, patchwork, pscl, plm,
+        quantreg, rmarkdown, rms, robustbase, rstanarm, rstantools,
+        sandwich, sdmTMB (>= 0.4.0), see, sjlabelled (>= 1.1.2),
+        sjstats, speedglm, survey, survival, testthat, tibble,
+        tinytable (>= 0.1.0), vdiffr, withr, VGAM
 URL: https://strengejacke.github.io/ggeffects/
 BugReports: https://github.com/strengejacke/ggeffects/issues/
 RoxygenNote: 7.3.2
@@ -41,11 +42,11 @@ Config/testthat/edition: 3
 License: MIT + file LICENSE
 LazyData: true
 NeedsCompilation: no
-Packaged: 2024-10-13 10:26:17 UTC; Daniel
+Packaged: 2024-11-27 07:23:39 UTC; Daniel
 Author: Daniel Lüdecke [aut, cre] (<https://orcid.org/0000-0002-8895-3206>),
   Frederik Aust [ctb] (<https://orcid.org/0000-0003-4900-788X>),
   Sam Crawley [ctb] (<https://orcid.org/0000-0002-7847-0411>),
   Mattan S. Ben-Shachar [ctb] (<https://orcid.org/0000-0002-4287-4801>),
   Sean C. Anderson [ctb] (<https://orcid.org/0000-0001-9563-1937>)
 Repository: CRAN
-Date/Publication: 2024-10-13 11:10:02 UTC
+Date/Publication: 2024-11-27 11:40:02 UTC

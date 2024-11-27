@@ -4,7 +4,8 @@
 \alias{plot}
 \alias{plot.ggeffects}
 \alias{theme_ggeffects}
-\alias{show_pals}
+\alias{ggeffects_palette}
+\alias{show_palettes}
 \title{Plot ggeffects-objects}
 \usage{
 \method{plot}{ggeffects}(
@@ -24,11 +25,12 @@
   case = NULL,
   colors = NULL,
   alpha = 0.15,
+  dot_size = NULL,
   dot_alpha = 0.35,
+  dot_shape = NULL,
+  line_size = NULL,
   jitter = NULL,
   dodge = 0.25,
-  dot_size = NULL,
-  line_size = NULL,
   use_theme = TRUE,
   log_y = FALSE,
   connect_lines = FALSE,
@@ -37,28 +39,14 @@
   one_plot = TRUE,
   n_rows = NULL,
   verbose = TRUE,
-  ci = show_ci,
-  ci.style = ci_style,
-  rawdata = show_data,
-  add.data = show_data,
-  collapse.group = collapse_group,
-  dot.alpha = dot_alpha,
-  dot.size = dot_size,
-  line.size = line_size,
-  connect.lines = connect_lines,
-  show.title = show_title,
-  show.x.title = show_x_title,
-  show.y.title = show_y_title,
-  use.theme = use_theme,
-  show.legend = show_legend,
-  one.plot = one_plot,
-  log.y = log_y,
   ...
 )
 
 theme_ggeffects(base_size = 11, base_family = "")
 
-show_pals()
+ggeffects_palette(palette = "metro", n = NULL)
+
+show_palettes()
 }
 \arguments{
 \item{x}{An object of class \code{ggeffects}, as returned by the functions
@@ -113,7 +101,7 @@ on this argument.}
 
 \item{colors}{Character vector with color values in hex-format, valid
 color value names (see \code{demo("colors")}) or a name of a
-ggeffects-color-palette.
+ggeffects-color-palette (see \code{ggeffects_palette()}).
 
 Following options are valid for \code{colors}:
 \itemize{
@@ -122,14 +110,20 @@ Following options are valid for \code{colors}:
 \item If \code{"bw"}, the plot is black/white and uses different line types to
 distinguish groups.
 \item There are some pre-defined color-palettes in this package that can be used,
-e.g. \code{colors = "metro"}. See \code{\link[=show_pals]{show_pals()}} to show all available palettes.
+e.g. \code{colors = "metro"}. See \code{\link[=show_palettes]{show_palettes()}} to show all available palettes.
 \item Else specify own color values or names as vector (e.g.
 \code{colors = c("#f00000", "#00ff00")}).
 }}
 
 \item{alpha}{Alpha value for the confidence bands.}
 
+\item{dot_size}{Numeric, size of the point geoms.}
+
 \item{dot_alpha}{Alpha value for data points, when \code{show_data = TRUE}.}
+
+\item{dot_shape}{Shape of data points, when \code{show_data = TRUE}.}
+
+\item{line_size}{Numeric, size of the line geoms.}
 
 \item{jitter}{Numeric, between 0 and 1. If not \code{NULL} and \code{show_data = TRUE},
 adds a small amount of random variation to the location of data points dots,
@@ -142,10 +136,6 @@ jittered by default to avoid that data points exceed the axis limits.}
 Only applies, if a factor is plotted at the x-axis (in such cases, the
 confidence bands are replaced by error bars automatically), or if
 \code{ci_style = "errorbars"}.}
-
-\item{dot_size}{Numeric, size of the point geoms.}
-
-\item{line_size}{Numeric, size of the line geoms.}
 
 \item{use_theme}{Logical, if \code{TRUE}, a slightly tweaked version of ggplot's
 minimal-theme, \code{theme_ggeffects()}, is applied to the plot. If \code{FALSE}, no
@@ -173,23 +163,25 @@ multiiple rows, to avoid that plots are too small.}
 
 \item{verbose}{Logical, toggle warnings and messages.}
 
-\item{ci, add.data, rawdata, collapse.group, dot.alpha, dot.size, line.size, connect.lines, show.title, show.x.title, show.y.title, use.theme, one.plot, ci.style, show.legend, log.y}{Deprecated arguments. Use \code{show_ci}, \code{show_data}, \code{collapse_group},
-\code{dot_alpha}, \code{dot_size}, \code{line_size}, \code{connect_lines}, \code{show_title},
-\code{show_x_title}, \code{show_y_title}, \code{use_theme}, \code{ci_style}, \code{show_legend},
-\code{log_y} and \code{one_plot} instead.}
-
 \item{...}{Further arguments passed down to \verb{ggplot::scale_y*()}, to
 control the appearance of the y-axis.}
 
 \item{base_size}{Base font size.}
 
 \item{base_family}{Base font family.}
+
+\item{palette}{Name of a pre-defined color-palette as string. See
+\code{show_palettes()} to show all available palettes. Use \code{NULL} to return
+a list with names and color-codes of all avaibale palettes.}
+
+\item{n}{Number of color-codes from the palette that should be returned.}
 }
 \value{
 A ggplot2-object.
 }
 \description{
-A generic plot-method for \code{ggeffects}-objects.
+\code{plot} is a generic plot-method for \code{ggeffects}-objects.
+\code{ggeffects_palette()} returns \code{show_palettes()}
 }
 \details{
 For proportional odds logistic regression (see \code{?MASS::polr})
@@ -203,8 +195,9 @@ the \strong{ggeffects}-theme as default plotting theme. You can then use further
 plot-modifiers, e.g. from \strong{sjPlot}, like \code{legend_style()} or \code{font_size()}
 without losing the theme-modifications.
 
-There are pre-defined colour palettes in this package. Use \code{\link[=show_pals]{show_pals()}}
-to show all available colour palettes.
+There are pre-defined colour palettes in this package. Use \code{show_palettes()}
+to show all available colour palettes as plot, or
+\code{ggeffects_palette(palette = NULL)} to show the color codes.
 }
 \section{Partial Residuals}{
 
@@ -244,7 +237,10 @@ dat <- predict_response(fit, terms = c("c12hour", "c172code", "c161sex"))
 plot(dat)
 }
 
+# show color codes of specific palette
+ggeffects_palette("okabe-ito")
+
 # show all color palettes
-show_pals()
+show_palettes()
 \dontshow{\}) # examplesIf}
 }

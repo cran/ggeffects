@@ -1,16 +1,18 @@
-get_predictions_zeroinfl <- function(model,
-                                     data_grid,
-                                     ci.lvl,
-                                     linv,
-                                     type,
-                                     model_class,
-                                     value_adjustment,
-                                     terms,
-                                     vcov.fun,
-                                     vcov.type,
-                                     vcov.args,
-                                     condition,
-                                     interval = NULL,
+#' @export
+get_predictions.zeroinfl <- function(model,
+                                     data_grid = NULL,
+                                     terms = NULL,
+                                     ci_level = 0.95,
+                                     type = NULL,
+                                     typical = NULL,
+                                     vcov = NULL,
+                                     vcov_args = NULL,
+                                     condition = NULL,
+                                     interval = "confidence",
+                                     bias_correction = FALSE,
+                                     link_inverse = insight::link_inverse(model),
+                                     model_info = NULL,
+                                     verbose = TRUE,
                                      ...) {
   # get prediction type.
   if (type == "fixed") {
@@ -22,10 +24,11 @@ get_predictions_zeroinfl <- function(model,
   }
 
   # compute ci, two-ways
-  if (!is.null(ci.lvl) && !is.na(ci.lvl))
-    ci <- (1 + ci.lvl) / 2
-  else
+  if (!is.null(ci_level) && !is.na(ci_level)) {
+    ci <- (1 + ci_level) / 2
+  } else {
     ci <- 0.975
+  }
 
   # degrees of freedom
   dof <- .get_df(model)
@@ -51,7 +54,7 @@ get_predictions_zeroinfl <- function(model,
   )
 
   if (type == "zi_prob") {
-    linv <- stats::plogis
+    link_inverse <- stats::plogis
     # need back-transformation
     predicted_data$predicted <- stats::qlogis(as.vector(prdat))
   } else {
@@ -61,7 +64,6 @@ get_predictions_zeroinfl <- function(model,
 
 
   if (type == "zero_inflated") {
-
     model_frame <- insight::get_data(model, source = "frame", verbose = FALSE)
     clean_terms <- .clean_terms(terms)
 
@@ -69,7 +71,7 @@ get_predictions_zeroinfl <- function(model,
       model,
       model_frame,
       terms,
-      value_adjustment = value_adjustment,
+      typical = typical,
       factor_adjustment = FALSE,
       show_pretty_message = FALSE,
       condition = condition
@@ -81,19 +83,16 @@ get_predictions_zeroinfl <- function(model,
     # based on quantiles of simulated draws from a multivariate normal distribution
     # (see also _Brooks et al. 2017, pp.391-392_ for details).
 
-    prdat.sim <- .simulate_zi_predictions(model, newdata, nsim, terms, value_adjustment, condition)
+    prdat.sim <- .simulate_zi_predictions(model, newdata, nsim, terms, typical, condition)
 
     if (is.null(prdat.sim) || inherits(prdat.sim, c("error", "simpleError"))) {
-
       insight::print_color("Error: Confidence intervals could not be computed.\n", "red")
       cat("Possibly a polynomial term is held constant (and does not appear in the `terms`-argument). Or try reducing number of simulation, using argument `nsim` (e.g. `nsim = 100`).\n")
 
       predicted_data$predicted <- as.vector(prdat)
       predicted_data$conf.low <- NA
       predicted_data$conf.high <- NA
-
     } else {
-
       # we need two data grids here: one for all combination of levels from the
       # model predictors ("newdata"), and one with the current combinations only
       # for the terms in question ("data_grid"). "sims" has always the same
@@ -110,24 +109,20 @@ get_predictions_zeroinfl <- function(model,
         attr(predicted_data, "std.error") <- predicted_data$std.error
         predicted_data <- .remove_column(predicted_data, "std.error")
       }
-
     }
-
   } else {
-
     # get standard errors from variance-covariance matrix
     se.pred <- .standard_error_predictions(
       model = model,
       prediction_data = predicted_data,
-      value_adjustment = value_adjustment,
+      typical = typical,
       type = type,
       terms = terms,
-      model_class = model_class,
-      vcov.fun = vcov.fun,
-      vcov.type = vcov.type,
-      vcov.args = vcov.args,
+      vcov = vcov,
+      vcov_args = vcov_args,
       condition = condition,
-      interval = interval
+      interval = interval,
+      verbose = verbose
     )
 
     if (.check_returned_se(se.pred)) {
@@ -135,8 +130,8 @@ get_predictions_zeroinfl <- function(model,
       predicted_data <- se.pred$prediction_data
 
       # CI
-      predicted_data$conf.low <- linv(predicted_data$predicted - tcrit * se.fit)
-      predicted_data$conf.high <- linv(predicted_data$predicted + tcrit * se.fit)
+      predicted_data$conf.low <- link_inverse(predicted_data$predicted - tcrit * se.fit)
+      predicted_data$conf.high <- link_inverse(predicted_data$predicted + tcrit * se.fit)
 
       # copy standard errors and attributes
       attr(predicted_data, "std.error") <- se.fit
@@ -147,9 +142,15 @@ get_predictions_zeroinfl <- function(model,
       predicted_data$conf.high <- NA
     }
 
-    predicted_data$predicted <- linv(predicted_data$predicted)
-
+    predicted_data$predicted <- link_inverse(predicted_data$predicted)
   }
 
   predicted_data
 }
+
+
+#' @export
+get_predictions.hurdle <- get_predictions.zeroinfl
+
+#' @export
+get_predictions.zerotrunc <- get_predictions.zeroinfl

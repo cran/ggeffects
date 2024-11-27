@@ -1,20 +1,25 @@
-get_predictions_merMod <- function(model,
-                                   data_grid,
-                                   ci.lvl,
-                                   linv,
-                                   type,
-                                   terms,
-                                   value_adjustment,
-                                   condition,
-                                   interval = NULL,
+#' @export
+get_predictions.merMod <- function(model,
+                                   data_grid = NULL,
+                                   terms = NULL,
+                                   ci_level = 0.95,
+                                   type = NULL,
+                                   typical = NULL,
+                                   vcov = NULL,
+                                   vcov_args = NULL,
+                                   condition = NULL,
+                                   interval = "confidence",
                                    bias_correction = FALSE,
+                                   link_inverse = insight::link_inverse(model),
+                                   model_info = NULL,
+                                   verbose = TRUE,
                                    ...) {
   # does user want standard errors?
-  se <- !is.null(ci.lvl) && !is.na(ci.lvl)
+  se <- !is.null(ci_level) && !is.na(ci_level)
 
   # compute ci, two-ways
-  if (!is.null(ci.lvl) && !is.na(ci.lvl)) {
-    ci <- (1 + ci.lvl) / 2
+  if (!is.null(ci_level) && !is.na(ci_level)) {
+    ci <- (1 + ci_level) / 2
   } else {
     ci <- 0.975
   }
@@ -36,7 +41,7 @@ get_predictions_merMod <- function(model,
 
   if (type %in% c("simulate", "simulate_random")) {
     # simulate predictions
-    data_grid <- .do_simulate(model, terms, ci, type, ...)
+    data_grid <- .do_simulate(model, terms, ci, type, interval = interval, ...)
   } else {
     # regular predictions
     lme4_predictions <- suppressWarnings(stats::predict(
@@ -67,7 +72,7 @@ get_predictions_merMod <- function(model,
         vcov_predictions <- .standard_error_predictions(
           model = model,
           prediction_data = data_grid,
-          value_adjustment = value_adjustment,
+          typical = typical,
           terms = terms,
           type = type,
           condition = condition,
@@ -83,7 +88,7 @@ get_predictions_merMod <- function(model,
       }
       # if we successfully retrieved standard errors, calculate CI
       if (!is.null(standard_errors)) {
-        if (is.null(linv)) {
+        if (is.null(link_inverse)) {
           # calculate CI for linear mixed models
           data_grid$conf.low <- data_grid$predicted - tcrit * standard_errors
           data_grid$conf.high <- data_grid$predicted + tcrit * standard_errors
@@ -95,11 +100,11 @@ get_predictions_merMod <- function(model,
           # this has not been done before, since we return predictions on
           # the response scale directly, without any adjustment
           if (isTRUE(bias_correction)) {
-            data_grid$predicted <- linv(lf(data_grid$predicted))
+            data_grid$predicted <- link_inverse(lf(data_grid$predicted))
           }
           # calculate CI for glmm
-          data_grid$conf.low <- linv(lf(data_grid$predicted) - tcrit * standard_errors)
-          data_grid$conf.high <- linv(lf(data_grid$predicted) + tcrit * standard_errors)
+          data_grid$conf.low <- link_inverse(lf(data_grid$predicted) - tcrit * standard_errors)
+          data_grid$conf.high <- link_inverse(lf(data_grid$predicted) + tcrit * standard_errors)
         }
         # copy standard errors
         attr(data_grid, "std.error") <- standard_errors
@@ -118,3 +123,18 @@ get_predictions_merMod <- function(model,
 
   data_grid
 }
+
+#' @export
+get_predictions.lmerMod <- get_predictions.merMod
+
+#' @export
+get_predictions.glmerMod <- get_predictions.merMod
+
+#' @export
+get_predictions.nlmerMod <- get_predictions.merMod
+
+#' @export
+get_predictions.merModLmerTest <- get_predictions.merMod
+
+#' @export
+get_predictions.rlmerMod <- get_predictions.merMod

@@ -1,10 +1,25 @@
-get_predictions_ols <- function(model, fitfram, ci.lvl, ...) {
+#' @export
+get_predictions.ols <- function(model,
+                                data_grid = NULL,
+                                terms = NULL,
+                                ci_level = 0.95,
+                                type = NULL,
+                                typical = NULL,
+                                vcov = NULL,
+                                vcov_args = NULL,
+                                condition = NULL,
+                                interval = "confidence",
+                                bias_correction = FALSE,
+                                link_inverse = insight::link_inverse(model),
+                                model_info = NULL,
+                                verbose = TRUE,
+                                ...) {
   # does user want standard errors?
-  se <- !is.null(ci.lvl) && !is.na(ci.lvl)
+  se <- !is.null(ci_level) && !is.na(ci_level)
 
   # compute ci, two-ways
-  if (!is.null(ci.lvl) && !is.na(ci.lvl))
-    ci <- (1 + ci.lvl) / 2
+  if (!is.null(ci_level) && !is.na(ci_level))
+    ci <- (1 + ci_level) / 2
   else
     ci <- 0.975
 
@@ -14,7 +29,7 @@ get_predictions_ols <- function(model, fitfram, ci.lvl, ...) {
 
   prdat <- stats::predict(
     model,
-    newdata = fitfram,
+    newdata = data_grid,
     type = "lp",
     se.fit = se,
     ...
@@ -22,23 +37,23 @@ get_predictions_ols <- function(model, fitfram, ci.lvl, ...) {
 
   if (se) {
     # copy predictions
-    fitfram$predicted <- prdat$linear.predictors
+    data_grid$predicted <- prdat$linear.predictors
 
     # calculate CI
-    fitfram$conf.low <- prdat$linear.predictors - tcrit * prdat$se.fit
-    fitfram$conf.high <- prdat$linear.predictors + tcrit * prdat$se.fit
+    data_grid$conf.low <- prdat$linear.predictors - tcrit * prdat$se.fit
+    data_grid$conf.high <- prdat$linear.predictors + tcrit * prdat$se.fit
 
     # copy standard errors
-    attr(fitfram, "std.error") <- prdat$se.fit
+    attr(data_grid, "std.error") <- prdat$se.fit
 
   } else {
     # copy predictions
-    fitfram$predicted <- as.vector(prdat$linear.predictors)
+    data_grid$predicted <- as.vector(prdat$linear.predictors)
 
     # no CI
-    fitfram$conf.low <- NA
-    fitfram$conf.high <- NA
+    data_grid$conf.low <- NA
+    data_grid$conf.high <- NA
   }
 
-  fitfram
+  data_grid
 }

@@ -1,4 +1,4 @@
-simulate_predictions <- function(model, nsim, clean_terms, ci, type) {
+simulate_predictions <- function(model, nsim, clean_terms, ci, type, interval = "confidence") {
   fitfram <- .get_model_data(model)
   fam <- insight::model_info(model)
 
@@ -19,51 +19,22 @@ simulate_predictions <- function(model, nsim, clean_terms, ci, type) {
   fitfram$conf.high <- apply(sims, 1, stats::quantile, probs = ci)
   fitfram$std.error <- apply(sims, 1, stats::sd)
 
-  means_predicted <- tapply(
-    fitfram$predicted,
-    lapply(clean_terms, function(i) fitfram[[i]]),
-    mean,
-    na.rm = TRUE,
-    simplify = FALSE
-  )
+  means_predicted <- .aggregate_simulations(fitfram$predicted, clean_terms, fitfram)
+  means_conf_low <- .aggregate_simulations(fitfram$conf.low, clean_terms, fitfram)
+  means_conf_high <- .aggregate_simulations(fitfram$conf.high, clean_terms, fitfram)
+  means_se <- .aggregate_simulations(fitfram$std.error, clean_terms, fitfram)
 
-  means_conf_low <- tapply(
-    fitfram$conf.low,
-    lapply(clean_terms, function(i) fitfram[[i]]),
-    mean,
-    na.rm = TRUE,
-    simplify = FALSE
-  )
-
-  means_conf_high <- tapply(
-    fitfram$conf.high,
-    lapply(clean_terms, function(i) fitfram[[i]]),
-    mean,
-    na.rm = TRUE,
-    simplify = FALSE
-  )
-
-  means_se <- tapply(
-    fitfram$std.error,
-    lapply(clean_terms, function(i) fitfram[[i]]),
-    mean,
-    na.rm = TRUE,
-    simplify = FALSE
-  )
-
-  terms_df <- data.frame(
-    expand.grid(attributes(means_predicted)$dimnames),
-    stringsAsFactors = FALSE
-  )
-  colnames(terms_df) <- clean_terms
-  terms_df <- .convert_numeric_factors(terms_df)
+  colnames(means_predicted) <- c(clean_terms, "predicted")
+  colnames(means_conf_low) <- c(clean_terms, "conf.low")
+  colnames(means_conf_high) <- c(clean_terms, "conf.high")
+  colnames(means_se) <- c(clean_terms, "std.error")
 
   fitfram <- cbind(
-    terms_df,
-    predicted = unlist(lapply(means_predicted, function(i) if (is.null(i)) NA else i), use.names = FALSE),
-    conf.low = unlist(lapply(means_conf_low, function(i) if (is.null(i)) NA else i), use.names = FALSE),
-    conf.high = unlist(lapply(means_conf_high, function(i) if (is.null(i)) NA else i), use.names = FALSE),
-    std.error = unlist(lapply(means_se, function(i) if (is.null(i)) NA else i), use.names = FALSE)
+    means_predicted[clean_terms],
+    predicted = means_predicted$predicted,
+    conf.low = means_conf_low$conf.low,
+    conf.high = means_conf_high$conf.high,
+    std.error = means_se$std.error
   )
   rownames(fitfram) <- NULL
   fitfram <- fitfram[stats::complete.cases(fitfram), , drop = FALSE]
@@ -82,8 +53,7 @@ simulate_predictions <- function(model, nsim, clean_terms, ci, type) {
 }
 
 
-
-.do_simulate <- function(model, terms, ci, type = "simulate", ...) {
+.do_simulate <- function(model, terms, ci, type = "simulate", interval = "confidence", ...) {
   clean_terms <- .clean_terms(terms)
   add.args <- match.call(expand.dots = FALSE)[["..."]]
 
@@ -93,5 +63,16 @@ simulate_predictions <- function(model, nsim, clean_terms, ci, type) {
     nsim <- 1000
   }
 
-  simulate_predictions(model, nsim, clean_terms, ci, type)
+  simulate_predictions(model, nsim, clean_terms, ci, type, interval)
+}
+
+
+.aggregate_simulations <- function(sims, clean_terms, datagrid) {
+  stats::aggregate(
+    sims,
+    lapply(clean_terms, function(i) datagrid[[i]]),
+    mean,
+    na.rm = TRUE,
+    simplify = TRUE
+  )
 }

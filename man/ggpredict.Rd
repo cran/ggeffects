@@ -26,8 +26,7 @@ ggaverage(
   typical = "mean",
   condition = NULL,
   back_transform = TRUE,
-  vcov_fun = NULL,
-  vcov_type = NULL,
+  vcov = NULL,
   vcov_args = NULL,
   weights = NULL,
   verbose = TRUE,
@@ -40,7 +39,6 @@ ggeffect(
   ci_level = 0.95,
   bias_correction = FALSE,
   verbose = TRUE,
-  ci.lvl = ci_level,
   ...
 )
 
@@ -51,15 +49,13 @@ ggemmeans(
   type = "fixed",
   typical = "mean",
   condition = NULL,
-  back_transform = TRUE,
-  vcov_fun = NULL,
-  vcov_type = NULL,
-  vcov_args = NULL,
   interval = "confidence",
+  back_transform = TRUE,
+  vcov = NULL,
+  vcov_args = NULL,
   bias_correction = FALSE,
+  weights = NULL,
   verbose = TRUE,
-  ci.lvl = ci_level,
-  back.transform = back_transform,
   ...
 )
 
@@ -70,18 +66,12 @@ ggpredict(
   type = "fixed",
   typical = "mean",
   condition = NULL,
+  interval = "confidence",
   back_transform = TRUE,
-  vcov_fun = NULL,
-  vcov_type = NULL,
+  vcov = NULL,
   vcov_args = NULL,
-  interval,
-  verbose = TRUE,
-  ci.lvl = ci_level,
-  back.transform = back_transform,
-  vcov.fun = vcov_fun,
-  vcov.type = vcov_type,
-  vcov.args = vcov_args,
   bias_correction = FALSE,
+  verbose = TRUE,
   ...
 )
 }
@@ -150,10 +140,11 @@ i.e. roughly \verb{+/- 1.96 * SE}). See introduction of
 for more details.}
 
 \item{type}{Character, indicating whether predictions should be conditioned
-on specific model components or not. Consequently, most options only apply
-for survival models, mixed effects models and/or models with zero-inflation
-(and their Bayesian counter-parts); only exception is \code{type = "simulate"},
-which is available for some other model classes as well (which respond to
+on specific model components or not, or whether population or unit-level
+predictions are desired. Consequently, most options only apply for survival
+models, mixed effects models and/or models with zero-inflation (and their
+Bayesian counter-parts); only exception is \code{type = "simulate"}, which is
+available for some other model classes as well (which respond to
 \code{simulate()}).
 
 \strong{Note 1:} For \code{brmsfit}-models with zero-inflation component, there is no
@@ -171,73 +162,62 @@ passing a \code{glm} object would allow the options \code{"response"}, \code{"li
 options \code{"fixed"}, \code{"zero_inflated"} and \code{"zi_prob"} can also be used and will
 be "translated" into the corresponding \code{type} option of the model's respective
 \code{predict()}-method.
+
+\strong{Note 3:} If \code{margin = "marginalmeans"}, or when calling \code{ggemmeans()}
+respectively, \code{type = "random"} and \code{type = "zi_random"} are not available,
+i.e. no unit-level predictions are possible.
 \itemize{
 \item \code{"fixed"} (or \code{"count"})
 
 Predicted values are conditioned on the fixed effects or conditional
-model only (for mixed models: predicted values are on the population-level
-and \emph{confidence intervals} are returned, i.e. \code{re.form = NA} when calling
-\code{predict()}). For instance, for models fitted with \code{zeroinfl} from \strong{pscl},
-this would return the predicted mean from the count component (without
-zero-inflation). For models with zero-inflation component, this type calls
-\code{predict(..., type = "link")} (however, predicted values are
-back-transformed to the response scale, i.e. the conditional mean of the
-response).
+model only. For mixed models, predicted values are on the
+\emph{population-level}, i.e. \code{re.form = NA} when calling \code{predict()}. For
+models with zero-inflation component, this type would return the
+predicted mean from the count component (without conditioning on the
+zero-inflation part).
 \item \code{"random"}
 
-This only applies to mixed models, and \code{type = "random"} does not condition
-on the zero-inflation component of the model. \code{type = "random"} still
-returns population-level predictions, however, conditioned on random effects
-and considering individual level predictions, i.e. \code{re.form = NULL} when
-calling \code{predict()}. This may affect the returned predicted values, depending
-on whether \code{REML = TRUE} or \code{REML = FALSE} was used for model fitting.
-Furthermore, unlike \code{type = "fixed"}, intervals also consider the uncertainty
-in the variance parameters (the mean random effect variance, see \emph{Johnson
-et al. 2014} for details) and hence can be considered as \emph{prediction intervals}.
-For models with zero-inflation component, this type calls
-\code{predict(..., type = "link")} (however, predicted values are back-transformed
-to the response scale).
-
-To get predicted values for each level of the random effects groups, add the
-name of the related random effect term to the \code{terms}-argument
-(for more details, see
-\href{https://strengejacke.github.io/ggeffects/articles/introduction_effectsatvalues.html}{this vignette}).
+This only applies to mixed models, and \code{type = "random"} does not
+condition on the zero-inflation component of the model. Use this for
+\emph{unit-level} predictions, i.e. predicted values for each level of the
+random effects groups. Add the name of the related random effect term
+to the \code{terms}-argument (for more details, see \href{https://strengejacke.github.io/ggeffects/articles/introduction_effectsatvalues.html}{this vignette}).
 \item \code{"zero_inflated"} (or \code{"zi"})
 
-Predicted values are conditioned on the fixed effects and the zero-inflation
-component. For instance, for models fitted with \code{zeroinfl} from \strong{pscl},
-this would return the predicted (or expected) response (\code{mu*(1-p)}),
-and for \strong{glmmTMB}, this would return the expected response \code{mu*(1-p)}
-\emph{without} conditioning on random effects (i.e. random effect variances
-are not taken into account for the confidence intervals). For models with
-zero-inflation component, this type calls \code{predict(..., type = "response")}.
-See 'Details'.
+Predicted values are conditioned on the fixed effects and the
+zero-inflation component, returning the expected value of the response
+(\code{mu*(1-p)}). For For mixed models with zero-inflation component (e.g.
+from package \strong{glmmTMB}), this would return the expected response
+\code{mu*(1-p)} on the \emph{population-level}. See 'Details'.
 \item \code{"zi_random"} (or \code{"zero_inflated_random"})
 
-Predicted values are conditioned on the zero-inflation component and
-take the random effects uncertainty into account. For models fitted with
-\code{glmmTMB()}, \code{hurdle()} or \code{zeroinfl()}, this would return the
-expected value \code{mu*(1-p)}. For \strong{glmmTMB}, prediction intervals
-also consider the uncertainty in the random effects variances. This
-type calls \code{predict(..., type = "response")}. See 'Details'.
+This only applies to mixed models. Predicted values are conditioned on
+the fixed effects and the zero-inflation component. Use this for
+\emph{unit-level} predictions, i.e. predicted values for each level of the
+random effects groups. Add the name of the related random effect term to
+the \code{terms}-argument (for more details, see \href{https://strengejacke.github.io/ggeffects/articles/introduction_effectsatvalues.html}{this vignette}).
 \item \code{"zi_prob"}
 
-Predicted zero-inflation probability. For \strong{glmmTMB} models with
-zero-inflation component, this type calls \code{predict(..., type = "zlink")};
-models from \strong{pscl} call \code{predict(..., type = "zero")} and for
-\strong{GLMMadaptive}, \code{predict(..., type = "zero_part")} is called.
+Returns the predicted zero-inflation probability, i.e. probability of a
+structural or "true" zero (see
+\href{https://strengejacke.github.io/ggeffects/articles/introduction_comparisons_4.html}{this vignette}
+for a short introduction into zero-inflation models).
 \item \code{"simulate"}
 
-Predicted values and confidence resp. prediction intervals are
-based on simulations, i.e. calls to \code{simulate()}. This type
-of prediction takes all model uncertainty into account, including
-random effects variances. Currently supported models are objects of
-class \code{lm}, \code{glm}, \code{glmmTMB}, \code{wbm}, \code{MixMod} and \code{merMod}.
-See \code{...} for details on number of simulations.
-\item \code{"survival"} and \code{"cumulative_hazard"}
+Predicted values and confidence resp. prediction intervals are based on
+simulations, i.e. calls to \code{simulate()}. This type of prediction takes
+all model uncertainty into account. Currently supported models are
+objects of class \code{lm}, \code{glm}, \code{glmmTMB}, \code{wbm}, \code{MixMod} and \code{merMod}.
+Use \code{nsim} to set the number of simulated draws (see \code{...} for details).
+\item \code{"survival"}, \code{"cumulative_hazard"} and \code{"quantile"}
 
-Applies only to \code{coxph}-objects from the \strong{survial}-package and
-calculates the survival probability or the cumulative hazard of an event.
+\code{"survival"} and \code{"cumulative_hazard"} apply only to \code{coxph}-objects from
+the \strong{survial}-package. These options calculate the survival probability
+or the cumulative hazard of an event. \code{type = "quantile"} only applies to
+\code{survreg}-objects from package \strong{survival}, which returns the predicted
+quantiles. For this option, the \code{p} argument is passed to \code{predict()},
+so that quantiles for different probabilities can be calculated, e.g.
+\code{predict_response(..., type = "quantile", p = c(0.2, 0.5, 0.8))}.
 }
 
 When \code{margin = "empirical"} (or when calling \code{ggaverage()}), the \code{type}
@@ -271,54 +251,55 @@ log-, log-log, exp, sqrt and similar transformed responses will be
 back-transformed to original response-scale. See
 \code{\link[insight:find_transformation]{insight::find_transformation()}} for more details.}
 
-\item{vcov_fun}{Variance-covariance matrix used to compute uncertainty
-estimates (e.g., for confidence intervals based on robust standard errors).
-This argument accepts a covariance matrix, a function which returns a
-covariance matrix, or a string which identifies the function to be used to
-compute the covariance matrix.
+\item{vcov}{Variance-covariance matrix used to compute uncertainty estimates
+(e.g., for confidence intervals based on robust standard errors). This
+argument accepts a covariance matrix, a function which returns a covariance
+matrix, or a string which identifies the function to be used to compute the
+covariance matrix.
 \itemize{
-\item A (variance-covariance) matrix
+\item A covariance matrix
 \item A function which returns a covariance matrix (e.g., \code{stats::vcov()})
-\item A string which indicates the estimation type for the heteroscedasticity-consistent
-variance-covariance matrix, e.g. \code{vcov_fun = "HC0"}. Possible values are
-\code{"HC0"}, \code{"HC1"}, \code{"HC2"}, \code{"HC3"}, \code{"HC4"}, \code{"HC4m"}, and \code{"HC5"}, which
-will then call the \code{vcovHC()}-function from the \strong{sandwich} package, using
-the specified type. Further possible values are \code{"CR0"}, \code{"CR1"}, \code{"CR1p"},
-\code{"CR1S"}, \code{"CR2"}, and \code{"CR3"}, which will call the \code{vcovCR()}-function from
-the \strong{clubSandwich} package.
-\item A string which indicates the name of the \verb{vcov*()}-function from the
-\strong{sandwich} or \strong{clubSandwich} packages, e.g. \code{vcov_fun = "vcovCL"},
-which is used to compute (cluster) robust standard errors for predictions.
+\item A string which indicates the kind of uncertainty estimates to return.
+\itemize{
+\item Heteroskedasticity-consistent: \code{"HC"}, \code{"HC0"}, \code{"HC1"}, \code{"HC2"},
+\code{"HC3"}, \code{"HC4"}, \code{"HC4m"}, \code{"HC5"}. See \code{?sandwich::vcovHC}
+\item Cluster-robust: \code{"vcovCR"}, \code{"CR0"}, \code{"CR1"}, \code{"CR1p"}, \code{"CR1S"},
+\code{"CR2"}, \code{"CR3"}. See \code{?clubSandwich::vcovCR}.
+\item Bootstrap: \code{"BS"}, \code{"xy"}, \code{"fractional"}, \code{"jackknife"}, \code{"residual"},
+\code{"wild"}, \code{"mammen"}, \code{"norm"}, \code{"webb"}. See \code{?sandwich::vcovBS}
+\item Other \code{sandwich} package functions: \code{"HAC"}, \code{"PC"}, \code{"CL"}, or \code{"PL"}.
+}
 }
 
 If \code{NULL}, standard errors (and confidence intervals) for predictions are
 based on the standard errors as returned by the \code{predict()}-function.
-\strong{Note} that probably not all model objects that work with \code{predict_response()}
-are also supported by the \strong{sandwich} or \strong{clubSandwich} packages.
+\strong{Note} that probably not all model objects that work with
+\code{predict_response()} are also supported by the \strong{sandwich} or
+\strong{clubSandwich} packages.
 
 See details in \href{https://strengejacke.github.io/ggeffects/articles/practical_robustestimation.html}{this vignette}.}
 
-\item{vcov_type}{Character vector, specifying the estimation type for the
-robust covariance matrix estimation (see \code{?sandwich::vcovHC}
-or \code{?clubSandwich::vcovCR} for details). Only used when \code{vcov_fun} is a
-character string indicating one of the functions from those packages.
-When \code{vcov_fun} is a function, a possible \code{type} argument \emph{must} be provided
-via the \code{vcov_args} argument.}
-
-\item{vcov_args}{List of named vectors, used as additional arguments that
-are passed down to \code{vcov_fun}.}
+\item{vcov_args}{List of arguments to be passed to the function identified by
+the \code{vcov} argument. This function is typically supplied by the
+\strong{sandwich} or \strong{clubSandwich} packages. Please refer to their
+documentation (e.g., \code{?sandwich::vcovHAC}) to see the list of available
+arguments. If no estimation type (argument \code{type}) is given, the default
+type for \code{"HC"} equals the default from the \strong{sandwich} package; for type
+\code{"CR"} the default is set to \code{"CR3"}. For other defaults, refer to the
+documentation in the \strong{sandwich} or \strong{clubSandwich} package.}
 
 \item{weights}{This argument is used in two different ways, depending on the
 \code{margin} argument.
 \itemize{
-\item When \code{margin = "empirical"}, \code{weights} can either be a character vector,
-naming the weigthing variable in the data, or a vector of weights (of same
-length as the number of observations in the data). This variable will be
-used to weight adjusted predictions.
-\item When \code{margin = "marginalmeans"}, \code{weights} must be a character vector and
-is passed to \code{\link[emmeans:emmeans]{emmeans::emmeans()}}, specifying weights to use in averaging
-non-focal categorical predictors. See https://rvlenth.github.io/emmeans/reference/emmeans.html
-for details.
+\item When \code{margin = "empirical"} (or when calling \code{ggaverag()}), \code{weights} can
+either be a character vector, naming the weigthing variable in the data, or
+a vector of weights (of same length as the number of observations in the
+data). This variable will be used to weight adjusted predictions.
+\item When \code{margin = "marginalmeans"} (or when calling \code{ggemmeans()}), \code{weights}
+must be a character vector and is passed to \code{\link[emmeans:emmeans]{emmeans::emmeans()}},
+specifying weights to use in averaging non-focal categorical predictors.
+Options are \code{"equal"}, \code{"proportional"}, \code{"outer"}, \code{"cells"}, \code{"flat"},
+and \code{"show.levels"}. See \code{?emmeans::emmeans} for details.
 }}
 
 \item{verbose}{Toggle messages or warnings.}
@@ -328,28 +309,24 @@ back-transforming the predicted values (to the response scale) for
 non-Gaussian \emph{mixed models}. Back-transforming the the population-level
 predictions ignores the effect of the variation around the population mean,
 so the result on the original data scale is biased due to \emph{Jensen's
-inequality}. To apply bias-correction, a valid value of sigma is required,
-which is extracted by default using \code{\link[insight:get_variance]{insight::get_variance_residual()}}.
-Optionally, to provide own estimates of uncertainty, use the \code{sigma}
-argument. Note that \code{bias_correction} currently only applies to mixed models,
-where there are additive random components involved and where that
-bias-adjustment can be appropriate. If \code{ggemmeans()} is called,
-bias-correction can also be applied to GEE-models.}
-
-\item{ci.lvl, vcov.fun, vcov.type, vcov.args, back.transform}{Deprecated arguments.
-Please use \code{ci_level}, \code{vcov_fun}, \code{vcov_type}, \code{vcov_args} and \code{back_transform}
-instead.}
+inequality}. That means, when \code{type = "fixed"} (the default) and population
+level predictions are returned, it is recommended to set \code{bias_correction = TRUE}.
+To apply bias-correction, a valid value of sigma is required, which is
+extracted by default using \code{\link[insight:get_variance]{insight::get_variance_residual()}}. Optionally,
+to provide own estimates of uncertainty, use the \code{sigma} argument. Note that
+\code{bias_correction} currently only applies to mixed models, where there are
+additive random components involved and where that bias-adjustment can be
+appropriate. If \code{ggemmeans()} is called, bias-correction can also be applied
+to GEE-models.}
 
 \item{interval}{Type of interval calculation, can either be \code{"confidence"}
-(default) or \code{"prediction"}. May be abbreviated. Unlike \emph{confidence intervals},
-\emph{prediction intervals} include the residual variance (sigma^2) to account for
-the uncertainty of predicted values. For mixed models, \code{interval = "prediction"}
-is the default for \code{type = "random"}. When \code{type = "fixed"}, the default is
-\code{interval = "confidence"}. Note that prediction intervals are not available
-for all models, but only for models that work with \code{\link[insight:get_sigma]{insight::get_sigma()}}.
-For Bayesian models, when \code{interval = "confidence"}, predictions are based on
-posterior draws of the linear predictor \code{\link[rstantools:posterior_epred]{rstantools::posterior_epred()}}.
-If \code{interval = "prediction"}, \code{\link[rstantools:posterior_predict]{rstantools::posterior_predict()}} is called.}
+(default) or \code{"prediction"}. May be abbreviated. Unlike \emph{confidence
+intervals}, \emph{prediction intervals} include the residual variance (sigma^2) to
+account for the uncertainty of predicted values. Note that prediction
+intervals are not available for all models, but only for models that work
+with \code{\link[insight:get_sigma]{insight::get_sigma()}}. For Bayesian models, when \code{interval = "confidence"}, predictions are based on posterior draws of the linear
+predictor \code{\link[rstantools:posterior_epred]{rstantools::posterior_epred()}}. If \code{interval = "prediction"},
+\code{\link[rstantools:posterior_predict]{rstantools::posterior_predict()}} is called.}
 }
 \value{
 A data frame (with \code{ggeffects} class attribute) with consistent data columns:

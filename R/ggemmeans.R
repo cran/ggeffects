@@ -6,31 +6,44 @@ ggemmeans <- function(model,
                       type = "fixed",
                       typical = "mean",
                       condition = NULL,
-                      back_transform = TRUE,
-                      vcov_fun = NULL,
-                      vcov_type = NULL,
-                      vcov_args = NULL,
                       interval = "confidence",
+                      back_transform = TRUE,
+                      vcov = NULL,
+                      vcov_args = NULL,
                       bias_correction = FALSE,
+                      weights = NULL,
                       verbose = TRUE,
-                      ci.lvl = ci_level,
-                      back.transform = back_transform,
                       ...) {
   insight::check_if_installed("emmeans")
   additional_dot_args <- list(...)
 
+  ## TODO: remove deprecated later
+  vcov <- .prepare_vcov_args(vcov, ...)
+
+  # process vcov-arguments
+  vcov <- .get_variance_covariance_matrix(
+    model,
+    vcov,
+    vcov_args,
+    skip_if_null = TRUE,
+    verbose = verbose
+  )
+
+  # check formula
+  insight::formula_ok(model, verbose = verbose)
+
   # check arguments
-  interval <- match.arg(interval, choices = c("confidence", "prediction"))
+  interval <- insight::validate_argument(interval, c("confidence", "prediction"))
   model_name <- deparse(substitute(model))
   type <- .validate_type_argument(model, type, emmeans_call = TRUE)
 
-  # sanity check - bias correction only for mixed models for now
-  if (isTRUE(bias_correction) && !insight::is_mixed_model(model) && !inherits(model, c("gee", "geeglm"))) {
-    bias_correction <- FALSE
-    if (verbose) {
-      insight::format_alert("Bias-correction is currently only supported for mixed or gee models. No bias-correction is applied.") # nolint
-    }
-  }
+  # check if bias-correction is appropriate
+  bias_correction <- .check_bias_correction(
+    model,
+    type = "fixed",
+    bias_correction = bias_correction,
+    verbose = verbose
+  )
 
   # check if sigma is provided when `bias_correction = TRUE`, else use default
   if (isTRUE(bias_correction) && is.null(additional_dot_args$sigma)) {
@@ -39,44 +52,11 @@ ggemmeans <- function(model,
     residual_variance <- NULL
   }
 
-  ## TODO: remove deprecated later
-
-  # handle deprectated arguments
-  if (!missing(ci.lvl)) {
-    ci_level <- ci.lvl
-    insight::format_warning("Argument `ci.lvl` is deprecated and will be removed in the future. Please use `ci_level` instead.") # nolint
-  }
-  if (!missing(back.transform)) {
-    back_transform <- back.transform
-    insight::format_warning("Argument `back.transform` is deprecated and will be removed in the future. Please use `back_transform` instead.") # nolint
-  }
-
   # process "terms", so we have the default character format. Furthermore,
   # check terms argument, to make sure that terms were not misspelled and are
   # indeed existing in the data
   if (!missing(terms)) {
     terms <- .reconstruct_focal_terms(terms, model)
-  }
-
-  # prepare vcov arguments
-  if (is.null(vcov_fun)) {
-    vcov_info <- NULL
-  } else if (is.function(vcov_fun)) {
-    vcov_info <- list(
-      vcov.fun = vcov_fun,
-      vcov.args = vcov_args
-    )
-  } else if (is.matrix(vcov_fun)) {
-    vcov_info <- list(vcov.fun = list(vcov_fun))
-  } else {
-    vcov_info <- .prepare_vcov_args(
-      model,
-      vcov.fun = vcov_fun,
-      vcov.type = vcov_type,
-      vcov.args = vcov_args,
-      include_model = FALSE,
-      verbose = verbose
-    )
   }
 
   # tidymodels?
@@ -105,8 +85,8 @@ ggemmeans <- function(model,
   cleaned_terms <- .clean_terms(terms)
 
   data_grid <- .data_grid(
-    model = model, model_frame = model_frame, terms = terms, value_adjustment = typical,
-    condition = condition, emmeans.only = TRUE, show_pretty_message = verbose,
+    model = model, model_frame = model_frame, terms = terms, typical = typical,
+    condition = condition, emmeans_only = TRUE, show_pretty_message = verbose,
     verbose = verbose
   )
 
@@ -125,6 +105,7 @@ ggemmeans <- function(model,
       cleaned_terms,
       bias_correction = bias_correction,
       residual_variance = residual_variance,
+      weights = weights,
       ...
     )
 
@@ -138,10 +119,11 @@ ggemmeans <- function(model,
       model = model,
       model_frame = model_frame,
       preds = preds,
-      ci.lvl = ci_level,
+      ci_level = ci_level,
+      interval = interval,
       terms = terms,
       cleaned_terms = cleaned_terms,
-      value_adjustment = typical,
+      typical = typical,
       condition = condition,
       nsim = nsim,
       type = type
@@ -159,9 +141,10 @@ ggemmeans <- function(model,
       model,
       data_grid,
       cleaned_terms,
-      ci.lvl,
+      ci_level,
       bias_correction = bias_correction,
       residual_variance = residual_variance,
+      weights = weights,
       ...
     )
 
@@ -190,14 +173,14 @@ ggemmeans <- function(model,
       model,
       data_grid,
       cleaned_terms,
-      ci.lvl = ci_level,
+      ci_level = ci_level,
       pmode,
-      type,
       model_info,
       interval = interval,
-      vcov_info = vcov_info,
+      vcov_info = list(vcov = vcov, vcov_args = vcov_args),
       bias_correction = bias_correction,
       residual_variance = residual_variance,
+      weights = weights,
       verbose = verbose,
       ...
     )
@@ -238,27 +221,7 @@ ggemmeans <- function(model,
     cleaned_terms = cleaned_terms
   )
 
-  # check if outcome is log-transformed, and if so,
-  # back-transform predicted values to response scale
-  # but first, save original predicted values, to save as attribute
-  if (back_transform) {
-    untransformed.predictions <- result$predicted
-    response.transform <- insight::find_terms(model)[["response"]]
-  } else {
-    untransformed.predictions <- response.transform <- NULL
-  }
-  result <- .back_transform_response(model, result, back_transform, verbose = verbose)
-
-  attr(result, "model.name") <- model_name
-
-  # add raw data as well
-  attr(result, "rawdata") <- .back_transform_data(
-    model,
-    mydf = .get_raw_data(model, original_model_frame, cleaned_terms),
-    back.transform = back_transform
-  )
-
-  .post_processing_labels(
+  .post_processing_labels_and_data(
     model = model,
     result = result,
     original_model_frame = original_model_frame,
@@ -270,12 +233,11 @@ ggemmeans <- function(model,
     prediction.interval = attr(prediction_data, "prediction.interval", exact = TRUE),
     at_list = data_grid,
     condition = condition,
-    ci.lvl = ci_level,
-    untransformed.predictions = untransformed.predictions,
-    back.transform = back_transform,
-    response.transform = response.transform,
+    ci_level = ci_level,
+    back_transform = back_transform,
     margin = "marginalmeans",
-    vcov.args = .get_variance_covariance_matrix(model, vcov_fun, vcov_args, vcov_type, skip_if_null = TRUE, verbose = FALSE), # nolint,
+    model_name = model_name,
+    vcov_args = vcov,
     bias_correction = bias_correction,
     verbose = verbose
   )

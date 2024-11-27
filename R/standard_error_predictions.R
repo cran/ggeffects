@@ -1,38 +1,34 @@
 # get standard errors of predictions from model matrix and vcov ----
 
-.standard_error_predictions <- function(
-  model,
-  prediction_data,
-  value_adjustment,
-  terms,
-  model_class = NULL,
-  type = "fixed",
-  vcov.fun = NULL,
-  vcov.type = NULL,
-  vcov.args = NULL,
-  condition = NULL,
-  interval = NULL) {
-
+.standard_error_predictions <- function(model,
+                                        prediction_data,
+                                        typical,
+                                        terms,
+                                        type = "fixed",
+                                        vcov = NULL,
+                                        vcov_args = NULL,
+                                        condition = NULL,
+                                        interval = NULL,
+                                        verbose = TRUE) {
   se <- tryCatch(
     .safe_se_from_vcov(
       model,
       prediction_data,
-      value_adjustment,
+      typical,
       terms,
-      model_class,
       type,
-      vcov.fun,
-      vcov.type,
-      vcov.args,
+      vcov,
+      vcov_args,
       condition,
-      interval
+      interval,
+      verbose = verbose
     ),
     error = function(x) x,
     warning = function(x) NULL,
     finally = function(x) NULL
   )
 
-  if (is.null(se) || inherits(se, c("error", "simpleError"))) {
+  if (verbose && (is.null(se) || inherits(se, c("error", "simpleError")))) {
     insight::print_color("Error: Confidence intervals could not be computed.\n", "red")
     if (inherits(se, c("error", "simpleError"))) {
       cat(sprintf("* Reason: %s\n", insight::safe_deparse(se[[1]])))
@@ -50,15 +46,14 @@
 
 .safe_se_from_vcov <- function(model,
                                prediction_data,
-                               value_adjustment,
+                               typical,
                                terms,
-                               model_class,
                                type,
-                               vcov.fun,
-                               vcov.type,
-                               vcov.args,
+                               vcov,
+                               vcov_args,
                                condition,
-                               interval) {
+                               interval,
+                               verbose = TRUE) {
 
   model_frame <- .get_model_data(model)
 
@@ -86,7 +81,7 @@
     model,
     model_frame,
     terms,
-    value_adjustment = value_adjustment,
+    typical = typical,
     factor_adjustment = FALSE,
     show_pretty_message = FALSE,
     condition = condition,
@@ -133,13 +128,20 @@
   rownames(newdata) <- NULL
   rownames(prediction_data) <- NULL
 
-  vmatrix <- .safe(
-    .vcov_helper(model, model_frame, model_class, newdata, vcov.fun, vcov.type, vcov.args, terms, full.vcov = FALSE)
-  )
+  vmatrix <- .safe(.vcov_helper(
+    model,
+    model_frame,
+    newdata,
+    vcov,
+    vcov_args,
+    terms,
+    full.vcov = FALSE,
+    verbose = verbose
+  ))
 
   pr_int <- FALSE
 
-  if (is.null(vmatrix)) {
+  if (is.null(vmatrix) && verbose) {
     insight::format_alert("Could not compute variance-covariance matrix of predictions. No confidence intervals are returned.") # nolint
     se.fit <- NULL
   } else {
@@ -161,7 +163,7 @@
     match_len <- isTRUE(n_pred %% n_se == 0)
 
     # shorten to length of prediction_data
-    if (!is.null(model_class) && model_class %in% c("polr", "multinom", "mixor", "multinom_weightit")) {
+    if (inherits(model, c("polr", "multinom", "mixor", "multinom_weightit", "ordinal_weightit"))) {
       se.fit <- rep(se.fit, each = .n_distinct(prediction_data$response.level))
     } else if (type == "random" && n_se < n_pred && match_len) {
       se.fit <- rep(se.fit, each = n_pred / n_se)

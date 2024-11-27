@@ -16,6 +16,7 @@ hypothesis_test(object, ...)
   terms = NULL,
   by = NULL,
   test = "pairwise",
+  test_args = NULL,
   equivalence = NULL,
   scale = "response",
   p_adjust = NULL,
@@ -23,6 +24,7 @@ hypothesis_test(object, ...)
   ci_level = 0.95,
   collapse_levels = FALSE,
   margin = "mean_reference",
+  condition = NULL,
   engine = "marginaleffects",
   verbose = TRUE,
   ...
@@ -57,11 +59,10 @@ See examples at the bottom of
 for further details.
 
 To define a heteroscedasticity-consistent variance-covariance matrix, you can
-either use the same arguments as for \code{predict_response()} etc., namely
-\code{vcov_fun}, \code{vcov_type} and \code{vcov_args}. These are then transformed into a
-matrix and passed down to the \code{vcov} argument in \strong{marginaleffects}. Or you
-directly use the \code{vcov} argument. See \code{?marginaleffects::slopes} for further
-details.}
+either use the same arguments as for \code{predict_response()} etc., namely \code{vcov}
+and \code{vcov_args}. These are then transformed into a matrix and passed down to
+the \code{vcov} argument in \strong{marginaleffects}. Or you directly use the \code{vcov}
+argument. See \code{?marginaleffects::slopes} for further details.}
 
 \item{terms}{If \code{object} is an object of class \code{ggeffects}, the same \code{terms}
 argument is used as for the predictions, i.e. \code{terms} can be ignored. Else,
@@ -90,7 +91,8 @@ the average over \emph{all} levels).
 the average over \emph{all other} levels, excluding the contrast that is being
 tested).
 \item \code{"interaction"} to test interaction contrasts (difference-in-difference
-contrasts).
+contrasts). More flexible interaction contrasts can be calcualted using
+the \code{test_args} argument.
 \item \code{"consecutive"} to test contrasts between consecutive levels of a predictor.
 \item \code{"polynomial"} to test orthogonal polynomial contrasts, assuming
 equally-spaced factor levels.
@@ -107,6 +109,13 @@ and pairwise comparisons}.
 Technical details about the packages used as back-end to calculate contrasts
 and pairwise comparisons are provided in the section \emph{Packages used as back-end
 to calculate contrasts and pairwise comparisons} below.}
+
+\item{test_args}{Optional arguments passed to \code{test}, typically provided as
+named list. Only applies to those options that use the \strong{emmeans} package
+as backend, e.g. if \code{test = "interaction"}, \code{test_args} will be passed to
+\code{emmeans::contrast(interaction = test_args)}. For other \emph{emmeans} options
+(like \code{"cotrast"}, \code{"exclude"}, \code{"consecutive"} and so on), \code{test_args} will
+be passed to the \code{option} argument in \code{emmeans::contrast()}.}
 
 \item{equivalence}{ROPE's lower and higher bounds. Should be \code{"default"} or
 a vector of length two (e.g., \code{c(-0.1, 0.1)}). If \code{"default"},
@@ -165,6 +174,10 @@ term label (e.g., \code{"level a-level a"} becomes \code{"level a"}). See 'Examp
 non-focal terms. See \code{\link[=predict_response]{predict_response()}} for details. If \code{object} is an
 object of class \code{ggeffects}, the same \code{margin} argument is used as for the
 predictions, i.e. \code{margin} can be ignored.}
+
+\item{condition}{Named character vector, which indicates covariates that
+should be held constant at specific values, for instance
+\code{condition = c(covariate1 = 20, covariate2 = 5)}.}
 
 \item{engine}{Character string, indicates the package to use for computing
 contrasts and comparisons. Usually, this argument can be ignored, unless you
@@ -296,6 +309,8 @@ to calculate interaction contrasts (difference-in-difference contrasts),
 \code{"consecutive"} to calculate contrasts between consecutive levels of a predictor,
 or a data frame with custom contrasts. If \code{test} is one of the latter options,
 and \code{engine} is not specified, the \code{engine} is automatically set to \code{"emmeans"}.
+Additionally, the \code{test_args} argument can be used to specify further options
+for those contrasts. See 'Examples' and documentation of \code{test_args}.
 
 If the \strong{marginaleffects} package is not installed, the \strong{emmeans} package is
 used automatically. If this package is not installed as well,
