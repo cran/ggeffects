@@ -1,3 +1,18 @@
+# ggeffects 2.1.0
+
+## Changes
+
+* The `terms` argument can now include up to five focal terms (formerly: four).
+  Accordingly, the `plot()` method was revised. For four focal terms, a facet
+  grid is used to plot all relevant panels. For five focal terms, multiple
+  plots with facet grids are arranged using the **patchwork** package.
+
+* `values_at()` gains a new `"threenum"` option.
+
+* The `test` argument is `test_predictions()` can now also be a formula to
+  calculate consecutive contrasts, contrasts against the reference level or
+  against the "average" factor level.
+
 # ggeffects 2.0.0
 
 ## Breaking changes

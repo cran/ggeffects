@@ -1,3 +1,4 @@
+skip_on_cran()
 skip_on_os(c("mac", "solaris"))
 skip_if_not_installed("sjlabelled")
 skip_if_not_installed("datawizard")
@@ -217,7 +218,7 @@ test_that("only one legend for multiple panels", {
   mydf <- predict_response(fit, terms = c("c12hour", "c172code", "c161sex", "neg_c_7"))
   vdiffr::expect_doppelganger(
     "One legend for panels",
-    plot(mydf, one_plot = TRUE)
+    plot(mydf)
   )
 })
 
@@ -267,5 +268,22 @@ test_that("test plots from vignette", {
   vdiffr::expect_doppelganger(
     "dotted-error-bars",
     plot(dat, ci_style = "dot")
+  )
+})
+
+
+test_that("test plots polr", {
+  skip_if_not_installed("MASS")
+  data(housing, package = "MASS")
+  fit <- MASS::polr(Sat ~ Infl + Type + Cont + Freq, data = housing)
+  pr <- predict_response(fit, c("Infl", "Type", "Cont"))
+  vdiffr::expect_doppelganger(
+    "polr-1",
+    plot(pr)
+  )
+  pr <- predict_response(fit, c("Infl", "Type", "Cont", "Freq"))
+  vdiffr::expect_doppelganger(
+    "polr-2",
+    plot(pr)
   )
 })

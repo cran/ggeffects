@@ -28,6 +28,12 @@
 #' available, but `predict_response()` as a "wrapper" around these functions is
 #' the preferred way to do this now.
 #'
+#' - `ggpredict()` calls `get_predictions()` (which in turn calls
+#'   `stats::predict()`)
+#' - `ggemmeans()` calls `emmeans::emmeans()`
+#' - `ggaverage()` calls `marginaleffects::avg_predictions()`
+#' - `ggeffect()` calls `effects::Effect()`
+#'
 #' @param model A model object, or a list of model objects.
 #' @param typical Character vector, naming the function to be applied to the
 #' covariates (non-focal terms) over which the effect is "averaged". The
@@ -70,9 +76,6 @@ ggpredict <- function(model,
                       ...) {
   # check arguments
   type <- .validate_type_argument(model, type)
-
-  ## TODO: remove deprecated later
-  vcov <- .prepare_vcov_args(vcov, ...)
 
   # check formula
   insight::formula_ok(model, verbose = verbose)

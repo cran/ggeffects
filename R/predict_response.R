@@ -46,8 +46,8 @@
 #'   - A data frame representing a "data grid" or "reference grid". Predictions
 #'     are then made for all combinations of the variables in the data frame.
 #'
-#' `terms` at least requires one variable name. The maximum length is four terms,
-#' where the second to fourth term indicate the groups, i.e. predictions of the first
+#' `terms` at least requires one variable name. The maximum length is five terms,
+#' where the second to fifth term indicate the groups, i.e. predictions of the first
 #' term are grouped at meaningful values or levels of the remaining terms (see
 #' [`values_at()`]). It is also possible to define specific values for focal
 #' terms, at which adjusted predictions should be calculated (see details below).
@@ -646,9 +646,6 @@ predict_response <- function(model,
       "counterfactual", "full_data", "average", "marginaleffects"
     )
   )
-
-  ## TODO: remove deprecated later
-  vcov <- .prepare_vcov_args(vcov, ...)
 
   # save name, so it can later be retrieved from environment
   model_name <- insight::safe_deparse(substitute(model))

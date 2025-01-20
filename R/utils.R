@@ -38,9 +38,9 @@
   }
 
   # check for correct length of vector
-  if (length(terms) > 4) {
-    insight::format_alert("`terms` must have indicate more than four focal terms. Using first four variable names as focal terms now.")
-    terms <- terms[1:4]
+  if (length(terms) > 5) {
+    insight::format_alert("`terms` must have indicate more than five focal terms. Using first five variable names as focal terms now.")
+    terms <- terms[1:5]
   }
 
   out_msg <- NULL
@@ -167,6 +167,17 @@
     facet <- as.factor(1)
   }
 
+  if (length(terms) > 3) {
+    panel <- .as_label(
+      mf[[terms[4]]],
+      prefix = FALSE,
+      drop.na = TRUE,
+      drop.levels = !is.numeric(mf[[terms[4]]])
+    )
+  } else {
+    panel <- as.factor(1)
+  }
+
   # return all as data.frame
   tryCatch(
     .data_frame(
@@ -174,6 +185,7 @@
       x = x,
       group = group,
       facet = facet,
+      panel = panel,
       rowname = mf$rowname
     ),
     error = function(x) NULL,
