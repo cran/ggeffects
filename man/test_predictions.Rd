@@ -22,9 +22,9 @@ hypothesis_test(object, ...)
   p_adjust = NULL,
   df = NULL,
   ci_level = 0.95,
-  collapse_levels = FALSE,
   margin = "mean_reference",
   condition = NULL,
+  collapse_levels = FALSE,
   engine = "marginaleffects",
   verbose = TRUE,
   ...
@@ -54,9 +54,6 @@ grid and to \code{\link[marginaleffects:predictions]{marginaleffects::prediction
 For instance, arguments \code{type} or \code{transform} can be used to back-transform
 comparisons and contrasts to different scales. \code{vcov} can be used to
 calculate heteroscedasticity-consistent standard errors for contrasts.
-See examples at the bottom of
-\href{https://strengejacke.github.io/ggeffects/articles/introduction_comparisons_1.html}{this vignette}
-for further details.
 
 To define a heteroscedasticity-consistent variance-covariance matrix, you can
 either use the same arguments as for \code{predict_response()} etc., namely \code{vcov}
@@ -186,10 +183,6 @@ the model using \code{\link[insight:get_df]{insight::get_df()}} with \code{type 
 is an object of class \code{ggeffects}, the same \code{ci_level} argument is used as
 for the predictions, i.e. \code{ci_level} can be ignored.}
 
-\item{collapse_levels}{Logical, if \code{TRUE}, term labels that refer to identical
-levels are no longer separated by "-", but instead collapsed into a unique
-term label (e.g., \code{"level a-level a"} becomes \code{"level a"}). See 'Examples'.}
-
 \item{margin}{Character string, indicates the method how to marginalize over
 non-focal terms. See \code{\link[=predict_response]{predict_response()}} for details. If \code{object} is an
 object of class \code{ggeffects}, the same \code{margin} argument is used as for the
@@ -198,6 +191,10 @@ predictions, i.e. \code{margin} can be ignored.}
 \item{condition}{Named character vector, which indicates covariates that
 should be held constant at specific values, for instance
 \code{condition = c(covariate1 = 20, covariate2 = 5)}.}
+
+\item{collapse_levels}{Logical, if \code{TRUE}, term labels that refer to identical
+levels are no longer separated by "-", but instead collapsed into a unique
+term label (e.g., \code{"level a-level a"} becomes \code{"level a"}). See 'Examples'.}
 
 \item{engine}{Character string, indicates the package to use for computing
 contrasts and comparisons. Usually, this argument can be ignored, unless you
@@ -230,14 +227,6 @@ Function to test differences of adjusted predictions for
 statistical significance. This is usually called contrasts or (pairwise)
 comparisons, or "marginal effects". \code{hypothesis_test()} is an alias.
 }
-\section{Introduction into contrasts and pairwise comparisons}{
-
-
-There are many ways to test contrasts or pairwise comparisons. A
-detailed introduction with many (visual) examples is shown in
-\href{https://strengejacke.github.io/ggeffects/articles/introduction_comparisons_1.html}{this vignette}.
-}
-
 \section{Simple workflow for pairwise comparisons}{
 
 
@@ -375,7 +364,7 @@ Use \verb{options(<option_name> = NULL)} to remove the option.
 }
 
 \examples{
-\dontshow{if (requireNamespace("marginaleffects") && requireNamespace("parameters") && interactive()) (if (getRversion() >= "3.4") withAutoprint else force)(\{ # examplesIf}
+\dontshow{if (all(insight::check_if_installed(c("parameters", "marginaleffects", "modelbased"), quietly = TRUE)) && interactive()) (if (getRversion() >= "3.4") withAutoprint else force)(\{ # examplesIf}
 \donttest{
 data(efc)
 efc$c172code <- as.factor(efc$c172code)
