@@ -3,7 +3,7 @@ Type: Package
 Encoding: UTF-8
 Title: Create Tidy Data Frames of Marginal Effects for 'ggplot' from
         Model Outputs
-Version: 2.2.0
+Version: 2.2.1
 Authors@R: c(
       person("Daniel", "Lüdecke", role = c("aut", "cre"), email = "d.luedecke@uke.de", comment = c(ORCID = "0000-0002-8895-3206")),
       person("Frederik", "Aust", role = "ctb", comment = c(ORCID = "0000-0003-4900-788X")),
@@ -43,11 +43,11 @@ Config/testthat/edition: 3
 License: MIT + file LICENSE
 LazyData: true
 NeedsCompilation: no
-Packaged: 2025-02-05 21:40:09 UTC; Daniel
+Packaged: 2025-03-11 21:42:16 UTC; Daniel
 Author: Daniel Lüdecke [aut, cre] (<https://orcid.org/0000-0002-8895-3206>),
   Frederik Aust [ctb] (<https://orcid.org/0000-0003-4900-788X>),
   Sam Crawley [ctb] (<https://orcid.org/0000-0002-7847-0411>),
   Mattan S. Ben-Shachar [ctb] (<https://orcid.org/0000-0002-4287-4801>),
   Sean C. Anderson [ctb] (<https://orcid.org/0000-0001-9563-1937>)
 Repository: CRAN
-Date/Publication: 2025-02-05 22:40:01 UTC
+Date/Publication: 2025-03-11 22:30:01 UTC

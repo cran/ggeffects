@@ -1,7 +1,7 @@
-1f5b6ac850c8317e40dd137e7c6f4aab *DESCRIPTION
+1a501736053daba514315051fb94ded4 *DESCRIPTION
 1c90d411b3025ec3fc9f2945f7ece11e *LICENSE
-fd152123d06d8cdeb2f93e25ba39bf91 *NAMESPACE
-4af28ba3423316eb192b50352568e2c7 *NEWS.md
+4928f643076e2246074c2c99e9c262c1 *NAMESPACE
+8d7377e25a477f7fad325c16b59dbdd2 *NEWS.md
 6a9c1d3a9386da5be8ba910d9aea2ba3 *R/backports.R
 ce45be09a306a1f566441fec6045ed62 *R/coffee_data.R
 9263a3e1fd1992505146ba3a7c1698c1 *R/collapse_re_data.R
@@ -66,7 +66,6 @@ f15789f8fce088d595147136caf2630d *R/ggemmeans.R
 6dfb9dea27ae02dfeedf3c136fc31207 *R/ggemmeans_zi_predictions.R
 0ae7bb6f29827f66184fffc1a2cce43b *R/ggpredict.R
 6855834fa04c9fae9b8b35fba6496403 *R/install_latest.R
-83ed814d7dc83b8d4458b3bb03a2af0a *R/johnson_neyman.R
 99aa42190f35a337b9925d7683eb7a5b *R/moderator_pattern.R
 389de085fc466dd2f04a1aeb67ca9a21 *R/new_data.R
 663b9224f70ed6cc44256e486fb12244 *R/plot.R
@@ -104,7 +103,7 @@ c3512772c612d4a863d7b3904cacbc1c *R/utils_reshape.R
 0124db5a8a3bd4e837a22d0b126c4958 *R/vcov.R
 d19e5e7fd0fd5dac9c08d8a824cc235f *R/zzz.R
 97b42fb565604233bb0b241dca4bca24 *README.md
-cd6c24cb52f32d7b8c1373e3c1f70066 *build/vignette.rds
+7e20382095070c8cea2c7a6e562392d3 *build/vignette.rds
 a822d78e57301c99db6815520e7e2b53 *data/coffee_data.rda
 031665e59ce51cb7336cfbe3fe470e32 *data/efc.RData
 6aa2e9c8919bd029aadbaff3d9b7e246 *data/efc_test.RData
@@ -132,7 +131,6 @@ f0ba3d8641e41b2cd17f281e41ea2e82 *man/fish.Rd
 d6f1b8fac0efb2928e759d1c4e9c770b *man/get_title.Rd
 640b585c10fb910764036d42813ed0c9 *man/ggpredict.Rd
 f6369fda3c0267b8c4350035e885ae64 *man/install_latest.Rd
-44d8d2328e2d040ab5830be7c3a8bde6 *man/johnson_neyman.Rd
 c8c28686f3ae5cd23304e1373d294640 *man/lung2.Rd
 e400b0a6268438123910a6524812d3d7 *man/new_data.Rd
 e89fc20adafc142d52376ebfae7e08ff *man/plot.Rd
@@ -156,7 +154,7 @@ e78c4ec1f8ea17fe2cb91978fdca9245 *tests/testthat/test-as_data_frame.R
 75c82025d8a792cb86e6362e26c7ab8c *tests/testthat/test-averaging.R
 e05b0f702c11391242666d1d2dd2611d *tests/testthat/test-avg_predictions.R
 ce6e61fc5e1b77ed6911bde26ecdc68a *tests/testthat/test-backtransform_response.R
-8458a29ff279e217a9b28c1dc6681245 *tests/testthat/test-betareg.R
+f59b727e40d5370d96d4deb580a2983e *tests/testthat/test-betareg.R
 a8d665f4ddc405966dfa445706e544df *tests/testthat/test-bias_correction.R
 181c852a7f23875e6445170e667c4f3d *tests/testthat/test-brglm.R
 b05c41b8afaca17f967f29733a924e40 *tests/testthat/test-brms-categ-cum.R
@@ -189,16 +187,15 @@ ba5b83cc0faa76b0bd7677859b05b8db *tests/testthat/test-gamlss.R
 313eacdb8faa8a057604a276cad87372 *tests/testthat/test-gee.R
 aab6751e941a4a2efa397286d5f21288 *tests/testthat/test-geeglm.R
 e50e0b9512b8a89945999779cdcf82b4 *tests/testthat/test-get_titles.R
-0a0823a84c2f87d0a7c9c8b8115ef4cf *tests/testthat/test-ggaverage.R
+bca3b7aa84301c6eb3d0389edd99c6d7 *tests/testthat/test-ggaverage.R
 695c096086e18081bd32716f5d9a0e0d *tests/testthat/test-ggeffect.R
 963606ec0fcf1ec10949a1b7f86fe96e *tests/testthat/test-glm.R
 57ab94f09839ab816d618d6a240f6199 *tests/testthat/test-glmer.R
 e5ed7ff13e35ce344540fc2164868d39 *tests/testthat/test-glmmTMB.R
 f49a81a578b529078b681fe133b99bb0 *tests/testthat/test-glmrob_base.R
 e05d7208f667e8e1d921bf554a115190 *tests/testthat/test-gls.R
-03465d578409dabeb46f3ff88a7abc07 *tests/testthat/test-interval_re.R
+ceecbd5d1a71df9993c186945300c77f *tests/testthat/test-interval_re.R
 c9d11dbfa66c27b21945997f5194bc87 *tests/testthat/test-ivreg.R
-cef4b6571757bc119b2ee4567ed59594 *tests/testthat/test-johnson_neyman.R
 b1e65f1123214580953d8f53e0a3f3f0 *tests/testthat/test-linear-models.R
 fb7846a9083f06888b53b13c305052bc *tests/testthat/test-list_terms.R
 743c10917eb8ef086f139e7d6e684c77 *tests/testthat/test-lmer.R
@@ -228,7 +225,6 @@ eace60e6816df08415c7c76923470aa1 *tests/testthat/test-plot-show_data.R
 24183338a838aba360ff63343512124a *tests/testthat/test-poisson.R
 0c997d6a2bf43d6917e2cebcfdebd290 *tests/testthat/test-polr.R
 97b6b308f67a65d5a0c0744571659f4e *tests/testthat/test-poly-zeroinf.R
-98b1823eeceb3602b0fbdd0cb76a32bc *tests/testthat/test-pool_comparisons.R
 b54277913f522f051b71f38324814022 *tests/testthat/test-pool_predictions.R
 eab2102f387549747a9b760aee70b787 *tests/testthat/test-prediction_interval.R
 6c7195b9a444522b448be2000da7c6e0 *tests/testthat/test-print.R
@@ -236,8 +232,6 @@ aaf48fbf79c916742bc0c63634d29767 *tests/testthat/test-print_digits.R
 0731648382a79841ec003ff62645ce01 *tests/testthat/test-print_md.R
 822a37a203c3caa753136274eda219ff *tests/testthat/test-print_subsets.R
 6d6d61b13e305c0750eb11e0e455dcdf *tests/testthat/test-print_test_predictions-ordinal.R
-7b57e5b1f6028641c214c9a29904d07b *tests/testthat/test-print_test_predictions.R
-26e40a11238355526add2290026f0439 *tests/testthat/test-print_zero_inflation.R
 159c64c3b7c7c284f98dd5fa6c06d821 *tests/testthat/test-raw_data.R
 84d95eecacf9a51453235734c4f5466b *tests/testthat/test-resid_over_grid.R
 921e8e95b9c8bc9b8906d643cb2ddedc *tests/testthat/test-rq.R
@@ -251,15 +245,9 @@ ee03496bdb059eba3cfba290a466ce92 *tests/testthat/test-speedglm.R
 5e90aa9159a54e5efd80ab49693a6a22 *tests/testthat/test-survey.R
 7e0584ee351d62a21817ad5a209b9e03 *tests/testthat/test-survreg.R
 478303c3ae705e88f2ebd37c506f9389 *tests/testthat/test-svyglmnb.R
-f25bbd307c413fb3a671f9d66fd1c0eb *tests/testthat/test-test_predictions-formula.R
-465d441c5db836f0f14abff0c1ad958e *tests/testthat/test-test_predictions-margin.R
-e7083dc16bd17d05f0414ebca5502ef0 *tests/testthat/test-test_predictions-mixed.R
-8417027c08d2114d25c8bdf3be78738c *tests/testthat/test-test_predictions_emmeans.R
-17bfaa4f12bfcfccfa4c93c1ecec22c4 *tests/testthat/test-test_predictions_ggeffects.R
 33cddc2e643b70e06685e6639f45f0f6 *tests/testthat/test-tibble.R
 1b4c5fb1cf284efb342b0970d578b0b5 *tests/testthat/test-tobit.R
 63ca0bd04ba97919523b0c749ee08f34 *tests/testthat/test-typical.R
-25621a4235ce1719e62aea1301869827 *tests/testthat/test-vcov.R
 5ea321cff8410cfb56e35b829d4a9ceb *tests/testthat/test-vgam.R
 9b23b75cb25cf1c82f62c6ae9495e07d *tests/testthat/test-vglm.R
 cd700efe73112eb46a45905ccb65ad86 *tests/testthat/test-zeroinfl.R
